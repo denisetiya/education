@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoleBasedRedirect } from '../components/ProtectedRoute';
+import { Login3D } from '../components/Login3D';
 
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -12,6 +13,15 @@ export const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+
+    // Responsive state
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,65 +44,103 @@ export const LoginPage: React.FC = () => {
         <div style={{
             minHeight: '100vh',
             display: 'flex',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            flexDirection: isMobile ? 'column' : 'row',
+            justifyContent: isMobile ? 'center' : 'flex-start',
+            alignItems: isMobile ? 'center' : 'stretch',
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', 
             position: 'relative',
             overflow: 'hidden'
         }}>
-            {/* Background Decorations */}
-            <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '400px', height: '400px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%' }}></div>
-            <div style={{ position: 'absolute', bottom: '-50px', left: '-50px', width: '300px', height: '300px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }}></div>
-            <div className="animate-blob" style={{ position: 'absolute', top: '30%', left: '10%', width: '200px', height: '200px', background: 'rgba(255,255,255,0.08)', borderRadius: '50%', filter: 'blur(40px)' }}></div>
+            
+            {/* 3D Scene Background Layer (Full Screen) */}
+             <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 0,
+                pointerEvents: 'none' 
+            }}>
+                <Login3D isMobile={isMobile} />
+            </div>
 
-            {/* Left Side - Branding */}
+            {/* Left Side - Branding Content (Hidden on Mobile) */}
             <div style={{
+                display: isMobile ? 'none' : 'flex',
                 flex: 1,
-                display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
                 padding: '3rem',
-                color: 'white'
+                color: 'white',
+                zIndex: 1,
+                position: 'relative',
+                textAlign: 'center',
             }} className="animate-slide-up">
-                <div style={{ marginBottom: '2rem', fontSize: '4rem' }}>🎓</div>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem', textAlign: 'center' }}>Geo Education</h1>
-                <p style={{ fontSize: '1.1rem', opacity: 0.9, textAlign: 'center', maxWidth: '400px', lineHeight: 1.6 }}>
-                    Platform pembelajaran interaktif dengan gamifikasi untuk meningkatkan semangat belajar siswa.
-                </p>
-                <div style={{ marginTop: '3rem', display: 'flex', gap: '2rem' }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>1000+</div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Siswa Aktif</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>50+</div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Materi</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>98%</div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Kepuasan</div>
+                
+                {!isMobile && (
+                <div style={{ 
+                    background: 'rgba(255,255,255,0.1)', 
+                    backdropFilter: 'blur(10px)', 
+                    padding: '2rem', 
+                    borderRadius: '2rem', 
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    maxWidth: '500px'
+                }}>
+                    <h1 style={{ 
+                        fontSize: 'clamp(2rem, 5vw, 3.5rem)', 
+                        fontWeight: '800', 
+                        marginBottom: '1rem', 
+                        background: 'linear-gradient(135deg, #a5b4fc 0%, #e0e7ff 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                    }}>
+                        Geo Education
+                    </h1>
+                    <p style={{ fontSize: '1.1rem', color: '#cbd5e1', lineHeight: 1.6, marginBottom: '2rem' }}>
+                        Jelajahi dunia pengetahuan dengan platform pembelajaran interaktif.
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                        <div className="glass-panel" style={{ padding: '1rem', borderRadius: '1rem', minWidth: '100px' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>1k+</div>
+                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Siswa</div>
+                        </div>
+                        <div className="glass-panel" style={{ padding: '1rem', borderRadius: '1rem', minWidth: '100px' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>50+</div>
+                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Modul</div>
+                        </div>
                     </div>
                 </div>
+                )}
             </div>
 
             {/* Right Side - Login Form */}
             <div style={{
-                width: '500px',
+                width: isMobile ? '100%' : '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '3rem'
+                padding: isMobile ? '1rem' : '3rem',
+                zIndex: 10,
+                background: 'transparent',
+                marginTop: 0
             }}>
                 <div className="glass animate-slide-up" style={{
                     width: '100%',
-                    padding: '3rem',
+                    maxWidth: '450px',
+                    padding: isMobile ? '2rem' : '3rem',
                     borderRadius: '2rem',
                     background: 'rgba(255,255,255,0.95)',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                    animationDelay: '0.2s'
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                 }}>
                     <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>Selamat Datang! 👋</h2>
-                        <p style={{ color: '#64748b' }}>Masuk ke akun Anda untuk melanjutkan</p>
+                        <div style={{ width: '50px', height: '50px', background: 'var(--primary)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                            <LogIn color="white" size={24} />
+                        </div>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>Selamat Datang!</h2>
+                        <p style={{ color: '#64748b' }}>Masuk untuk melanjutkan pembelajaran</p>
                     </div>
 
                     {error && (
@@ -102,9 +150,12 @@ export const LoginPage: React.FC = () => {
                             padding: '1rem',
                             borderRadius: '0.75rem',
                             marginBottom: '1.5rem',
-                            fontSize: '0.9rem'
+                            fontSize: '0.9rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
                         }}>
-                            {error}
+                             ⚠️ {error}
                         </div>
                     )}
 
@@ -126,15 +177,18 @@ export const LoginPage: React.FC = () => {
                                         borderRadius: '0.75rem',
                                         border: '2px solid #e5e7eb',
                                         fontSize: '1rem',
-                                        transition: 'border-color 0.2s, box-shadow 0.2s',
-                                        outline: 'none'
+                                        transition: 'all 0.2s',
+                                        outline: 'none',
+                                        background: '#f8fafc'
                                     }}
                                     onFocus={(e) => {
-                                        e.target.style.borderColor = '#667eea';
-                                        e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                                        e.target.style.borderColor = '#6366f1';
+                                        e.target.style.background = 'white';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
                                     }}
                                     onBlur={(e) => {
                                         e.target.style.borderColor = '#e5e7eb';
+                                        e.target.style.background = '#f8fafc';
                                         e.target.style.boxShadow = 'none';
                                     }}
                                 />
@@ -158,15 +212,18 @@ export const LoginPage: React.FC = () => {
                                         borderRadius: '0.75rem',
                                         border: '2px solid #e5e7eb',
                                         fontSize: '1rem',
-                                        transition: 'border-color 0.2s, box-shadow 0.2s',
-                                        outline: 'none'
+                                        transition: 'all 0.2s',
+                                        outline: 'none',
+                                        background: '#f8fafc'
                                     }}
                                     onFocus={(e) => {
-                                        e.target.style.borderColor = '#667eea';
-                                        e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                                        e.target.style.borderColor = '#6366f1';
+                                        e.target.style.background = 'white';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
                                     }}
                                     onBlur={(e) => {
                                         e.target.style.borderColor = '#e5e7eb';
+                                        e.target.style.background = '#f8fafc';
                                         e.target.style.boxShadow = 'none';
                                     }}
                                 />
@@ -181,10 +238,11 @@ export const LoginPage: React.FC = () => {
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
-                                        padding: 0
+                                        padding: 0,
+                                        color: '#9ca3af'
                                     }}
                                 >
-                                    {showPassword ? <EyeOff size={18} color="#9ca3af" /> : <Eye size={18} color="#9ca3af" />}
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                         </div>
@@ -192,10 +250,10 @@ export const LoginPage: React.FC = () => {
                         {/* Remember & Forgot */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: '#667eea' }} />
+                                <input type="checkbox" style={{ width: '16px', height: '16px', accentColor: '#6366f1' }} />
                                 <span style={{ fontSize: '0.9rem', color: '#4b5563' }}>Ingat saya</span>
                             </label>
-                            <Link to="/forgot-password" style={{ fontSize: '0.9rem', color: '#667eea', fontWeight: '600' }}>Lupa password?</Link>
+                            <Link to="/forgot-password" style={{ fontSize: '0.9rem', color: '#6366f1', fontWeight: '600' }}>Lupa password?</Link>
                         </div>
 
                         {/* Submit Button */}
@@ -205,7 +263,7 @@ export const LoginPage: React.FC = () => {
                             style={{
                                 width: '100%',
                                 padding: '1rem',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '0.75rem',
@@ -216,18 +274,19 @@ export const LoginPage: React.FC = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '0.5rem',
-                                transition: 'transform 0.2s, box-shadow 0.2s',
-                                opacity: loading ? 0.7 : 1
+                                transition: 'all 0.2s',
+                                opacity: loading ? 0.7 : 1,
+                                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
                             }}
                             onMouseEnter={(e) => {
                                 if (!loading) {
                                     e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(102, 126, 234, 0.3)';
+                                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(99, 102, 241, 0.4)';
                                 }
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = 'none';
+                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.3)';
                             }}
                         >
                             {loading ? (
@@ -248,15 +307,23 @@ export const LoginPage: React.FC = () => {
                     <div style={{ textAlign: 'center', marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
                         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
                             Belum punya akun?{' '}
-                            <Link to="/register" style={{ color: '#667eea', fontWeight: '600' }}>Daftar sekarang</Link>
+                            <Link to="/register" style={{ color: '#4f46e5', fontWeight: '600' }}>Daftar sekarang</Link>
                         </p>
                     </div>
 
                     {/* Demo Credentials */}
-                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f0fdf4', borderRadius: '0.75rem', border: '1px solid #bbf7d0' }}>
-                        <p style={{ fontSize: '0.8rem', color: '#166534', fontWeight: '600', marginBottom: '0.5rem' }}>🧪 Demo Login:</p>
-                        <p style={{ fontSize: '0.8rem', color: '#15803d' }}>Student: budi@siswa.edu / siswa123</p>
-                        <p style={{ fontSize: '0.8rem', color: '#15803d' }}>Teacher: guru@geo.edu / teacher123</p>
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                        <p style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '700', marginBottom: '0.5rem' }}>🧪 Demo Login:</p>
+                        <div style={{ display: 'grid', gap: '0.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#475569' }}>
+                                <span>Student:</span>
+                                <span style={{ fontFamily: 'monospace' }}>budi@siswa.edu / siswa123</span>
+                            </div>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#475569' }}>
+                                <span>Teacher:</span>
+                                <span style={{ fontFamily: 'monospace' }}>guru@geo.edu / teacher123</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

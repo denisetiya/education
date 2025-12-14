@@ -20,13 +20,34 @@ router.get('/', async (req, res) => {
                 })
             },
             include: {
-                createdBy: { select: { name: true } }
+                createdBy: { select: { name: true } },
+                linkedQuiz: { select: { id: true, title: true, type: true } }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: [{ order: 'asc' }, { createdAt: 'desc' }]
         });
         res.json(materials);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch materials' });
+    }
+});
+
+// Get all quiz materials (for linking dropdown)
+router.get('/quizzes', async (_req, res) => {
+    try {
+        const quizzes = await prisma.material.findMany({
+            where: { type: 'quiz' },
+            select: {
+                id: true,
+                title: true,
+                category: true,
+                grade: true,
+                semester: true
+            },
+            orderBy: { title: 'asc' }
+        });
+        res.json(quizzes);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch quizzes' });
     }
 });
 
@@ -36,7 +57,8 @@ router.get('/:id', async (req, res) => {
         const material = await prisma.material.findUnique({
             where: { id: req.params.id },
             include: {
-                createdBy: { select: { name: true } }
+                createdBy: { select: { name: true } },
+                linkedQuiz: { select: { id: true, title: true, type: true } }
             }
         });
         if (!material) return res.status(404).json({ error: 'Material not found' });
@@ -49,7 +71,7 @@ router.get('/:id', async (req, res) => {
 // Create material (Teacher/Admin only)
 router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { title, type, category, level, content, semester, grade } = req.body;
+        const { title, type, category, level, content, semester, grade, linkedQuizId, minPassingScore, order } = req.body;
 
         const material = await prisma.material.create({
             data: {
@@ -60,6 +82,9 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: Au
                 content,
                 semester: semester || 1,
                 grade: grade || 10,
+                linkedQuizId: linkedQuizId || null,
+                minPassingScore: minPassingScore ?? 70,
+                order: order || null,
                 createdById: req.userId!
             }
         });
@@ -73,11 +98,22 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: Au
 // Update material
 router.put('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { title, type, category, level, content, semester, grade } = req.body;
+        const { title, type, category, level, content, semester, grade, linkedQuizId, minPassingScore, order } = req.body;
 
         const material = await prisma.material.update({
             where: { id: req.params.id },
-            data: { title, type, category, level, content, semester, grade }
+            data: { 
+                title, 
+                type, 
+                category, 
+                level, 
+                content, 
+                semester, 
+                grade,
+                linkedQuizId: linkedQuizId || null,
+                minPassingScore: minPassingScore ?? undefined,
+                order: order || null
+            }
         });
         res.json(material);
     } catch (error) {

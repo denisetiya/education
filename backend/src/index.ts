@@ -8,6 +8,8 @@ import materialRoutes from './routes/material.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import progressRoutes from './routes/progress.routes';
+import moduleRoutes from './routes/module.routes';
+import classRoutes from './routes/class.routes';
 
 dotenv.config();
 
@@ -35,6 +37,8 @@ app.use('/api/materials', materialRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/modules', moduleRoutes);
+app.use('/api/classes', classRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

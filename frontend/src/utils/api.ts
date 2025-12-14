@@ -1,3 +1,5 @@
+import { AuthResponse, ClassItem, LeaderboardEntry, Material, Module, ProgressHistory, QuizResult, User } from '../types/api.types';
+
 const API_BASE_URL = 'http://localhost:3001/api';
 
 // Generic fetch wrapper with credentials (cookies)
@@ -27,13 +29,15 @@ async function apiFetch<T>(
 // Auth API
 export const authAPI = {
     register: (data: { email: string; password: string; name: string; role?: string }) =>
-        apiFetch<{ user: any }>('/auth/register', {
+    register: (data: { email: string; password: string; name: string; role?: string }) =>
+        apiFetch<AuthResponse>('/auth/register', {
             method: 'POST',
             body: JSON.stringify(data)
         }),
 
     login: (data: { email: string; password: string }) =>
-        apiFetch<{ user: any }>('/auth/login', {
+    login: (data: { email: string; password: string }) =>
+        apiFetch<AuthResponse>('/auth/login', {
             method: 'POST',
             body: JSON.stringify(data)
         }),
@@ -43,13 +47,13 @@ export const authAPI = {
             method: 'POST'
         }),
 
-    me: () => apiFetch<any>('/auth/me')
+    me: () => apiFetch<User>('/auth/me')
 };
 
 // Users API
 export const usersAPI = {
-    getAll: () => apiFetch<any[]>('/users'),
-    getById: (id: string) => apiFetch<any>(`/users/${id}`),
+    getAll: () => apiFetch<User[]>('/users'),
+    getById: (id: string) => apiFetch<User>(`/users/${id}`),
     update: (id: string, data: any) =>
         apiFetch<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
@@ -65,20 +69,44 @@ export const materialsAPI = {
                 if (value !== undefined) params.append(key, String(value));
             });
         }
-        return apiFetch<any[]>(`/materials?${params.toString()}`);
+        return apiFetch<Material[]>(`/materials?${params.toString()}`);
     },
-    getById: (id: string) => apiFetch<any>(`/materials/${id}`),
+    getById: (id: string) => apiFetch<Material>(`/materials/${id}`),
+    getQuizzes: () => apiFetch<Material[]>('/materials/quizzes'),
     create: (data: any) =>
-        apiFetch<any>('/materials', { method: 'POST', body: JSON.stringify(data) }),
+        apiFetch<Material>('/materials', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) =>
-        apiFetch<any>(`/materials/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+        apiFetch<Material>(`/materials/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
         apiFetch<any>(`/materials/${id}`, { method: 'DELETE' })
 };
 
+// Modules API
+export const modulesAPI = {
+    getAll: (filters?: { grade?: number; semester?: number; subject?: string }) => {
+        const params = new URLSearchParams();
+        if (filters) {
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined) params.append(key, String(value));
+            });
+        }
+        return apiFetch<Module[]>(`/modules?${params.toString()}`);
+    },
+    create: (data: any) =>
+        apiFetch<Module>('/modules', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+        apiFetch<Module>(`/modules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    reorder: (orderedIds: string[]) =>
+        apiFetch<any>('/modules/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+    assignMaterials: (moduleId: string, materialIds: string[]) =>
+        apiFetch<any>(`/modules/${moduleId}/materials`, { method: 'POST', body: JSON.stringify({ materialIds }) }),
+    delete: (id: string) =>
+        apiFetch<any>(`/modules/${id}`, { method: 'DELETE' })
+};
+
 // Leaderboard API
 export const leaderboardAPI = {
-    get: (limit: number = 10) => apiFetch<any[]>(`/leaderboard?limit=${limit}`)
+    get: (limit: number = 10) => apiFetch<LeaderboardEntry[]>(`/leaderboard?limit=${limit}`)
 };
 
 // Dashboard API
@@ -93,7 +121,8 @@ export const progressAPI = {
     getHistory: (limit: number = 20, status?: string) => {
         const params = new URLSearchParams({ limit: String(limit) });
         if (status) params.append('status', status);
-        return apiFetch<any[]>(`/progress/history?${params.toString()}`);
+        return apiFetch<ProgressHistory[]>(`/progress/history?${params.toString()}`);
+    },
     },
     getMaterialProgress: (materialId: string) =>
         apiFetch<any>(`/progress/material/${materialId}`),
@@ -107,9 +136,22 @@ export const progressAPI = {
             method: 'PUT',
             body: JSON.stringify({ materialId, ...data })
         }),
-    complete: (materialId: string, timeSpent?: number) =>
-        apiFetch<any>('/progress/complete', {
-            method: 'POST',
-            body: JSON.stringify({ materialId, timeSpent })
-        })
+    complete: (materialId: string, timeSpent: number, score?: number) =>
+        apiFetch<any>('/progress/complete', { method: 'POST', body: JSON.stringify({ materialId, timeSpent, score }) }),
+    getMap: () => apiFetch<Record<string, { status: string; score: number | null }>>('/progress/map'),
+    checkQuizPassed: (materialId: string) =>
+        apiFetch<QuizResult>(`/progress/quiz-passed/${materialId}`)
 };
+
+// Classes API
+export const classesAPI = {
+    getAll: () => apiFetch<ClassItem[]>('/classes'),
+    getById: (id: string) => apiFetch<ClassItem>(`/classes/${id}`),
+    create: (data: { name: string; subject: string; description?: string }) =>
+        apiFetch<ClassItem>('/classes', { method: 'POST', body: JSON.stringify(data) }),
+    join: (code: string) =>
+        apiFetch<any>('/classes/join', { method: 'POST', body: JSON.stringify({ code }) }),
+    addModule: (classId: string, moduleData: any) =>
+        apiFetch<any>(`/classes/${classId}/modules`, { method: 'POST', body: JSON.stringify(moduleData) })
+};
+

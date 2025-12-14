@@ -28,21 +28,19 @@ export const StudentMaterials: React.FC = () => {
         'MATEMATIKA', 'IPA', 'IPS', 'BAHASA_INDONESIA', 'BAHASA_INGGRIS', 'SENI', 'OLAHRAGA'
     ];
 
-    useEffect(() => {
-        fetchMaterials();
-    }, [selectedGrade, selectedSemester, selectedCategory, searchQuery]);
 
-    const fetchMaterials = async () => {
+
+    const fetchMaterials = React.useCallback(async () => {
         try {
             setLoading(true);
-            const filters: any = {};
+            const filters: { grade?: number; semester?: number; category?: string; search?: string } = {};
             if (selectedGrade) filters.grade = selectedGrade;
             if (selectedSemester) filters.semester = selectedSemester;
             if (selectedCategory) filters.category = selectedCategory;
             if (searchQuery) filters.search = searchQuery;
 
             const data = await materialsAPI.getAll(filters);
-            setMaterials(data);
+            setMaterials(data.filter((m: Material) => m.type !== 'quiz'));
             setError(null);
         } catch (err) {
             console.error('Failed to fetch materials:', err);
@@ -50,7 +48,11 @@ export const StudentMaterials: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedGrade, selectedSemester, selectedCategory, searchQuery]);
+
+    useEffect(() => {
+        fetchMaterials();
+    }, [fetchMaterials]);
 
     const getTypeIcon = (type: string) => {
         switch (type.toLowerCase()) {
@@ -105,7 +107,7 @@ export const StudentMaterials: React.FC = () => {
                 {/* Grade Filter */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>KELAS</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
                             onClick={() => setSelectedGrade(null)}
                             className={`btn ${selectedGrade === null ? 'btn-primary' : 'btn-secondary'}`}
@@ -129,7 +131,7 @@ export const StudentMaterials: React.FC = () => {
                 {/* Semester Filter */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>SEMESTER</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
                             onClick={() => setSelectedSemester(null)}
                             className={`btn ${selectedSemester === null ? 'btn-primary' : 'btn-secondary'}`}
@@ -151,7 +153,7 @@ export const StudentMaterials: React.FC = () => {
                 </div>
 
                 {/* Category Filter Dropdown */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginLeft: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginLeft: 'auto', flexGrow: 1, minWidth: '200px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>MATA PELAJARAN</label>
                     <select
                         value={selectedCategory}
@@ -161,7 +163,7 @@ export const StudentMaterials: React.FC = () => {
                             borderRadius: 'var(--radius-md)',
                             border: '1px solid #cbd5e1',
                             background: 'white',
-                            minWidth: '200px',
+                            width: '100%',
                             cursor: 'pointer'
                         }}
                     >
@@ -190,7 +192,7 @@ export const StudentMaterials: React.FC = () => {
 
             {/* Material Grid */}
             {!loading && !error && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                     {materials.map(item => (
                         <div key={item.id} className="card glass card-hover-effect" style={{
                             padding: '1.5rem',

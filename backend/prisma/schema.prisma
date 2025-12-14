@@ -31,16 +31,29 @@ model User {
 }
 
 model Material {
-  id          String    @id @default(uuid())
-  title       String
-  type        String    // video, book, quiz, article
-  category    String    // Matematika, Fisika, etc.
-  level       String    @default("Mudah") // Mudah, Menengah, Sulit
-  content     String?   // JSON or markdown content
-  semester    Int       @default(1)
-  grade       Int       @default(10) // 10, 11, 12
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  title           String
+  type            String    // video, book, quiz, article
+  category        String    // Matematika, Fisika, etc.
+  level           String    @default("Mudah") // Mudah, Menengah, Sulit
+  content         String?   // JSON or markdown content
+  semester        Int       @default(1)
+  grade           Int       @default(10) // 10, 11, 12
+  
+  // Curriculum fields
+  moduleId        String?
+  module          Module?   @relation(fields: [moduleId], references: [id])
+  moduleOrder     Int?      // Order within the module
+
+  // Quiz linking fields
+  linkedQuizId    String?   // ID materi quiz yang terhubung
+  linkedQuiz      Material? @relation("MaterialToQuiz", fields: [linkedQuizId], references: [id])
+  linkedFromMaterials Material[] @relation("MaterialToQuiz")
+  minPassingScore Int?      @default(70) // Nilai minimal kelulusan (0-100)
+  order           Int?      // Urutan materi dalam pembelajaran
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
   createdBy   User      @relation("CreatedMaterials", fields: [createdById], references: [id])
@@ -48,11 +61,28 @@ model Material {
   progress    Progress[]
 }
 
+model Module {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  grade       Int
+  semester    Int
+  subject     String    // Category (Matematika, etc.)
+  classId     String?
+  class       Class?    @relation(fields: [classId], references: [id])
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  materials   Material[]
+}
+
 model Class {
   id          String    @id @default(uuid())
   name        String
   subject     String
   description String?
+  code        String    @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -60,6 +90,7 @@ model Class {
   teacher     User      @relation("TeachingClasses", fields: [teacherId], references: [id])
   teacherId   String
   students    ClassEnrollment[]
+  modules     Module[]
 }
 
 model ClassEnrollment {

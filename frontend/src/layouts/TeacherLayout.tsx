@@ -102,7 +102,7 @@ export const TeacherLayout: React.FC = () => {
             </aside>
 
             {/* Main Content */}
-            <div style={{ marginLeft: '300px', flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem', paddingLeft: '0' }}>
+            <div style={{ marginLeft: '320px', flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem', paddingLeft: '1rem' }}>
                 <header style={{
                     height: '70px',
                     borderRadius: 'var(--radius-lg)',

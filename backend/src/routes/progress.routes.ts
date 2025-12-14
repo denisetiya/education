@@ -39,6 +39,27 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+// Get comprehensive progress map for Learning Journey
+router.get('/map', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const progress = await prisma.progress.findMany({
+            where: { userId },
+            select: { materialId: true, status: true, score: true }
+        });
+        
+        const progressMap = progress.reduce((acc, curr) => {
+            acc[curr.materialId] = { status: curr.status, score: curr.score };
+            return acc;
+        }, {} as Record<string, { status: string; score: number | null }>);
+        
+        res.json(progressMap);
+    } catch (error) {
+        console.error('Get progress map error:', error);
+        res.status(500).json({ error: 'Failed to fetch progress map' });
+    }
+});
+
 // Get progress for a specific material
 router.get('/material/:materialId', authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -142,7 +163,7 @@ router.put('/update', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/complete', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const userId = req.userId!;
-        const { materialId, timeSpent } = req.body;
+        const { materialId, timeSpent, score } = req.body;
 
         if (!materialId) {
             return res.status(400).json({ error: 'Material ID is required' });
@@ -155,14 +176,16 @@ router.post('/complete', authMiddleware, async (req: AuthRequest, res) => {
             update: {
                 status: 'completed',
                 completedAt: new Date(),
-                ...(timeSpent !== undefined && { timeSpent })
+                ...(timeSpent !== undefined && { timeSpent }),
+                ...(score !== undefined && { score })
             },
             create: {
                 userId,
                 materialId,
                 status: 'completed',
                 completedAt: new Date(),
-                timeSpent: timeSpent || 0
+                timeSpent: timeSpent || 0,
+                score: score || null
             }
         });
 
@@ -182,6 +205,61 @@ router.post('/complete', authMiddleware, async (req: AuthRequest, res) => {
     } catch (error) {
         console.error('Complete progress error:', error);
         res.status(500).json({ error: 'Failed to complete material' });
+    }
+});
+
+// Check if user passed a linked quiz
+router.get('/quiz-passed/:materialId', authMiddleware, async (req: AuthRequest, res) => {
+    try {
+        const userId = req.userId!;
+        const { materialId } = req.params;
+
+        // Get the material to find its linked quiz
+        const material = await prisma.material.findUnique({
+            where: { id: materialId },
+            include: {
+                linkedQuiz: true
+            }
+        });
+
+        if (!material) {
+            return res.status(404).json({ error: 'Material not found' });
+        }
+
+        // If no linked quiz, return passed by default
+        if (!material.linkedQuizId || !material.linkedQuiz) {
+            return res.json({ 
+                hasLinkedQuiz: false, 
+                passed: true, 
+                score: null,
+                minPassingScore: null,
+                quizTitle: null
+            });
+        }
+
+        // Get user's progress on the linked quiz
+        const quizProgress = await prisma.progress.findUnique({
+            where: {
+                userId_materialId: { userId, materialId: material.linkedQuizId }
+            }
+        });
+
+        const minPassingScore = material.minPassingScore ?? 70;
+        const userScore = quizProgress?.score ?? null;
+        const passed = userScore !== null && userScore >= minPassingScore;
+
+        res.json({
+            hasLinkedQuiz: true,
+            passed,
+            score: userScore,
+            minPassingScore,
+            quizId: material.linkedQuizId,
+            quizTitle: material.linkedQuiz.title,
+            quizCompleted: quizProgress?.status === 'completed'
+        });
+    } catch (error) {
+        console.error('Check quiz passed error:', error);
+        res.status(500).json({ error: 'Failed to check quiz status' });
     }
 });
 

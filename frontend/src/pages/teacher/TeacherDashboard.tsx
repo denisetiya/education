@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, BookOpen, Clock, TrendingUp, MoreHorizontal, Calendar } from 'lucide-react';
+import { Users, BookOpen, Clock, TrendingUp, Calendar } from 'lucide-react';
 
 export const TeacherDashboard: React.FC = () => {
     return (

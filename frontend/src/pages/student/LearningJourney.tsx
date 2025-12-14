@@ -1,32 +1,101 @@
-import React, { useState } from 'react';
-import { Check, Lock, Star, Play, Map, ArrowRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, Lock, Star, Play, Map, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { modulesAPI, progressAPI } from '../../utils/api';
 
 interface LevelNode {
     id: string;
     title: string;
+    grade: number;
+    semester: number;
+    subject: string;
     status: 'completed' | 'unlocked' | 'locked';
     stars: 0 | 1 | 2 | 3;
-    type: 'video' | 'quiz' | 'project';
+    type: 'video' | 'quiz' | 'project'; // Representative type
     position: { x: number; y: number };
+    materialId: string | null; // ID of the first material to jump to, or module ID if we handle modules routing
+    materialsCount: number;
+    completedCount: number;
 }
-
-const mapData: Record<string, LevelNode[]> = {
-    'matematika': [
-        { id: 'm1', title: 'Aljabar Dasar', status: 'completed', stars: 3, type: 'video', position: { x: 50, y: 15 } },
-        { id: 'm2', title: 'Persamaan Linear', status: 'unlocked', stars: 0, type: 'quiz', position: { x: 30, y: 35 } },
-        { id: 'm3', title: 'Fungsi Kuadrat', status: 'locked', stars: 0, type: 'video', position: { x: 70, y: 55 } },
-        { id: 'm4', title: 'Trigonometri', status: 'locked', stars: 0, type: 'project', position: { x: 50, y: 80 } },
-    ],
-    'fisika': [
-        { id: 'f1', title: 'Besaran & Satuan', status: 'unlocked', stars: 0, type: 'video', position: { x: 50, y: 20 } },
-        { id: 'f2', title: 'Gerak Lurus', status: 'locked', stars: 0, type: 'quiz', position: { x: 50, y: 60 } },
-    ]
-};
 
 export const LearningJourney: React.FC = () => {
     const navigate = useNavigate();
     const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+    const [mapNodes, setMapNodes] = useState<LevelNode[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!selectedSubject) return;
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [modules, progressMap] = await Promise.all([
+                    modulesAPI.getAll({ subject: selectedSubject }),
+                    progressAPI.getMap()
+                ]);
+
+                // Transform modules into nodes
+                const nodes: LevelNode[] = [];
+                let isPreviousCompleted = true; // First node is always unlocked if prev completed (initially true)
+
+                modules.forEach((mod: any, index: number) => {
+                    const materials = mod.materials || [];
+                    const completedCount = materials.filter((m: any) => progressMap[m.id]?.status === 'completed').length;
+                    const isCompleted = materials.length > 0 && completedCount === materials.length;
+                    
+                    // Determine Status
+                    let status: 'completed' | 'unlocked' | 'locked' = 'locked';
+                    if (isCompleted) status = 'completed';
+                    else if (isPreviousCompleted) status = 'unlocked';
+                    
+                    // Determine Stars (Avg score of quizzes? or just completion)
+                    // Simplified: 3 stars if all completed
+                    const stars = isCompleted ? 3 : 0;
+
+                    // Position (Zig-zag)
+                    const y = 15 + (index * 25); // Vertical spacing
+                    const x = index % 2 === 0 ? 30 : 70; // Alternating left-right
+
+                    nodes.push({
+                        id: mod.id,
+                        title: mod.title,
+                        grade: mod.grade,
+                        semester: mod.semester,
+                        subject: mod.subject,
+                        status,
+                        stars,
+                        type: 'video', // Default icon, could depend on content
+                        position: { x, y },
+                        materialId: materials.length > 0 ? materials[0].id : null, // Link to first material for now
+                        materialsCount: materials.length,
+                        completedCount
+                    });
+
+                    // Update chain for next node
+                    isPreviousCompleted = isCompleted;
+                });
+
+                setMapNodes(nodes);
+            } catch (error) {
+                console.error("Failed to load map path", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [selectedSubject]);
+
+    const handleNodeClick = (node: LevelNode) => {
+        if (node.status === 'locked') return;
+        // Navigate to the first material or a module view
+        if (node.materialId) {
+            navigate(`/student/materials/${node.materialId}`); // Direct link for simplicity
+        } else {
+            alert("Modul ini belum memiliki materi.");
+        }
+    };
 
     if (!selectedSubject) {
         return (
@@ -37,32 +106,36 @@ export const LearningJourney: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
                     <SubjectCard
                         title="Matematika"
-                        level="Level 5"
-                        progress={60}
-                        color="var(--primary)"
-                        onClick={() => setSelectedSubject('matematika')}
-                    />
-                    <SubjectCard
-                        title="Fisika"
-                        level="Level 2"
-                        progress={20}
-                        color="var(--secondary)"
-                        onClick={() => setSelectedSubject('fisika')}
-                    />
-                    <SubjectCard
-                        title="Biologi"
                         level="Level 1"
                         progress={0}
-                        color="var(--success)"
-                        onClick={() => { }}
-                        locked
+                        color="var(--primary)"
+                        onClick={() => setSelectedSubject('MATEMATIKA')}
+                    />
+                    <SubjectCard
+                        title="IPA"
+                        level="Level 1"
+                        progress={0}
+                        color="#16a34a"
+                        onClick={() => setSelectedSubject('IPA')}
+                    />
+                    <SubjectCard
+                        title="IPS"
+                        level="Level 1"
+                        progress={0}
+                        color="#d97706"
+                        onClick={() => setSelectedSubject('IPS')}
+                    />
+                     <SubjectCard
+                        title="Bahasa Inggris"
+                        level="Level 1"
+                        progress={0}
+                        color="#2563eb"
+                         onClick={() => setSelectedSubject('BAHASA_INGGRIS')}
                     />
                 </div>
             </div>
         );
     }
-
-    const currentMap = mapData[selectedSubject] || [];
 
     return (
         <div className="animate-fade-in" style={{ position: 'relative', minHeight: '800px', backgroundColor: '#f0f9ff', padding: '2rem', borderRadius: '1rem', overflow: 'hidden' }}>
@@ -72,7 +145,7 @@ export const LearningJourney: React.FC = () => {
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: '2rem', position: 'relative', zIndex: 2 }}>
-                <h1 className="text-gradient" style={{ fontSize: '2rem', textTransform: 'capitalize' }}>Peta {selectedSubject}</h1>
+                <h1 className="text-gradient" style={{ fontSize: '2rem', textTransform: 'capitalize' }}>Peta {selectedSubject.toLowerCase().replace('_', ' ')}</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Selesaikan setiap tantangan untuk membuka level berikutnya!</p>
             </div>
 
@@ -83,17 +156,25 @@ export const LearningJourney: React.FC = () => {
                 backgroundSize: '30px 30px', opacity: 0.5, zIndex: 0
             }}></div>
 
-            {/* Path Connection Lines (Simple SVG for demo) */}
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }}>
-                <path d={`M ${currentMap.map(n => `${n.position.x}% ${n.position.y}%`).join(' L ')}`} stroke="#cbd5e1" strokeWidth="4" strokeDasharray="10 5" fill="none" />
-            </svg>
+            {/* Path Connection Lines */}
+            {mapNodes.length > 1 && (
+                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }}>
+                     <path 
+                        d={`M ${mapNodes.map(n => `${n.position.x}% ${n.position.y}%`).join(' L ')}`} 
+                        stroke="#cbd5e1" 
+                        strokeWidth="4" 
+                        strokeDasharray="10 5" 
+                        fill="none" 
+                    />
+                </svg>
+            )}
 
             {/* Nodes */}
-            <div style={{ position: 'relative', height: '800px', zIndex: 2 }}>
-                {currentMap.map((node) => (
+            <div style={{ position: 'relative', height: '1000px', zIndex: 2 }}>
+                {loading ? <div style={{textAlign: 'center', paddingTop: '4rem'}}>Loading Peta...</div> : mapNodes.map((node) => (
                     <div
                         key={node.id}
-                        onClick={() => node.status !== 'locked' && navigate(`/student/material/${node.id}`)}
+                        onClick={() => handleNodeClick(node)}
                         style={{
                             position: 'absolute', left: `${node.position.x}%`, top: `${node.position.y}%`,
                             transform: 'translate(-50%, -50%)',
@@ -120,8 +201,11 @@ export const LearningJourney: React.FC = () => {
                             )}
                         </div>
                         {/* Label */}
-                        <div style={{ marginTop: '1rem', background: 'white', padding: '0.5rem 1rem', borderRadius: '2rem', boxShadow: 'var(--shadow-sm)', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: '600', color: node.status === 'locked' ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                            {node.title}
+                        <div style={{ marginTop: '1rem', background: 'white', padding: '0.5rem 1rem', borderRadius: '2rem', boxShadow: 'var(--shadow-sm)', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: '600', color: node.status === 'locked' ? 'var(--text-muted)' : 'var(--text-main)', minWidth: '150px' }}>
+                            <div>{node.title}</div>
+                            <div style={{fontSize: '0.75rem', color: '#94a3b8', fontWeight: 'normal'}}>
+                                {node.completedCount}/{node.materialsCount} Selesai
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -137,6 +221,7 @@ const SubjectCard: React.FC<{ title: string, level: string, progress: number, co
         transition: 'transform 0.2s',
         borderTop: `6px solid ${color}`
     }}
+        title={locked ? "Coming Soon" : "Mulai Belajar"}
         onMouseEnter={(e) => !locked && (e.currentTarget.style.transform = 'translateY(-10px)')}
         onMouseLeave={(e) => !locked && (e.currentTarget.style.transform = 'translateY(0)')}
     >
