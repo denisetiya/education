@@ -1,0 +1,707 @@
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import {
+    MousePointer, Circle, Square, Triangle, Minus, Move,
+    Undo2, Redo2, Trash2, Grid, ZoomIn, ZoomOut, Download,
+    Ruler, CornerUpRight, PenTool, RotateCcw
+} from 'lucide-react';
+import type { ToolType, Point2D, GeometryObject, Measurement, CanvasState } from './types';
+
+interface GeometryCanvasProps {
+    width?: number;
+    height?: number;
+    onSave?: (data: CanvasState) => void;
+    initialState?: CanvasState;
+}
+
+const COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'];
+const GRID_SIZE = 20;
+
+const initialState: CanvasState = {
+    objects: [],
+    measurements: [],
+    selectedObjectId: null,
+    currentTool: 'select',
+    zoom: 1,
+    pan: { x: 0, y: 0 },
+    gridEnabled: true,
+    snapToGrid: true
+};
+
+export const GeometryCanvas: React.FC<GeometryCanvasProps> = ({
+    width = 800,
+    height = 600,
+    onSave,
+    initialState: savedState
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const [state, setState] = useState<CanvasState>(savedState || initialState);
+    const [history, setHistory] = useState<{ past: CanvasState[]; future: CanvasState[] }>({ past: [], future: [] });
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [tempPoints, setTempPoints] = useState<Point2D[]>([]);
+    const [currentColor, setCurrentColor] = useState(COLORS[0]);
+    const [mousePos, setMousePos] = useState<Point2D>({ x: 0, y: 0 });
+    const [isMobile, setIsMobile] = useState(false);
+    const [canvasWidth, setCanvasWidth] = useState(width);
+
+    // Check for mobile and set canvas width
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = window.innerWidth < 768;
+            setIsMobile(mobile);
+            if (mobile && containerRef.current) {
+                setCanvasWidth(containerRef.current.clientWidth - 32 || 400);
+            } else {
+                setCanvasWidth(width);
+            }
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, [width]);
+
+    // Snap to grid helper
+    const snapToGrid = useCallback((point: Point2D): Point2D => {
+        if (!state.snapToGrid) return point;
+        return {
+            x: Math.round(point.x / GRID_SIZE) * GRID_SIZE,
+            y: Math.round(point.y / GRID_SIZE) * GRID_SIZE
+        };
+    }, [state.snapToGrid]);
+
+    // Convert screen to canvas coordinates
+    const screenToCanvas = useCallback((clientX: number, clientY: number): Point2D => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+        const x = (clientX - rect.left - state.pan.x) / state.zoom;
+        const y = (clientY - rect.top - state.pan.y) / state.zoom;
+        return snapToGrid({ x, y });
+    }, [state.pan, state.zoom, snapToGrid]);
+
+    // Save state for undo
+    const saveToHistory = useCallback(() => {
+        setHistory(prev => ({
+            past: [...prev.past.slice(-50), state],
+            future: []
+        }));
+    }, [state]);
+
+    // Undo
+    const undo = useCallback(() => {
+        if (history.past.length === 0) return;
+        const previous = history.past[history.past.length - 1];
+        setHistory(prev => ({
+            past: prev.past.slice(0, -1),
+            future: [state, ...prev.future]
+        }));
+        setState(previous);
+    }, [history.past, state]);
+
+    // Redo
+    const redo = useCallback(() => {
+        if (history.future.length === 0) return;
+        const next = history.future[0];
+        setHistory(prev => ({
+            past: [...prev.past, state],
+            future: prev.future.slice(1)
+        }));
+        setState(next);
+    }, [history.future, state]);
+
+    // Generate unique ID
+    const generateId = () => `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Calculate distance between two points
+    const getDistance = (p1: Point2D, p2: Point2D): number => {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    };
+
+    // Calculate angle between three points (in degrees)
+    const getAngle = (p1: Point2D, vertex: Point2D, p2: Point2D): number => {
+        const angle1 = Math.atan2(p1.y - vertex.y, p1.x - vertex.x);
+        const angle2 = Math.atan2(p2.y - vertex.y, p2.x - vertex.x);
+        let angle = Math.abs(angle1 - angle2) * (180 / Math.PI);
+        if (angle > 180) angle = 360 - angle;
+        return angle;
+    };
+
+    // Handle mouse/touch down
+    const handlePointerDown = (e: React.PointerEvent) => {
+        const point = screenToCanvas(e.clientX, e.clientY);
+        setMousePos(point);
+
+        if (state.currentTool === 'pan') {
+            setIsDrawing(true);
+            return;
+        }
+
+        if (state.currentTool === 'select') {
+            // Find clicked object
+            // Simple hit detection - can be improved
+            return;
+        }
+
+        // Drawing tools
+        if (['point', 'line', 'segment', 'ray', 'circle', 'rectangle'].includes(state.currentTool)) {
+            setIsDrawing(true);
+            setTempPoints([point]);
+        }
+
+        // Multi-point tools
+        if (['triangle', 'polygon', 'measure_distance', 'measure_angle'].includes(state.currentTool)) {
+            setTempPoints(prev => [...prev, point]);
+        }
+    };
+
+    // Handle mouse/touch move
+    const handlePointerMove = (e: React.PointerEvent) => {
+        const point = screenToCanvas(e.clientX, e.clientY);
+        setMousePos(point);
+
+        if (isDrawing && state.currentTool === 'pan') {
+            setState(prev => ({
+                ...prev,
+                pan: {
+                    x: prev.pan.x + e.movementX,
+                    y: prev.pan.y + e.movementY
+                }
+            }));
+            return;
+        }
+
+        if (isDrawing && tempPoints.length > 0) {
+            // Update preview
+        }
+    };
+
+    // Handle mouse/touch up
+    const handlePointerUp = () => {
+        if (!isDrawing && tempPoints.length === 0) return;
+
+        const tool = state.currentTool;
+
+        // Single-click tools that need two points
+        if (['line', 'segment', 'ray', 'circle', 'rectangle'].includes(tool) && tempPoints.length >= 1) {
+            const newObject: GeometryObject = {
+                id: generateId(),
+                type: tool,
+                points: [...tempPoints, mousePos],
+                color: currentColor,
+                strokeWidth: 2
+            };
+            saveToHistory();
+            setState(prev => ({
+                ...prev,
+                objects: [...prev.objects, newObject]
+            }));
+        }
+
+        // Point tool
+        if (tool === 'point' && tempPoints.length >= 1) {
+            const newObject: GeometryObject = {
+                id: generateId(),
+                type: 'point',
+                points: tempPoints,
+                color: currentColor,
+                strokeWidth: 2
+            };
+            saveToHistory();
+            setState(prev => ({
+                ...prev,
+                objects: [...prev.objects, newObject]
+            }));
+        }
+
+        // Triangle (needs 3 points)
+        if (tool === 'triangle' && tempPoints.length >= 3) {
+            const newObject: GeometryObject = {
+                id: generateId(),
+                type: 'triangle',
+                points: tempPoints.slice(0, 3),
+                color: currentColor,
+                strokeWidth: 2
+            };
+            saveToHistory();
+            setState(prev => ({
+                ...prev,
+                objects: [...prev.objects, newObject]
+            }));
+            setTempPoints([]);
+            return;
+        }
+
+        // Measure Distance
+        if (tool === 'measure_distance' && tempPoints.length >= 2) {
+            const dist = getDistance(tempPoints[0], tempPoints[1]);
+            const newMeasurement: Measurement = {
+                id: generateId(),
+                type: 'distance',
+                points: tempPoints.slice(0, 2),
+                value: Math.round(dist * 10) / 10,
+                unit: 'units'
+            };
+            saveToHistory();
+            setState(prev => ({
+                ...prev,
+                measurements: [...prev.measurements, newMeasurement]
+            }));
+            setTempPoints([]);
+            return;
+        }
+
+        // Measure Angle
+        if (tool === 'measure_angle' && tempPoints.length >= 3) {
+            const angle = getAngle(tempPoints[0], tempPoints[1], tempPoints[2]);
+            const newMeasurement: Measurement = {
+                id: generateId(),
+                type: 'angle',
+                points: tempPoints.slice(0, 3),
+                value: Math.round(angle * 10) / 10,
+                unit: '°'
+            };
+            saveToHistory();
+            setState(prev => ({
+                ...prev,
+                measurements: [...prev.measurements, newMeasurement]
+            }));
+            setTempPoints([]);
+            return;
+        }
+
+        setIsDrawing(false);
+        if (!['triangle', 'polygon', 'measure_distance', 'measure_angle'].includes(tool)) {
+            setTempPoints([]);
+        }
+    };
+
+    // Draw canvas
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        ctx.translate(state.pan.x, state.pan.y);
+        ctx.scale(state.zoom, state.zoom);
+
+        // Draw grid
+        if (state.gridEnabled) {
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1 / state.zoom;
+            const startX = -state.pan.x / state.zoom;
+            const startY = -state.pan.y / state.zoom;
+            const endX = (canvas.width - state.pan.x) / state.zoom;
+            const endY = (canvas.height - state.pan.y) / state.zoom;
+
+            for (let x = Math.floor(startX / GRID_SIZE) * GRID_SIZE; x < endX; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, startY);
+                ctx.lineTo(x, endY);
+                ctx.stroke();
+            }
+            for (let y = Math.floor(startY / GRID_SIZE) * GRID_SIZE; y < endY; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(startX, y);
+                ctx.lineTo(endX, y);
+                ctx.stroke();
+            }
+        }
+
+        // Draw objects
+        state.objects.forEach(obj => {
+            ctx.strokeStyle = obj.color;
+            ctx.fillStyle = obj.color;
+            ctx.lineWidth = obj.strokeWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            switch (obj.type) {
+                case 'point':
+                    obj.points.forEach(p => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    break;
+
+                case 'line':
+                case 'segment':
+                    if (obj.points.length >= 2) {
+                        ctx.beginPath();
+                        ctx.moveTo(obj.points[0].x, obj.points[0].y);
+                        ctx.lineTo(obj.points[1].x, obj.points[1].y);
+                        ctx.stroke();
+                        // Draw endpoints for segment
+                        if (obj.type === 'segment') {
+                            obj.points.forEach(p => {
+                                ctx.beginPath();
+                                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                                ctx.fill();
+                            });
+                        }
+                    }
+                    break;
+
+                case 'circle':
+                    if (obj.points.length >= 2) {
+                        const radius = getDistance(obj.points[0], obj.points[1]);
+                        ctx.beginPath();
+                        ctx.arc(obj.points[0].x, obj.points[0].y, radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                        // Center point
+                        ctx.beginPath();
+                        ctx.arc(obj.points[0].x, obj.points[0].y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    break;
+
+                case 'rectangle':
+                    if (obj.points.length >= 2) {
+                        const w = obj.points[1].x - obj.points[0].x;
+                        const h = obj.points[1].y - obj.points[0].y;
+                        ctx.strokeRect(obj.points[0].x, obj.points[0].y, w, h);
+                    }
+                    break;
+
+                case 'triangle':
+                    if (obj.points.length >= 3) {
+                        ctx.beginPath();
+                        ctx.moveTo(obj.points[0].x, obj.points[0].y);
+                        ctx.lineTo(obj.points[1].x, obj.points[1].y);
+                        ctx.lineTo(obj.points[2].x, obj.points[2].y);
+                        ctx.closePath();
+                        ctx.stroke();
+                        // Vertices
+                        obj.points.forEach(p => {
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                    break;
+            }
+        });
+
+        // Draw measurements
+        state.measurements.forEach(m => {
+            ctx.strokeStyle = '#dc2626';
+            ctx.fillStyle = '#dc2626';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 5]);
+
+            if (m.type === 'distance' && m.points.length >= 2) {
+                ctx.beginPath();
+                ctx.moveTo(m.points[0].x, m.points[0].y);
+                ctx.lineTo(m.points[1].x, m.points[1].y);
+                ctx.stroke();
+
+                // Label
+                const midX = (m.points[0].x + m.points[1].x) / 2;
+                const midY = (m.points[0].y + m.points[1].y) / 2;
+                ctx.setLineDash([]);
+                ctx.font = `${14 / state.zoom}px sans-serif`;
+                ctx.fillText(`${m.value} ${m.unit}`, midX + 5, midY - 5);
+            }
+
+            if (m.type === 'angle' && m.points.length >= 3) {
+                // Draw angle arc
+                const vertex = m.points[1];
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                const angle1 = Math.atan2(m.points[0].y - vertex.y, m.points[0].x - vertex.x);
+                const angle2 = Math.atan2(m.points[2].y - vertex.y, m.points[2].x - vertex.x);
+                ctx.arc(vertex.x, vertex.y, 30, angle1, angle2);
+                ctx.stroke();
+
+                // Label
+                ctx.font = `${14 / state.zoom}px sans-serif`;
+                ctx.fillText(`${m.value}${m.unit}`, vertex.x + 35, vertex.y);
+            }
+
+            ctx.setLineDash([]);
+        });
+
+        // Draw temp points (preview)
+        if (tempPoints.length > 0) {
+            ctx.strokeStyle = currentColor;
+            ctx.fillStyle = currentColor;
+            ctx.globalAlpha = 0.5;
+            
+            tempPoints.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Preview line to mouse
+            if (isDrawing || ['triangle', 'polygon', 'measure_distance', 'measure_angle'].includes(state.currentTool)) {
+                ctx.beginPath();
+                ctx.moveTo(tempPoints[tempPoints.length - 1].x, tempPoints[tempPoints.length - 1].y);
+                ctx.lineTo(mousePos.x, mousePos.y);
+                ctx.stroke();
+            }
+
+            ctx.globalAlpha = 1;
+        }
+
+        ctx.restore();
+    }, [state, tempPoints, mousePos, isDrawing, currentColor]);
+
+    // Clear all
+    const clearAll = () => {
+        saveToHistory();
+        setState(prev => ({
+            ...prev,
+            objects: [],
+            measurements: []
+        }));
+    };
+
+    // Export as image
+    const exportImage = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.download = 'geometry-canvas.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    };
+
+    // Tool button component
+    const ToolButton: React.FC<{ tool: ToolType; icon: React.ReactNode; label: string }> = ({ tool, icon, label }) => (
+        <button
+            onClick={() => setState(prev => ({ ...prev, currentTool: tool }))}
+            title={label}
+            style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: state.currentTool === tool ? 'var(--primary)' : 'white',
+                color: state.currentTool === tool ? 'white' : '#64748b',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+            }}
+        >
+            {icon}
+        </button>
+    );
+
+    return (
+        <div ref={containerRef} style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '1rem',
+            background: '#f8fafc',
+            borderRadius: '1rem',
+            padding: '1rem',
+            width: '100%',
+            maxWidth: '100%',
+            overflow: 'hidden'
+        }}>
+            {/* Toolbar */}
+            <div style={{
+                display: 'flex',
+                flexDirection: isMobile ? 'row' : 'column',
+                gap: '0.5rem',
+                flexWrap: 'wrap',
+                justifyContent: isMobile ? 'center' : 'flex-start'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <ToolButton tool="select" icon={<MousePointer size={20} />} label="Select" />
+                    <ToolButton tool="pan" icon={<Move size={20} />} label="Pan" />
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <ToolButton tool="point" icon={<PenTool size={20} />} label="Point" />
+                    <ToolButton tool="segment" icon={<Minus size={20} />} label="Segment" />
+                    <ToolButton tool="circle" icon={<Circle size={20} />} label="Circle" />
+                    <ToolButton tool="rectangle" icon={<Square size={20} />} label="Rectangle" />
+                    <ToolButton tool="triangle" icon={<Triangle size={20} />} label="Triangle" />
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <ToolButton tool="measure_distance" icon={<Ruler size={20} />} label="Measure Distance" />
+                    <ToolButton tool="measure_angle" icon={<CornerUpRight size={20} />} label="Measure Angle" />
+                </div>
+
+                {/* Colors */}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    {COLORS.map(color => (
+                        <button
+                            key={color}
+                            onClick={() => setCurrentColor(color)}
+                            style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '50%',
+                                border: currentColor === color ? '3px solid #1e293b' : '2px solid #e2e8f0',
+                                background: color,
+                                cursor: 'pointer'
+                            }}
+                        />
+                    ))}
+                </div>
+
+                {/* Actions */}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <button onClick={undo} disabled={history.past.length === 0} title="Undo"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: history.past.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Undo2 size={20} />
+                    </button>
+                    <button onClick={redo} disabled={history.future.length === 0} title="Redo"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: history.future.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Redo2 size={20} />
+                    </button>
+                    <button onClick={clearAll} title="Clear All"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Trash2 size={20} />
+                    </button>
+                    <button onClick={exportImage} title="Export"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Download size={20} />
+                    </button>
+                </div>
+
+                {/* Zoom */}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    gap: '0.25rem',
+                    padding: '0.5rem',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <button onClick={() => setState(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 3) }))} title="Zoom In"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ZoomIn size={20} />
+                    </button>
+                    <button onClick={() => setState(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.3) }))} title="Zoom Out"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ZoomOut size={20} />
+                    </button>
+                    <button onClick={() => setState(prev => ({ ...prev, zoom: 1, pan: { x: 0, y: 0 } }))} title="Reset View"
+                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RotateCcw size={20} />
+                    </button>
+                </div>
+
+                {/* Grid toggle */}
+                <button
+                    onClick={() => setState(prev => ({ ...prev, gridEnabled: !prev.gridEnabled }))}
+                    title="Toggle Grid"
+                    style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '0.5rem',
+                        border: 'none',
+                        background: state.gridEnabled ? 'var(--primary)' : 'white',
+                        color: state.gridEnabled ? 'white' : '#64748b',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    <Grid size={20} />
+                </button>
+            </div>
+
+            {/* Canvas */}
+            <div style={{
+                flex: 1,
+                background: 'white',
+                borderRadius: '0.75rem',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                overflow: 'hidden',
+                position: 'relative'
+            }}>
+                <canvas
+                    ref={canvasRef}
+                    width={isMobile ? canvasWidth : width}
+                    height={isMobile ? 400 : height}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{
+                        display: 'block',
+                        width: '100%',
+                        height: isMobile ? '400px' : `${height}px`,
+                        touchAction: 'none',
+                        cursor: state.currentTool === 'pan' ? 'grab' : 'crosshair'
+                    }}
+                />
+
+                {/* Coordinates display */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '0.5rem',
+                    right: '0.5rem',
+                    background: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace'
+                }}>
+                    ({Math.round(mousePos.x)}, {Math.round(mousePos.y)}) | Zoom: {Math.round(state.zoom * 100)}%
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default GeometryCanvas;

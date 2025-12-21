@@ -85,7 +85,7 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: Au
                 linkedQuizId: linkedQuizId || null,
                 minPassingScore: minPassingScore ?? 70,
                 order: order || null,
-                createdById: req.userId!
+                createdById: req.user!.id
             }
         });
         res.status(201).json(material);

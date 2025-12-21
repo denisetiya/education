@@ -52,7 +52,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
         // Users can only update themselves unless they're admin
-        if (req.userId !== req.params.id && req.userRole !== 'ADMIN') {
+        if (req.user?.id !== req.params.id && req.user?.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Cannot update other users' });
         }
 

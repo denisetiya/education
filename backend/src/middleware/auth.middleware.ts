@@ -2,8 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
-    userId?: string;
-    userRole?: string;
+    user?: {
+        id: string;
+        role: string;
+    };
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -16,8 +18,10 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as { userId: string; role: string };
-        req.userId = decoded.userId;
-        req.userRole = decoded.role;
+        req.user = {
+            id: decoded.userId,
+            role: decoded.role
+        };
         next();
     } catch (error) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -26,7 +30,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
 export const requireRole = (...roles: string[]) => {
     return (req: AuthRequest, res: Response, next: NextFunction) => {
-        if (!req.userRole || !roles.includes(req.userRole)) {
+        if (!req.user?.role || !roles.includes(req.user.role)) {
             return res.status(403).json({ error: 'Insufficient permissions' });
         }
         next();

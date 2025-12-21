@@ -14,16 +14,21 @@ import { StudentAchievements } from './pages/student/StudentAchievements';
 import { StudentMaterialView } from './pages/student/StudentMaterialView';
 import { StudentLeaderboard } from './pages/student/StudentLeaderboard';
 import { StudentHistory } from './pages/student/StudentHistory';
-import { StudentClasses } from './pages/student/StudentClasses';
+import { ClassSelection } from './pages/student/ClassSelection';
+import { ClassDiscovery } from './pages/student/ClassDiscovery';
+import { ClassDashboard } from './pages/student/ClassDashboard';
+import { GeometryPractice } from './pages/student/GeometryPractice';
 import { TeacherLayout } from './layouts/TeacherLayout';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
 import { TeacherClasses } from './pages/teacher/TeacherClasses';
 import { TeacherMaterials } from './pages/teacher/TeacherMaterials';
 import { TeacherCurriculum } from './pages/teacher/TeacherCurriculum';
 import { TeacherAnalytics } from './pages/teacher/TeacherAnalytics';
+import { TeacherClassDetail } from './pages/teacher/TeacherClassDetail';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminOverview } from './pages/admin/AdminOverview';
 import { AdminUsers } from './pages/admin/AdminUsers';
+
 
 function App() {
   return (
@@ -39,10 +44,13 @@ function App() {
               <StudentLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<StudentDashboard />} />
+            <Route index element={<ClassSelection />} />
+            <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="journey" element={<LearningJourney />} />
-            <Route path="classes" element={<StudentClasses />} />
-            <Route path="classes/:id" element={<div>Class Detail (Coming Soon)</div>} />
+            <Route path="classes" element={<ClassSelection />} />
+            <Route path="discover" element={<ClassDiscovery />} />
+            <Route path="class/:classId" element={<ClassDashboard />} />
+            <Route path="geometry" element={<GeometryPractice />} />
             <Route path="materials" element={<StudentMaterials />} />
             <Route path="materials/:id" element={<StudentMaterialView />} />
             <Route path="library" element={<StudentLibrary />} />
@@ -62,6 +70,7 @@ function App() {
           }>
             <Route index element={<TeacherDashboard />} />
             <Route path="classes" element={<TeacherClasses />} />
+            <Route path="classes/:id" element={<TeacherClassDetail />} />
             <Route path="materials" element={<TeacherMaterials />} />
             <Route path="curriculum" element={<TeacherCurriculum />} />
             <Route path="analytics" element={<TeacherAnalytics />} />

@@ -181,4 +181,368 @@ router.post('/join', authMiddleware, async (req, res) => {
     }
 });
 
+// ============ PUBLIC CLASS DISCOVERY ============
+
+// List public classes for discovery (no auth required, but auth helps to exclude already enrolled)
+router.get('/public/discover', async (req, res) => {
+    try {
+        const { search, subject } = req.query;
+        
+        const where: any = { isPublic: true };
+        
+        if (search) {
+            where.OR = [
+                { name: { contains: String(search) } },
+                { description: { contains: String(search) } }
+            ];
+        }
+        
+        if (subject) {
+            where.subject = String(subject);
+        }
+
+        const classes = await prisma.class.findMany({
+            where,
+            select: {
+                id: true,
+                name: true,
+                code: true,
+                subject: true,
+                description: true,
+                thumbnail: true,
+                progressionMode: true,
+                teacher: { select: { name: true } },
+                _count: { select: { students: true, modules: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json(classes);
+    } catch (error) {
+        console.error('Get public classes error:', error);
+        res.status(500).json({ error: 'Failed to fetch public classes' });
+    }
+});
+
+// Preview public class before joining
+router.get('/public/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const classDetail = await prisma.class.findUnique({
+            where: { id, isPublic: true },
+            select: {
+                id: true,
+                name: true,
+                subject: true,
+                description: true,
+                thumbnail: true,
+                progressionMode: true,
+                code: true,
+                teacher: { select: { name: true } },
+                _count: { select: { students: true, modules: true } },
+                modules: {
+                    select: { id: true, title: true, order: true },
+                    orderBy: { order: 'asc' }
+                }
+            }
+        });
+
+        if (!classDetail) {
+            return res.status(404).json({ error: 'Class not found or not public' });
+        }
+
+        res.json(classDetail);
+    } catch (error) {
+        console.error('Get public class detail error:', error);
+        res.status(500).json({ error: 'Failed to fetch class details' });
+    }
+});
+
+// ============ CLASS SETTINGS (Teacher only) ============
+
+router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isPublic, progressionMode, thumbnail, xpMultiplier } = req.body;
+        // @ts-ignore
+        const userId = req.user.id;
+
+        // Verify teacher owns this class
+        const existingClass = await prisma.class.findUnique({ where: { id } });
+        if (!existingClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (existingClass.teacherId !== userId) {
+            return res.status(403).json({ error: 'Not authorized to modify this class' });
+        }
+
+        const updated = await prisma.class.update({
+            where: { id },
+            data: {
+                ...(isPublic !== undefined && { isPublic }),
+                ...(progressionMode !== undefined && { progressionMode }),
+                ...(thumbnail !== undefined && { thumbnail }),
+                ...(xpMultiplier !== undefined && { xpMultiplier })
+            }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Update class settings error:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
+// ============ CLASS DASHBOARD ============
+
+router.get('/:id/dashboard', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // @ts-ignore
+        const userId = req.user.id;
+
+        // Get class with modules and materials
+        const classData = await prisma.class.findUnique({
+            where: { id },
+            include: {
+                teacher: { select: { name: true } },
+                modules: {
+                    include: {
+                        materials: {
+                            select: { id: true, title: true, type: true, moduleOrder: true },
+                            orderBy: { moduleOrder: 'asc' }
+                        }
+                    },
+                    orderBy: { order: 'asc' }
+                },
+                achievements: true,
+                _count: { select: { students: true } }
+            }
+        });
+
+        if (!classData) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        // Get all material IDs from this class
+        const materialIds = classData.modules.flatMap(m => m.materials.map(mat => mat.id));
+
+        // Get student's progress on these materials
+        const progress = await prisma.progress.findMany({
+            where: {
+                userId,
+                materialId: { in: materialIds }
+            }
+        });
+
+        // Get unlocked achievements
+        const unlockedAchievements = await prisma.studentClassAchievement.findMany({
+            where: {
+                studentId: userId,
+                achievement: { classId: id }
+            },
+            include: { achievement: true }
+        });
+
+        // Calculate stats
+        const totalMaterials = materialIds.length;
+        const completedMaterials = progress.filter(p => p.status === 'completed').length;
+        const totalXP = progress
+            .filter(p => p.status === 'completed')
+            .reduce((sum, p) => sum + (p.score || 50) * (classData.xpMultiplier || 1), 0);
+
+        res.json({
+            class: classData,
+            progress: {
+                completed: completedMaterials,
+                total: totalMaterials,
+                percentage: totalMaterials > 0 ? Math.round((completedMaterials / totalMaterials) * 100) : 0,
+                xp: Math.round(totalXP)
+            },
+            materialProgress: progress,
+            achievements: {
+                unlocked: unlockedAchievements,
+                total: classData.achievements.length
+            }
+        });
+    } catch (error) {
+        console.error('Get class dashboard error:', error);
+        res.status(500).json({ error: 'Failed to fetch dashboard' });
+    }
+});
+
+// ============ CLASS ACHIEVEMENTS ============
+
+// Create achievement (Teacher)
+router.post('/:id/achievements', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, icon, xpReward, condition } = req.body;
+        // @ts-ignore
+        const userId = req.user.id;
+
+        // Verify teacher owns this class
+        const existingClass = await prisma.class.findUnique({ where: { id } });
+        if (!existingClass || existingClass.teacherId !== userId) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        const achievement = await prisma.classAchievement.create({
+            data: {
+                title,
+                description,
+                icon: icon || '🏆',
+                xpReward: xpReward || 50,
+                condition: typeof condition === 'string' ? condition : JSON.stringify(condition),
+                classId: id
+            }
+        });
+
+        res.status(201).json(achievement);
+    } catch (error) {
+        console.error('Create achievement error:', error);
+        res.status(500).json({ error: 'Failed to create achievement' });
+    }
+});
+
+// List achievements for class
+router.get('/:id/achievements', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // @ts-ignore
+        const userId = req.user.id;
+
+        const achievements = await prisma.classAchievement.findMany({
+            where: { classId: id },
+            include: {
+                unlockedBy: {
+                    where: { studentId: userId },
+                    select: { unlockedAt: true }
+                }
+            }
+        });
+
+        // Format response
+        const formatted = achievements.map(ach => ({
+            ...ach,
+            unlocked: ach.unlockedBy.length > 0,
+            unlockedAt: ach.unlockedBy[0]?.unlockedAt || null
+        }));
+
+        res.json(formatted);
+    } catch (error) {
+        console.error('Get achievements error:', error);
+        res.status(500).json({ error: 'Failed to fetch achievements' });
+    }
+});
+
+// Claim/check achievement (Student)
+router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) => {
+    try {
+        const { id, achId } = req.params;
+        // @ts-ignore
+        const userId = req.user.id;
+
+        // Get achievement
+        const achievement = await prisma.classAchievement.findUnique({
+            where: { id: achId, classId: id }
+        });
+
+        if (!achievement) {
+            return res.status(404).json({ error: 'Achievement not found' });
+        }
+
+        // Check if already unlocked
+        const existing = await prisma.studentClassAchievement.findUnique({
+            where: {
+                studentId_achievementId: {
+                    studentId: userId,
+                    achievementId: achId
+                }
+            }
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: 'Achievement already unlocked' });
+        }
+
+        // Parse condition and verify
+        const condition = JSON.parse(achievement.condition);
+        let conditionMet = false;
+
+        // Get class materials for checking
+        const classModules = await prisma.module.findMany({
+            where: { classId: id },
+            include: { materials: true }
+        });
+        const materialIds = classModules.flatMap(m => m.materials.map(mat => mat.id));
+
+        if (condition.type === 'complete_materials') {
+            const completed = await prisma.progress.count({
+                where: {
+                    userId,
+                    materialId: { in: materialIds },
+                    status: 'completed'
+                }
+            });
+            conditionMet = completed >= condition.target;
+        } else if (condition.type === 'quiz_score') {
+            const quizzes = await prisma.progress.findMany({
+                where: {
+                    userId,
+                    materialId: { in: materialIds },
+                    status: 'completed',
+                    score: { gte: condition.target }
+                }
+            });
+            conditionMet = quizzes.length > 0;
+        } else if (condition.type === 'complete_module') {
+            // Check if target number of modules are fully completed
+            let completedModules = 0;
+            for (const mod of classModules) {
+                const matIds = mod.materials.map(m => m.id);
+                if (matIds.length === 0) continue;
+                const completed = await prisma.progress.count({
+                    where: {
+                        userId,
+                        materialId: { in: matIds },
+                        status: 'completed'
+                    }
+                });
+                if (completed === matIds.length) completedModules++;
+            }
+            conditionMet = completedModules >= condition.target;
+        }
+
+        if (!conditionMet) {
+            return res.status(400).json({ error: 'Achievement condition not met', condition });
+        }
+
+        // Unlock achievement
+        const unlock = await prisma.studentClassAchievement.create({
+            data: {
+                studentId: userId,
+                achievementId: achId
+            }
+        });
+
+        // Award XP to user
+        await prisma.user.update({
+            where: { id: userId },
+            data: { xp: { increment: achievement.xpReward } }
+        });
+
+        res.json({ 
+            message: 'Achievement unlocked!', 
+            achievement,
+            xpAwarded: achievement.xpReward
+        });
+    } catch (error) {
+        console.error('Claim achievement error:', error);
+        res.status(500).json({ error: 'Failed to claim achievement' });
+    }
+});
+
 export default router;
+

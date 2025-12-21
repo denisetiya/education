@@ -1,4 +1,4 @@
-import { AuthResponse, ClassItem, LeaderboardEntry, Material, Module, ProgressHistory, QuizResult, User } from '../types/api.types';
+import type { AuthResponse, ClassItem, LeaderboardEntry, Material, Module, ProgressHistory, QuizResult, User } from '../types/api.types';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -29,13 +29,11 @@ async function apiFetch<T>(
 // Auth API
 export const authAPI = {
     register: (data: { email: string; password: string; name: string; role?: string }) =>
-    register: (data: { email: string; password: string; name: string; role?: string }) =>
         apiFetch<AuthResponse>('/auth/register', {
             method: 'POST',
             body: JSON.stringify(data)
         }),
 
-    login: (data: { email: string; password: string }) =>
     login: (data: { email: string; password: string }) =>
         apiFetch<AuthResponse>('/auth/login', {
             method: 'POST',
@@ -100,6 +98,10 @@ export const modulesAPI = {
         apiFetch<any>('/modules/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
     assignMaterials: (moduleId: string, materialIds: string[]) =>
         apiFetch<any>(`/modules/${moduleId}/materials`, { method: 'POST', body: JSON.stringify({ materialIds }) }),
+    getByClass: (classId: string) => apiFetch<Module[]>(`/modules/by-class/${classId}`),
+    getUnassigned: () => apiFetch<Module[]>('/modules/unassigned'),
+    assignToClass: (moduleId: string, classId: string | null) =>
+        apiFetch<Module>(`/modules/${moduleId}/assign-class`, { method: 'PUT', body: JSON.stringify({ classId }) }),
     delete: (id: string) =>
         apiFetch<any>(`/modules/${id}`, { method: 'DELETE' })
 };
@@ -122,7 +124,6 @@ export const progressAPI = {
         const params = new URLSearchParams({ limit: String(limit) });
         if (status) params.append('status', status);
         return apiFetch<ProgressHistory[]>(`/progress/history?${params.toString()}`);
-    },
     },
     getMaterialProgress: (materialId: string) =>
         apiFetch<any>(`/progress/material/${materialId}`),
@@ -147,11 +148,33 @@ export const progressAPI = {
 export const classesAPI = {
     getAll: () => apiFetch<ClassItem[]>('/classes'),
     getById: (id: string) => apiFetch<ClassItem>(`/classes/${id}`),
-    create: (data: { name: string; subject: string; description?: string }) =>
+    create: (data: { name: string; subject?: string; description?: string }) =>
         apiFetch<ClassItem>('/classes', { method: 'POST', body: JSON.stringify(data) }),
     join: (code: string) =>
         apiFetch<any>('/classes/join', { method: 'POST', body: JSON.stringify({ code }) }),
     addModule: (classId: string, moduleData: any) =>
-        apiFetch<any>(`/classes/${classId}/modules`, { method: 'POST', body: JSON.stringify(moduleData) })
+        apiFetch<any>(`/classes/${classId}/modules`, { method: 'POST', body: JSON.stringify(moduleData) }),
+    
+    // Public class discovery
+    getPublic: (filters?: { search?: string; subject?: string }) => {
+        const params = new URLSearchParams();
+        if (filters?.search) params.append('search', filters.search);
+        if (filters?.subject) params.append('subject', filters.subject);
+        return apiFetch<any[]>(`/classes/public/discover?${params.toString()}`);
+    },
+    getPublicById: (id: string) => apiFetch<any>(`/classes/public/${id}`),
+    
+    // Class settings
+    updateSettings: (id: string, settings: { isPublic?: boolean; progressionMode?: string; thumbnail?: string; xpMultiplier?: number }) =>
+        apiFetch<any>(`/classes/${id}/settings`, { method: 'PUT', body: JSON.stringify(settings) }),
+    
+    // Class dashboard
+    getDashboard: (id: string) => apiFetch<any>(`/classes/${id}/dashboard`),
+    
+    // Achievements
+    getAchievements: (classId: string) => apiFetch<any[]>(`/classes/${classId}/achievements`),
+    createAchievement: (classId: string, data: { title: string; description: string; icon?: string; xpReward?: number; condition: any }) =>
+        apiFetch<any>(`/classes/${classId}/achievements`, { method: 'POST', body: JSON.stringify(data) }),
+    claimAchievement: (classId: string, achievementId: string) =>
+        apiFetch<any>(`/classes/${classId}/achievements/${achievementId}/claim`, { method: 'POST' })
 };
-

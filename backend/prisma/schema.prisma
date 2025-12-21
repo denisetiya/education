@@ -28,6 +28,7 @@ model User {
   createdMaterials Material[] @relation("CreatedMaterials")
   teachingClasses  Class[]    @relation("TeachingClasses")
   enrolledClasses  ClassEnrollment[]
+  classAchievements StudentClassAchievement[]
 }
 
 model Material {
@@ -78,19 +79,24 @@ model Module {
 }
 
 model Class {
-  id          String    @id @default(uuid())
-  name        String
-  subject     String
-  description String?
-  code        String    @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(uuid())
+  name            String
+  subject         String    @default("Umum")
+  description     String?
+  code            String    @unique
+  isPublic        Boolean   @default(false)
+  progressionMode String    @default("sequential") // "sequential" | "free"
+  thumbnail       String?
+  xpMultiplier    Float     @default(1.0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  teacher     User      @relation("TeachingClasses", fields: [teacherId], references: [id])
-  teacherId   String
-  students    ClassEnrollment[]
-  modules     Module[]
+  teacher      User              @relation("TeachingClasses", fields: [teacherId], references: [id])
+  teacherId    String
+  students     ClassEnrollment[]
+  modules      Module[]
+  achievements ClassAchievement[]
 }
 
 model ClassEnrollment {
@@ -132,4 +138,34 @@ model Achievement {
   // Relations
   user        User      @relation(fields: [userId], references: [id])
   userId      String
+}
+
+// Custom achievements per class, created by teacher
+model ClassAchievement {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  icon        String   // emoji or icon name
+  xpReward    Int      @default(50)
+  condition   String   // JSON: {type: "complete_materials" | "quiz_score" | "complete_module", target: number}
+  createdAt   DateTime @default(now())
+
+  // Relations
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId     String
+  unlockedBy  StudentClassAchievement[]
+}
+
+// Track which students unlocked which class achievements
+model StudentClassAchievement {
+  id            String   @id @default(uuid())
+  unlockedAt    DateTime @default(now())
+
+  // Relations
+  student       User             @relation(fields: [studentId], references: [id])
+  studentId     String
+  achievement   ClassAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  achievementId String
+
+  @@unique([studentId, achievementId])
 }

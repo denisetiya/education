@@ -2,17 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
-    Map,
     BookOpen,
     Trophy,
-    Star,
-    Zap,
     LogOut,
     Bell,
-    User,
-    FileText,
-    Medal,
-    History
+    Medal
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -39,6 +33,9 @@ export const StudentLayout: React.FC = () => {
     const { user, logout } = useAuth();
     const isActive = (path: string) => location.pathname === path;
     const isMobile = useMediaQuery('(max-width: 768px)');
+    
+    // Hide sidebar on class selection page
+    const isClassSelectionPage = location.pathname === '/student' || location.pathname === '/student/classes' || location.pathname === '/student/discover';
 
     // Use actual user data or defaults
     const studentStats = {
@@ -57,10 +54,10 @@ export const StudentLayout: React.FC = () => {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-gradient)', paddingBottom: isMobile ? '80px' : '0' }}>
+        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-gradient)', paddingBottom: (isMobile && !isClassSelectionPage) ? '80px' : '0' }}>
 
-            {/* Sidebar - Desktop Only */}
-            {!isMobile && (
+            {/* Sidebar - Desktop Only, Hidden on Class Selection */}
+            {!isMobile && !isClassSelectionPage && (
                 <aside className="glass-panel" style={{
                     width: '280px',
                     display: 'flex',
@@ -81,14 +78,10 @@ export const StudentLayout: React.FC = () => {
 
                     {/* Navigation */}
                     <nav style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <NavItem to="/student" icon={<LayoutDashboard size={20} />} label="Dashboard" active={isActive('/student')} />
+                        <NavItem to="/student/classes" icon={<LayoutDashboard size={20} />} label="Kelas Saya" active={location.pathname.startsWith('/student/class')} />
+                        <NavItem to="/student/discover" icon={<BookOpen size={20} />} label="Jelajahi Kelas" active={isActive('/student/discover')} />
                         <NavItem to="/student/leaderboard" icon={<Trophy size={20} />} label="Leaderboard" active={isActive('/student/leaderboard')} />
-                        <NavItem to="/student/materials" icon={<FileText size={20} />} label="Materi" active={isActive('/student/materials')} />
-                        <NavItem to="/student/history" icon={<History size={20} />} label="Riwayat Belajar" active={isActive('/student/history')} />
-                        <NavItem to="/student/journey" icon={<Map size={20} />} label="Peta Belajar" active={isActive('/student/journey')} />
-                        <NavItem to="/student/library" icon={<BookOpen size={20} />} label="Perpustakaan" active={isActive('/student/library')} />
-                        <NavItem to="/student/practice" icon={<Star size={20} />} label="Latihan" active={isActive('/student/practice')} />
-                        <NavItem to="/student/achievements" icon={<Medal size={20} />} label="Prestasi" active={isActive('/student/achievements')} />
+                        <NavItem to="/student/achievements" icon={<Medal size={20} />} label="Prestasi Saya" active={isActive('/student/achievements')} />
                     </nav>
 
                     {/* User Mini Profile */}
@@ -109,7 +102,7 @@ export const StudentLayout: React.FC = () => {
 
             {/* Main Content Wrapper */}
             <div style={{
-                marginLeft: isMobile ? '0' : '300px',
+                marginLeft: (isMobile || isClassSelectionPage) ? '0' : '300px',
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
@@ -174,8 +167,8 @@ export const StudentLayout: React.FC = () => {
                 </main>
             </div>
 
-            {/* Bottom Nav - Mobile Only */}
-            {isMobile && (
+            {/* Bottom Nav - Mobile Only, Hidden on Class Selection */}
+            {isMobile && !isClassSelectionPage && (
                 <div className="glass-panel" style={{
                     position: 'fixed',
                     bottom: 0,
@@ -190,15 +183,10 @@ export const StudentLayout: React.FC = () => {
                     borderTopRightRadius: '1rem',
                     boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
                 }}>
-                    <MobileNavItem to="/student" icon={<LayoutDashboard size={24} />} active={isActive('/student')} />
+                    <MobileNavItem to="/student/classes" icon={<LayoutDashboard size={24} />} active={location.pathname.startsWith('/student/class')} />
+                    <MobileNavItem to="/student/discover" icon={<BookOpen size={24} />} active={isActive('/student/discover')} />
                     <MobileNavItem to="/student/leaderboard" icon={<Trophy size={24} />} active={isActive('/student/leaderboard')} />
-                    <div style={{ position: 'relative', top: '-25px' }}>
-                        <button className="btn-primary" style={{ width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(99, 102, 241, 0.4)' }}>
-                            <Link to="/student/practice" style={{ color: 'white' }}><Star size={28} fill="white" /></Link>
-                        </button>
-                    </div>
-                    <MobileNavItem to="/student/library" icon={<BookOpen size={24} />} active={isActive('/student/library')} />
-                    <MobileNavItem to="/student/achievements" icon={<User size={24} />} active={isActive('/student/achievements')} />
+                    <MobileNavItem to="/student/achievements" icon={<Medal size={24} />} active={isActive('/student/achievements')} />
                 </div>
             )}
         </div>

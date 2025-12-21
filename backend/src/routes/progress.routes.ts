@@ -7,7 +7,7 @@ const router = Router();
 // Get user's reading history/progress
 router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { limit = '20', status } = req.query;
 
         const progress = await prisma.progress.findMany({
@@ -42,7 +42,7 @@ router.get('/history', authMiddleware, async (req: AuthRequest, res) => {
 // Get comprehensive progress map for Learning Journey
 router.get('/map', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const progress = await prisma.progress.findMany({
             where: { userId },
             select: { materialId: true, status: true, score: true }
@@ -63,7 +63,7 @@ router.get('/map', authMiddleware, async (req: AuthRequest, res) => {
 // Get progress for a specific material
 router.get('/material/:materialId', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { materialId } = req.params;
 
         const progress = await prisma.progress.findUnique({
@@ -82,7 +82,7 @@ router.get('/material/:materialId', authMiddleware, async (req: AuthRequest, res
 // Start or update progress (when opening a material)
 router.post('/start', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { materialId } = req.body;
 
         if (!materialId) {
@@ -125,7 +125,7 @@ router.post('/start', authMiddleware, async (req: AuthRequest, res) => {
 // Update progress (time spent, scroll position, etc.)
 router.put('/update', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { materialId, timeSpent, progress: progressPercent } = req.body;
 
         if (!materialId) {
@@ -162,7 +162,7 @@ router.put('/update', authMiddleware, async (req: AuthRequest, res) => {
 // Complete a material
 router.post('/complete', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { materialId, timeSpent, score } = req.body;
 
         if (!materialId) {
@@ -211,7 +211,7 @@ router.post('/complete', authMiddleware, async (req: AuthRequest, res) => {
 // Check if user passed a linked quiz
 router.get('/quiz-passed/:materialId', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
         const { materialId } = req.params;
 
         // Get the material to find its linked quiz

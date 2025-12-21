@@ -108,6 +108,58 @@ router.delete('/:moduleId/materials/:materialId', authMiddleware, requireRole('T
     }
 });
 
+// Assign module to class
+router.put('/:id/assign-class', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { classId } = req.body; // classId can be null to unassign
+        const module = await prisma.module.update({
+            where: { id: req.params.id },
+            data: { classId: classId || null }
+        });
+        res.json(module);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to assign module to class' });
+    }
+});
+
+// Get modules by class
+router.get('/by-class/:classId', authMiddleware, async (req, res) => {
+    try {
+        const modules = await prisma.module.findMany({
+            where: { classId: req.params.classId },
+            include: {
+                materials: {
+                    select: { id: true, title: true, type: true, moduleOrder: true },
+                    orderBy: { moduleOrder: 'asc' }
+                }
+            },
+            orderBy: { order: 'asc' }
+        });
+        res.json(modules);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch class modules' });
+    }
+});
+
+// Get unassigned modules (no classId)
+router.get('/unassigned', authMiddleware, async (req, res) => {
+    try {
+        const modules = await prisma.module.findMany({
+            where: { classId: null },
+            include: {
+                materials: {
+                    select: { id: true, title: true, type: true, moduleOrder: true },
+                    orderBy: { moduleOrder: 'asc' }
+                }
+            },
+            orderBy: { order: 'asc' }
+        });
+        res.json(modules);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch unassigned modules' });
+    }
+});
+
 // Delete module
 router.delete('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
     try {

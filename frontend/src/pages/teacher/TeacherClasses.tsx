@@ -8,12 +8,23 @@ export const TeacherClasses: React.FC = () => {
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newClass, setNewClass] = useState({ name: '', subject: '', description: '' });
+    const [newClass, setNewClass] = useState({ name: '', description: '' });
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchClasses();
     }, []);
+
+    // Auto-hide success message after 3 seconds
+    useEffect(() => {
+        if (success) {
+            const timer = setTimeout(() => setSuccess(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success]);
 
     const fetchClasses = async () => {
         try {
@@ -28,20 +39,25 @@ export const TeacherClasses: React.FC = () => {
 
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        setIsSubmitting(true);
         try {
             await classesAPI.create(newClass);
             setShowCreateModal(false);
-            setNewClass({ name: '', subject: '', description: '' });
+            setNewClass({ name: '', description: '' });
+            setSuccess('Kelas berhasil dibuat!');
             fetchClasses();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to create class', error);
-            alert('Failed to create class');
+            setError(error.message || 'Gagal membuat kelas. Silakan coba lagi.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        alert('Kode kelas disalin!');
+        setSuccess('Kode kelas disalin!');
     };
 
     return (
@@ -74,6 +90,7 @@ export const TeacherClasses: React.FC = () => {
                 >
                     <Plus size={20} /> Buat Kelas Baru
                 </button>
+                </div>
             </div>
 
             {/* Content Area */}
@@ -176,6 +193,19 @@ export const TeacherClasses: React.FC = () => {
                 }}>
                     <div className="card glass" style={{ width: '400px', padding: '2rem' }}>
                         <h2 style={{ marginBottom: '1.5rem' }}>Buat Kelas Baru</h2>
+                        {error && (
+                            <div style={{ 
+                                padding: '0.75rem 1rem', 
+                                background: '#fef2f2', 
+                                border: '1px solid #fecaca', 
+                                borderRadius: '0.5rem', 
+                                color: '#dc2626', 
+                                marginBottom: '1rem',
+                                fontSize: '0.9rem'
+                            }}>
+                                {error}
+                            </div>
+                        )}
                         <form onSubmit={handleCreateClass} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>Nama Kelas</label>
@@ -185,18 +215,7 @@ export const TeacherClasses: React.FC = () => {
                                     value={newClass.name}
                                     onChange={e => setNewClass({ ...newClass, name: e.target.value })}
                                     style={{ width: '100%', padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                                    placeholder="Contoh: Matematika X-A"
-                                />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Mata Pelajaran</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={newClass.subject}
-                                    onChange={e => setNewClass({ ...newClass, subject: e.target.value })}
-                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
-                                    placeholder="Contoh: Matematika"
+                                    placeholder="Contoh: Kelas 10-A"
                                 />
                             </div>
                              <div>
@@ -206,14 +225,38 @@ export const TeacherClasses: React.FC = () => {
                                     onChange={e => setNewClass({ ...newClass, description: e.target.value })}
                                     style={{ width: '100%', padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
                                     rows={3}
+                                    placeholder="Tambahkan deskripsi kelas..."
                                 />
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>Batal</button>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Buat</button>
+                                <button type="button" onClick={() => { setShowCreateModal(false); setError(null); }} className="btn btn-secondary" style={{ flex: 1 }}>Batal</button>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isSubmitting}>
+                                    {isSubmitting ? 'Membuat...' : 'Buat'}
+                                </button>
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+            
+            {/* Success Toast */}
+            {success && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '2rem',
+                    right: '2rem',
+                    background: '#10b981',
+                    color: 'white',
+                    padding: '1rem 1.5rem',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    animation: 'slideUp 0.3s ease-out',
+                    zIndex: 1100
+                }}>
+                    ✓ {success}
                 </div>
             )}
         </div>

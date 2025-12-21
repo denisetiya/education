@@ -7,7 +7,7 @@ const router = Router();
 // Student Dashboard Data
 router.get('/student', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const userId = req.userId!;
+        const userId = req.user!.id;
 
         // Get user with progress and achievements
         const user = await prisma.user.findUnique({
@@ -60,7 +60,7 @@ router.get('/student', authMiddleware, async (req: AuthRequest, res) => {
 // Teacher Dashboard Data
 router.get('/teacher', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const teacherId = req.userId!;
+        const teacherId = req.user!.id;
 
         // Get teacher's classes
         const classes = await prisma.class.findMany({
