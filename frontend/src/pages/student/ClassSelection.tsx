@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Users, Compass, ChevronRight, Search, Loader } from 'lucide-react';
+import { BookOpen, Users, Compass, ChevronRight, Sparkles, GraduationCap, ArrowRight, Search, Clock, Zap, LogOut } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface EnrolledClass {
     id: string;
@@ -17,7 +18,10 @@ interface EnrolledClass {
 export const ClassSelection: React.FC = () => {
     const [classes, setClasses] = useState<EnrolledClass[]>([]);
     const [loading, setLoading] = useState(true);
+    const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
+    const { user, logout } = useAuth();
 
     useEffect(() => {
         fetchEnrolledClasses();
@@ -38,234 +42,381 @@ export const ClassSelection: React.FC = () => {
         navigate(`/student/class/${classId}`);
     };
 
-    const getGradientByIndex = (index: number) => {
-        const gradients = [
-            'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-            'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-        ];
-        return gradients[index % gradients.length];
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
     };
+
+    const gradients = [
+        'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)', // Indigo
+        'linear-gradient(135deg, #34d399 0%, #10b981 100%)', // Emerald
+        'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', // Amber
+        'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)', // Pink
+        'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)', // Blue
+        'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', // Violet
+    ];
+
+    const getGradient = (index: number) => gradients[index % gradients.length];
+
+    const getSubjectEmoji = (subject: string) => {
+        const map: Record<string, string> = {
+            'matematika': '📐', 'geometri': '📐', 'math': '➗',
+            'fisika': '⚛️', 'kimia': '🧪', 'biologi': '🧬',
+            'bahasa': '📝', 'sejarah': '📜', 'geografi': '🌍',
+            'seni': '🎨', 'musik': '🎵', 'olahraga': '⚽',
+            'komputer': '💻', 'coding': '👨‍💻'
+        };
+        const key = subject.toLowerCase();
+        for (const [k, v] of Object.entries(map)) {
+            if (key.includes(k)) return v;
+        }
+        return '📚';
+    };
+
+    const filteredClasses = classes.filter(c => 
+        c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        c.subject.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (loading) {
+        return (
+            <div style={{
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--bg-gradient)'
+            }}>
+                <div className="animate-pulse" style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '1rem',
+                    boxShadow: 'var(--shadow-lg)'
+                }}>
+                    <GraduationCap size={30} color="white" />
+                </div>
+                <p style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Memuat kelas...</p>
+            </div>
+        );
+    }
 
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
-            padding: '2rem'
+            padding: '2rem',
+            background: 'var(--bg-gradient)'
         }}>
-            {/* Header */}
+            {/* Background Decoration */}
             <div style={{
-                maxWidth: '1200px',
-                margin: '0 auto',
-                textAlign: 'center',
-                marginBottom: '3rem'
-            }}>
-                <h1 style={{
-                    fontSize: 'clamp(2rem, 5vw, 3rem)',
-                    fontWeight: '800',
-                    color: '#1e293b',
-                    marginBottom: '1rem'
-                }}>
-                    Selamat Datang! 👋
-                </h1>
-                <p style={{
-                    fontSize: '1.1rem',
-                    color: '#64748b',
-                    maxWidth: '600px',
-                    margin: '0 auto'
-                }}>
-                    Pilih kelas untuk memulai belajar atau temukan kelas baru yang menarik.
-                </p>
-            </div>
+                position: 'fixed',
+                top: '-10%',
+                right: '-5%',
+                width: '600px',
+                height: '600px',
+                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%)',
+                borderRadius: '50%',
+                zIndex: 0,
+                pointerEvents: 'none'
+            }} />
 
-            {/* Main Content */}
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-                        <Loader className="animate-spin" size={48} style={{ color: 'var(--primary)' }} />
+            <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+                
+                {/* Header Section */}
+                <div style={{ marginBottom: '3rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1.5rem' }}>
+                        <div>
+                            <div style={{ 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                gap: '0.5rem', 
+                                background: 'white', 
+                                padding: '0.5rem 1rem', 
+                                borderRadius: '2rem', 
+                                border: '1px solid #e2e8f0',
+                                marginBottom: '1rem',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}>
+                                <Sparkles size={16} className="text-primary" />
+                                <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>
+                                    Selamat datang kembali, <span style={{ color: '#334155', fontWeight: '700' }}>{user?.name?.split(' ')[0]}</span>!
+                                </span>
+                            </div>
+                            <h1 style={{ 
+                                fontSize: '2.5rem', 
+                                fontWeight: '800', 
+                                color: '#1e293b', 
+                                letterSpacing: '-0.02em',
+                                lineHeight: 1.2
+                            }}>
+                                Kelas Saya
+                            </h1>
+                            <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem' }}>
+                                Lanjutkan pembelajaran di kelas yang aktif
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <div style={{ position: 'relative' }}>
+                                <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Cari kelas..." 
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={{
+                                        padding: '0.75rem 1rem 0.75rem 3rem',
+                                        borderRadius: '1rem',
+                                        border: '1px solid #e2e8f0',
+                                        width: '240px',
+                                        fontSize: '0.95rem',
+                                        outline: 'none',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onFocus={(e) => {
+                                        e.target.style.borderColor = 'var(--primary)';
+                                        e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+                                    }}
+                                    onBlur={(e) => {
+                                        e.target.style.borderColor = '#e2e8f0';
+                                        e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                                    }}
+                                />
+                            </div>
+                            <button
+                                onClick={() => navigate('/student/discover')}
+                                className="btn btn-primary"
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    borderRadius: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)'
+                                }}
+                            >
+                                <Compass size={20} />
+                                Jelajahi
+                            </button>
+                            
+                            <button
+                                onClick={handleLogout}
+                                
+                                style={{
+                                    padding: '0.75rem',
+                                    borderRadius: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    background: 'white',
+                                    border: '1px solid #e2e8f0',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                                title="Keluar"
+                            >
+                                <LogOut size={20} />
+                            </button>
+                        </div>
                     </div>
-                ) : classes.length === 0 ? (
-                    /* Empty State */
-                    <div style={{
-                        background: 'white',
-                        borderRadius: '1.5rem',
-                        padding: '4rem 2rem',
-                        textAlign: 'center',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                </div>
+
+                {/* Empty State */}
+                {classes.length === 0 ? (
+                    <div className="glass-panel" style={{ 
+                        padding: '4rem 2rem', 
+                        textAlign: 'center', 
+                        borderRadius: '2rem',
+                        maxWidth: '600px',
+                        margin: '2rem auto',
+                        border: '1px solid rgba(255,255,255,0.8)'
                     }}>
-                        <BookOpen size={64} style={{ color: '#94a3b8', marginBottom: '1.5rem' }} />
-                        <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#334155', marginBottom: '0.75rem' }}>
-                            Belum Ada Kelas
+                        <div style={{ 
+                            width: '120px', 
+                            height: '120px', 
+                            borderRadius: '50%', // Replaced "circle" with "50%" for valid CSS
+                            background: '#eff6ff', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            margin: '0 auto 1.5rem'
+                        }}>
+                            <BookOpen size={48} className="text-primary" />
+                        </div>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e293b', marginBottom: '1rem' }}>
+                            Mulai Perjalanan Belajarmu
                         </h2>
-                        <p style={{ color: '#64748b', marginBottom: '2rem' }}>
-                            Kamu belum bergabung dengan kelas apapun. Temukan kelas yang menarik!
+                        <p style={{ color: '#64748b', fontSize: '1.1rem', marginBottom: '2rem' }}>
+                            Kamu belum bergabung dengan kelas manapun. Yuk pelajari hal baru hari ini!
                         </p>
                         <button
                             onClick={() => navigate('/student/discover')}
                             className="btn btn-primary"
-                            style={{
-                                padding: '1rem 2rem',
-                                fontSize: '1.1rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                            }}
+                            style={{ padding: '1rem 2.5rem', fontSize: '1.1rem', borderRadius: '1rem' }}
                         >
-                            <Compass size={20} />
-                            Jelajahi Kelas
+                            <Compass size={22} style={{ marginRight: '0.5rem' }} /> Temukan Kelas
                         </button>
                     </div>
+                ) : filteredClasses.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '4rem', color: '#64748b' }}>
+                        <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                        <p style={{ fontSize: '1.1rem' }}>Tidak menemukan kelas dengan kata kunci "{searchTerm}"</p>
+                    </div>
                 ) : (
-                    <>
-                        {/* My Classes Grid */}
-                        <div style={{ marginBottom: '2rem' }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '1.5rem'
-                            }}>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#334155' }}>
-                                    Kelas Saya
-                                </h2>
-                                <button
-                                    onClick={() => navigate('/student/discover')}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'var(--primary)',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.25rem'
-                                    }}
-                                >
-                                    <Compass size={18} />
-                                    Jelajahi Kelas Baru
-                                </button>
-                            </div>
+                    /* Classes Grid */
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '2rem' }}>
+                        {filteredClasses.map((cls, index) => (
+                            <div
+                                key={cls.id}
+                                onClick={() => handleSelectClass(cls.id)}
+                                onMouseEnter={() => setHoveredCard(cls.id)}
+                                onMouseLeave={() => setHoveredCard(null)}
+                                style={{
+                                    background: 'white',
+                                    borderRadius: '1.5rem',
+                                    overflow: 'hidden',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    cursor: 'pointer',
+                                    position: 'relative',
+                                    border: '1px solid #f1f5f9',
+                                    transform: hoveredCard === cls.id ? 'translateY(-8px)' : 'translateY(0)',
+                                    boxShadow: hoveredCard === cls.id 
+                                        ? '0 20px 40px -12px rgba(0, 0, 0, 0.12), 0 0 20px rgba(99, 102, 241, 0.1)' 
+                                        : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)'
+                                }}
+                            >
+                                {/* Card Banner */}
+                                <div style={{
+                                    height: '160px',
+                                    background: cls.thumbnail ? `url(${cls.thumbnail}) center/cover` : getGradient(index),
+                                    position: 'relative',
+                                    padding: '1.5rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'space-between'
+                                }}>
+                                    <div style={{ 
+                                        position: 'absolute', 
+                                        inset: 0, 
+                                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.4))' 
+                                    }} />
+                                    
+                                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <span style={{ 
+                                            background: 'rgba(255, 255, 255, 0.95)', 
+                                            backdropFilter: 'blur(4px)',
+                                            padding: '0.35rem 0.85rem', 
+                                            borderRadius: '2rem', 
+                                            fontSize: '0.8rem', 
+                                            fontWeight: '600',
+                                            color: '#475569',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {getSubjectEmoji(cls.subject)} {cls.subject}
+                                        </span>
+                                        
+                                        {cls.progressionMode === 'sequential' && (
+                                            <div title="Mode Bertahap" style={{ 
+                                                background: 'rgba(0,0,0,0.4)', 
+                                                padding: '0.35rem', 
+                                                borderRadius: '50%', 
+                                                backdropFilter: 'blur(4px)',
+                                                color: '#fbbf24'
+                                            }}>
+                                                <Zap size={16} fill="currentColor" />
+                                            </div>
+                                        )}
+                                    </div>
 
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                                gap: '1.5rem'
-                            }}>
-                                {classes.map((cls, index) => (
-                                    <div
-                                        key={cls.id}
-                                        onClick={() => handleSelectClass(cls.id)}
-                                        style={{
-                                            background: 'white',
+                                    <div style={{ position: 'relative', zIndex: 1 }}>
+                                        <h3 style={{ 
+                                            fontSize: '1.5rem', 
+                                            fontWeight: '800', 
+                                            color: 'white', 
+                                            marginBottom: '0.25rem',
+                                            textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                        }}>
+                                            {cls.name}
+                                        </h3>
+                                        {cls.teacher && (
+                                            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                <Users size={14} />
+                                                {cls.teacher.name}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Card Content */}
+                                <div style={{ padding: '1.5rem' }}>
+                                    
+                                    {/* Stats Row */}
+                                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                                        <div style={{ 
+                                            flex: 1, 
+                                            background: '#f8fafc', 
+                                            padding: '0.75rem', 
                                             borderRadius: '1rem',
-                                            overflow: 'hidden',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.3s ease',
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.transform = 'translateY(-8px)';
-                                            e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                                        }}
-                                    >
-                                        {/* Card Header */}
-                                        <div style={{
-                                            background: cls.thumbnail ? `url(${cls.thumbnail}) center/cover` : getGradientByIndex(index),
-                                            height: '120px',
-                                            padding: '1.25rem',
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            justifyContent: 'flex-end'
+                                            alignItems: 'center',
+                                            border: '1px solid #f1f5f9'
                                         }}>
-                                            <h3 style={{
-                                                fontSize: '1.25rem',
-                                                fontWeight: '700',
-                                                color: 'white',
-                                                textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis'
-                                            }}>
-                                                {cls.name}
-                                            </h3>
-                                            <p style={{
-                                                fontSize: '0.9rem',
-                                                color: 'rgba(255,255,255,0.9)',
-                                                marginTop: '0.25rem'
-                                            }}>
-                                                {cls.subject}
-                                            </p>
+                                            <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#334155' }}>{cls._count?.modules || 0}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Modul</span>
                                         </div>
-
-                                        {/* Card Body */}
-                                        <div style={{ padding: '1.25rem' }}>
-                                            <div style={{
-                                                display: 'flex',
-                                                gap: '1.5rem',
-                                                marginBottom: '1rem',
-                                                color: '#64748b',
-                                                fontSize: '0.9rem'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <Users size={16} />
-                                                    <span>{cls._count?.students || 0} siswa</span>
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <BookOpen size={16} />
-                                                    <span>{cls._count?.modules || 0} modul</span>
-                                                </div>
-                                            </div>
-
-                                            {cls.teacher && (
-                                                <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem' }}>
-                                                    Pengajar: {cls.teacher.name}
-                                                </p>
-                                            )}
-
-                                            <div style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center'
-                                            }}>
-                                                <span style={{
-                                                    fontSize: '0.75rem',
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: '1rem',
-                                                    background: cls.progressionMode === 'sequential' ? '#fef3c7' : '#dcfce7',
-                                                    color: cls.progressionMode === 'sequential' ? '#92400e' : '#166534',
-                                                    fontWeight: '600'
-                                                }}>
-                                                    {cls.progressionMode === 'sequential' ? 'Bertahap' : 'Bebas'}
-                                                </span>
-
-                                                <button style={{
-                                                    background: 'var(--primary)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '0.5rem',
-                                                    fontWeight: '600',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.25rem'
-                                                }}>
-                                                    Masuk <ChevronRight size={16} />
-                                                </button>
-                                            </div>
+                                        <div style={{ 
+                                            flex: 1, 
+                                            background: '#f8fafc', 
+                                            padding: '0.75rem', 
+                                            borderRadius: '1rem',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            border: '1px solid #f1f5f9'
+                                        }}>
+                                            <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#334155' }}>{cls._count?.students || 1}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Siswa</span>
                                         </div>
                                     </div>
-                                ))}
+
+                                    {/* Footer */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.85rem' }}>
+                                            <Clock size={16} />
+                                            <span>Aktif</span>
+                                        </div>
+                                        <button style={{
+                                            background: 'transparent',
+                                            color: 'var(--primary)',
+                                            border: 'none',
+                                            fontWeight: '600',
+                                            fontSize: '0.95rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            cursor: 'pointer',
+                                            padding: '0.5rem 1rem',
+                                            borderRadius: '0.5rem',
+                                            transition: 'background 0.2s'
+                                        }}
+                                        className="hover:bg-indigo-50"
+                                        >
+                                            Masuk Kelas <ArrowRight size={18} />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

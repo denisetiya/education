@@ -53,7 +53,10 @@ router.get('/', authMiddleware, async (req, res) => {
             // Get created classes
             classes = await prisma.class.findMany({
                 where: { teacherId: userId },
-                include: { _count: { select: { students: true, modules: true } } },
+                include: { 
+                    teacher: { select: { name: true } }, 
+                    _count: { select: { modules: true, students: true } } 
+                },
                 orderBy: { createdAt: 'desc' }
             });
         } else {
@@ -64,7 +67,10 @@ router.get('/', authMiddleware, async (req, res) => {
                         some: { studentId: userId }
                     }
                 },
-                include: { teacher: { select: { name: true } }, _count: { select: { modules: true } } },
+                include: { 
+                    teacher: { select: { name: true } }, 
+                    _count: { select: { modules: true, students: true } } 
+                },
                 orderBy: { createdAt: 'desc' }
             });
         }
