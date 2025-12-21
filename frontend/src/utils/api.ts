@@ -165,7 +165,7 @@ export const classesAPI = {
     getPublicById: (id: string) => apiFetch<any>(`/classes/public/${id}`),
     
     // Class settings
-    updateSettings: (id: string, settings: { isPublic?: boolean; progressionMode?: string; thumbnail?: string; xpMultiplier?: number }) =>
+    updateSettings: (id: string, settings: { isPublic?: boolean; progressionMode?: string; thumbnail?: string; xpMultiplier?: number; geogebraEnabled?: boolean }) =>
         apiFetch<any>(`/classes/${id}/settings`, { method: 'PUT', body: JSON.stringify(settings) }),
     
     // Class dashboard
@@ -176,5 +176,14 @@ export const classesAPI = {
     createAchievement: (classId: string, data: { title: string; description: string; icon?: string; xpReward?: number; condition: any }) =>
         apiFetch<any>(`/classes/${classId}/achievements`, { method: 'POST', body: JSON.stringify(data) }),
     claimAchievement: (classId: string, achievementId: string) =>
-        apiFetch<any>(`/classes/${classId}/achievements/${achievementId}/claim`, { method: 'POST' })
+        apiFetch<any>(`/classes/${classId}/achievements/${achievementId}/claim`, { method: 'POST' }),
+    
+    // Books (Library)
+    getBooks: (classId: string) => apiFetch<any[]>(`/classes/${classId}/books`),
+    createBook: (classId: string, data: { title: string; author?: string; description?: string; coverUrl?: string; contentType: string; content?: string; pdfUrl?: string }) =>
+        apiFetch<any>(`/classes/${classId}/books`, { method: 'POST', body: JSON.stringify(data) }),
+    updateBook: (classId: string, bookId: string, data: any) =>
+        apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteBook: (classId: string, bookId: string) =>
+        apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'DELETE' })
 };

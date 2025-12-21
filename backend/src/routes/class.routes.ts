@@ -283,7 +283,8 @@ router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), asy
                 ...(isPublic !== undefined && { isPublic }),
                 ...(progressionMode !== undefined && { progressionMode }),
                 ...(thumbnail !== undefined && { thumbnail }),
-                ...(xpMultiplier !== undefined && { xpMultiplier })
+                ...(xpMultiplier !== undefined && { xpMultiplier }),
+                ...(req.body.geogebraEnabled !== undefined && { geogebraEnabled: req.body.geogebraEnabled })
             }
         });
 
@@ -541,6 +542,91 @@ router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) =
     } catch (error) {
         console.error('Claim achievement error:', error);
         res.status(500).json({ error: 'Failed to claim achievement' });
+    }
+});
+
+// ============ CLASS BOOKS (Library) ============
+
+// Get all books for a class
+router.get('/:id/books', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const books = await prisma.classBook.findMany({
+            where: { classId: id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(books);
+    } catch (error) {
+        console.error('Get books error:', error);
+        res.status(500).json({ error: 'Failed to fetch books' });
+    }
+});
+
+// Create a book (Teacher only)
+router.post('/:id/books', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, author, description, coverUrl, contentType, content, pdfUrl } = req.body;
+
+        if (!title) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+
+        const book = await prisma.classBook.create({
+            data: {
+                classId: id,
+                title,
+                author,
+                description,
+                coverUrl,
+                contentType: contentType || 'rich_text',
+                content,
+                pdfUrl
+            }
+        });
+
+        res.status(201).json(book);
+    } catch (error) {
+        console.error('Create book error:', error);
+        res.status(500).json({ error: 'Failed to create book' });
+    }
+});
+
+// Update a book
+router.put('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { bookId } = req.params;
+        const { title, author, description, coverUrl, contentType, content, pdfUrl } = req.body;
+
+        const book = await prisma.classBook.update({
+            where: { id: bookId },
+            data: {
+                ...(title && { title }),
+                ...(author !== undefined && { author }),
+                ...(description !== undefined && { description }),
+                ...(coverUrl !== undefined && { coverUrl }),
+                ...(contentType && { contentType }),
+                ...(content !== undefined && { content }),
+                ...(pdfUrl !== undefined && { pdfUrl })
+            }
+        });
+
+        res.json(book);
+    } catch (error) {
+        console.error('Update book error:', error);
+        res.status(500).json({ error: 'Failed to update book' });
+    }
+});
+
+// Delete a book
+router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { bookId } = req.params;
+        await prisma.classBook.delete({ where: { id: bookId } });
+        res.json({ message: 'Book deleted successfully' });
+    } catch (error) {
+        console.error('Delete book error:', error);
+        res.status(500).json({ error: 'Failed to delete book' });
     }
 });
 

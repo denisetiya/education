@@ -17,6 +17,12 @@ import { StudentHistory } from './pages/student/StudentHistory';
 import { ClassSelection } from './pages/student/ClassSelection';
 import { ClassDiscovery } from './pages/student/ClassDiscovery';
 import { ClassDashboard } from './pages/student/ClassDashboard';
+import { ClassMaterials } from './pages/student/ClassMaterials';
+import { ClassExercises } from './pages/student/ClassExercises';
+import { ClassLibrary } from './pages/student/ClassLibrary';
+import { ClassJourney } from './pages/student/ClassJourney';
+import { ClassCanvas } from './pages/student/ClassCanvas';
+import { ClassAchievements } from './pages/student/ClassAchievements';
 import { GeometryPractice } from './pages/student/GeometryPractice';
 import { TeacherLayout } from './layouts/TeacherLayout';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
@@ -50,6 +56,13 @@ function App() {
             <Route path="classes" element={<ClassSelection />} />
             <Route path="discover" element={<ClassDiscovery />} />
             <Route path="class/:classId" element={<ClassDashboard />} />
+            <Route path="class/:classId/materials" element={<ClassMaterials />} />
+            <Route path="class/:classId/exercises" element={<ClassExercises />} />
+            <Route path="class/:classId/library" element={<ClassLibrary />} />
+            <Route path="class/:classId/journey" element={<ClassJourney />} />
+            <Route path="class/:classId/canvas" element={<ClassCanvas />} />
+            <Route path="class/:classId/achievements" element={<ClassAchievements />} />
+            <Route path="geometry" element={<GeometryPractice />} />
             <Route path="geometry" element={<GeometryPractice />} />
             <Route path="materials" element={<StudentMaterials />} />
             <Route path="materials/:id" element={<StudentMaterialView />} />

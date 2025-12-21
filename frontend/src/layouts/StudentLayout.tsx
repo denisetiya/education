@@ -4,9 +4,17 @@ import {
     LayoutDashboard,
     BookOpen,
     Trophy,
+    Star,
+    Zap,
     LogOut,
     Bell,
-    Medal
+    Medal,
+    FileText,
+    PenTool,
+    Library,
+    Map,
+    Hexagon,
+    ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -33,6 +41,11 @@ export const StudentLayout: React.FC = () => {
     const { user, logout } = useAuth();
     const isActive = (path: string) => location.pathname === path;
     const isMobile = useMediaQuery('(max-width: 768px)');
+    
+    // Extract classId from URL if inside a class
+    const classIdMatch = location.pathname.match(/\/student\/class\/([^/]+)/);
+    const classId = classIdMatch ? classIdMatch[1] : null;
+    const isInsideClass = !!classId;
     
     // Hide sidebar on class selection page
     const isClassSelectionPage = location.pathname === '/student' || location.pathname === '/student/classes' || location.pathname === '/student/discover';
@@ -78,10 +91,27 @@ export const StudentLayout: React.FC = () => {
 
                     {/* Navigation */}
                     <nav style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <NavItem to="/student/classes" icon={<LayoutDashboard size={20} />} label="Kelas Saya" active={location.pathname.startsWith('/student/class')} />
-                        <NavItem to="/student/discover" icon={<BookOpen size={20} />} label="Jelajahi Kelas" active={isActive('/student/discover')} />
-                        <NavItem to="/student/leaderboard" icon={<Trophy size={20} />} label="Leaderboard" active={isActive('/student/leaderboard')} />
-                        <NavItem to="/student/achievements" icon={<Medal size={20} />} label="Prestasi Saya" active={isActive('/student/achievements')} />
+                        {isInsideClass ? (
+                            /* Class-specific Navigation */
+                            <>
+                                <NavItem to="/student/classes" icon={<ArrowLeft size={20} />} label="Pilih Kelas Lain" active={false} />
+                                <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0.5rem 0' }} />
+                                <NavItem to={`/student/class/${classId}`} icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === `/student/class/${classId}`} />
+                                <NavItem to={`/student/class/${classId}/materials`} icon={<FileText size={20} />} label="Materi" active={location.pathname.includes('/materials')} />
+                                <NavItem to={`/student/class/${classId}/exercises`} icon={<PenTool size={20} />} label="Latihan" active={location.pathname.includes('/exercises')} />
+                                <NavItem to={`/student/class/${classId}/library`} icon={<Library size={20} />} label="Perpustakaan" active={location.pathname.includes('/library')} />
+                                <NavItem to={`/student/class/${classId}/journey`} icon={<Map size={20} />} label="Perjalanan" active={location.pathname.includes('/journey')} />
+                                <NavItem to={`/student/class/${classId}/canvas`} icon={<Hexagon size={20} />} label="Canvas Geometri" active={location.pathname.includes('/canvas')} />
+                                <NavItem to={`/student/class/${classId}/achievements`} icon={<Trophy size={20} />} label="Achievements" active={location.pathname.includes('/achievements') && location.pathname.includes('/class/')} />
+                            </>
+                        ) : (
+                            /* General Navigation */
+                            <>
+                                <NavItem to="/student/classes" icon={<LayoutDashboard size={20} />} label="Kelas Saya" active={location.pathname.startsWith('/student/class')} />
+                                <NavItem to="/student/leaderboard" icon={<Trophy size={20} />} label="Leaderboard" active={isActive('/student/leaderboard')} />
+                                <NavItem to="/student/achievements" icon={<Medal size={20} />} label="Prestasi Saya" active={isActive('/student/achievements')} />
+                            </>
+                        )}
                     </nav>
 
                     {/* User Mini Profile */}

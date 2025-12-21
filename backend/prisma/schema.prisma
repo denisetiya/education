@@ -88,6 +88,7 @@ model Class {
   progressionMode String    @default("sequential") // "sequential" | "free"
   thumbnail       String?
   xpMultiplier    Float     @default(1.0)
+  geogebraEnabled Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -97,6 +98,7 @@ model Class {
   students     ClassEnrollment[]
   modules      Module[]
   achievements ClassAchievement[]
+  books        ClassBook[]
 }
 
 model ClassEnrollment {
@@ -168,4 +170,22 @@ model StudentClassAchievement {
   achievementId String
 
   @@unique([studentId, achievementId])
+}
+
+// Books assigned to class by teacher
+model ClassBook {
+  id          String   @id @default(uuid())
+  title       String
+  author      String?
+  description String?
+  coverUrl    String?
+  contentType String   @default("rich_text") // "rich_text" | "pdf"
+  content     String?  // Rich text content (HTML)
+  pdfUrl      String?  // PDF file URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId     String
 }
