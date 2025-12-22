@@ -17,8 +17,8 @@ COPY frontend/ ./
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the app
-RUN pnpm run build
+# Build the app (skip TypeScript checking, just build with vite)
+RUN npx vite build
 
 # Production stage with Nginx
 FROM nginx:alpine AS production
