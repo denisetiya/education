@@ -33,16 +33,18 @@ RUN apk add --no-cache openssl
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy package files and install production dependencies
+# Copy package files and install production dependencies + prisma
 COPY backend/package*.json ./
 COPY backend/pnpm-lock.yaml* ./
-RUN pnpm install --prod
 
-# Copy Prisma schema and generate client in production
+# Install production dependencies AND prisma (for generate & migrate)
+RUN pnpm install --prod && pnpm add prisma@5.22.0 @prisma/client@5.22.0
+
+# Copy Prisma schema and generate client
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 
-# Copy built files
+# Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
 # Set environment
