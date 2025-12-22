@@ -53,5 +53,5 @@ ENV PORT=3001
 
 EXPOSE 3001
 
-# Run migrations and start app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Start app directly (migrations should be handled separately)
+CMD ["node", "dist/index.js"]
