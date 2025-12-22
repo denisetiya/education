@@ -16,9 +16,24 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// CORS origins - supports both development and production
+const allowedOrigins = [
+    'http://localhost:5173', // Development
+    process.env.FRONTEND_URL // Production (e.g., https://geoeducation.denisetiya.site)
+].filter(Boolean) as string[];
+
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5173', // Frontend URL
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 app.use(cookieParser());

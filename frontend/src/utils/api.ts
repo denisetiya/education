@@ -1,6 +1,8 @@
 import type { AuthResponse, ClassItem, LeaderboardEntry, Material, Module, ProgressHistory, QuizResult, User } from '../types/api.types';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+// In production, VITE_API_URL is empty and we use relative /api path (proxied by nginx)
+// In development, VITE_API_URL defaults to http://localhost:3001/api
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Generic fetch wrapper with credentials (cookies)
 async function apiFetch<T>(
