@@ -22,19 +22,33 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_SSH_PORT }}
           script: |
-            cd /home/ubuntu/geoeducation
+            REPO_DIR="/home/ubuntu/geoeducation"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            
+            # Clone if directory doesn't exist or is not a git repo
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              echo "📦 Cloning repository..."
+              rm -rf "$REPO_DIR"
+              git clone "$REPO_URL" "$REPO_DIR"
+            fi
+            
+            cd "$REPO_DIR"
             
             # Pull latest changes
-            git pull origin main
+            echo "📥 Pulling latest changes..."
+            git fetch origin main
+            git reset --hard origin/main
             
             # Create .env if not exists
             if [ ! -f .env ]; then
+              echo "🔧 Creating .env file..."
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > .env
               echo "FRONTEND_URL=https://geoeducation.denisetiya.site" >> .env
               echo "CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" >> .env
             fi
             
             # Build and restart containers
+            echo "🐳 Building and starting containers..."
             docker compose down
             docker compose build --no-cache
             docker compose up -d
@@ -43,6 +57,7 @@ jobs:
             sleep 10
             
             # Check health
+            echo "📊 Container status:"
             docker compose ps
             docker compose logs --tail=50
 
