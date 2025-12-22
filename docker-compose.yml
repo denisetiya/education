@@ -1,8 +1,6 @@
 services:
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    image: ghcr.io/${GITHUB_REPOSITORY}/backend:latest
     container_name: geoeducation-backend
     restart: unless-stopped
     environment:
@@ -22,11 +20,7 @@ services:
       retries: 3
 
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        - VITE_API_URL=
+    image: ghcr.io/${GITHUB_REPOSITORY}/frontend:latest
     container_name: geoeducation-frontend
     restart: unless-stopped
     depends_on:
