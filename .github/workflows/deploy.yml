@@ -73,7 +73,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_SSH_PORT }}
           source: "docker-compose.yml"
-          target: "/home/ubuntu/geoeducation"
+          target: "/root/geoeducation"
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -83,7 +83,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_SSH_PORT }}
           script: |
-            REPO_DIR="/home/ubuntu/geoeducation"
+            REPO_DIR="/root/geoeducation"
             cd "$REPO_DIR"
             
             # Create .env file
