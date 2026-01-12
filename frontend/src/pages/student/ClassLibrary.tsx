@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Library, BookOpen, FileText, Loader, Eye } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Library, BookOpen, FileText, Loader, ChevronRight } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 
 interface Book {
@@ -16,9 +16,9 @@ interface Book {
 
 export const ClassLibrary: React.FC = () => {
     const { classId } = useParams<{ classId: string }>();
+    const navigate = useNavigate();
     const [books, setBooks] = useState<Book[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 
     useEffect(() => {
         if (classId) {
@@ -36,6 +36,10 @@ export const ClassLibrary: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const openBook = (book: Book) => {
+        navigate(`/student/class/${classId}/library/${book.id}`);
     };
 
     if (loading) {
@@ -62,7 +66,7 @@ export const ClassLibrary: React.FC = () => {
                     <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Guru akan menambahkan buku sebentar lagi.</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                     {books.map((book) => (
                         <div
                             key={book.id}
@@ -70,10 +74,19 @@ export const ClassLibrary: React.FC = () => {
                             style={{
                                 padding: 0,
                                 overflow: 'hidden',
-                                transition: 'all 0.2s',
-                                cursor: 'pointer'
+                                transition: 'all 0.3s',
+                                cursor: 'pointer',
+                                transform: 'translateY(0)'
                             }}
-                            onClick={() => setSelectedBook(book)}
+                            onClick={() => openBook(book)}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-4px)';
+                                e.currentTarget.style.boxShadow = '0 10px 40px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '';
+                            }}
                         >
                             <div style={{
                                 height: '180px',
@@ -82,12 +95,34 @@ export const ClassLibrary: React.FC = () => {
                                     : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                position: 'relative'
                             }}>
                                 {!book.coverUrl && <BookOpen size={48} color="white" />}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '0.75rem',
+                                    right: '0.75rem',
+                                    background: book.contentType === 'pdf' ? '#ef4444' : 'var(--primary)',
+                                    color: 'white',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '1rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600'
+                                }}>
+                                    {book.contentType === 'pdf' ? 'PDF' : 'BUKU'}
+                                </div>
                             </div>
                             <div style={{ padding: '1.25rem' }}>
-                                <h3 style={{ fontWeight: '700', color: '#334155', marginBottom: '0.25rem' }}>
+                                <h3 style={{ 
+                                    fontWeight: '700', 
+                                    color: '#334155', 
+                                    marginBottom: '0.25rem',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                }}>
                                     {book.title}
                                 </h3>
                                 {book.author && (
@@ -95,90 +130,51 @@ export const ClassLibrary: React.FC = () => {
                                         oleh {book.author}
                                     </p>
                                 )}
+                                {book.description && (
+                                    <p style={{ 
+                                        fontSize: '0.85rem', 
+                                        color: '#94a3b8',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        marginBottom: '0.75rem'
+                                    }}>
+                                        {book.description}
+                                    </p>
+                                )}
                                 <div style={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.5rem',
+                                    justifyContent: 'space-between',
                                     marginTop: '0.75rem',
-                                    fontSize: '0.85rem',
-                                    color: '#64748b'
+                                    paddingTop: '0.75rem',
+                                    borderTop: '1px solid #f1f5f9'
                                 }}>
-                                    <FileText size={14} />
-                                    <span>{book.contentType === 'pdf' ? 'PDF' : 'Buku Digital'}</span>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontSize: '0.85rem',
+                                        color: '#64748b'
+                                    }}>
+                                        <FileText size={14} />
+                                        <span>{book.contentType === 'pdf' ? 'Dokumen PDF' : 'Buku Digital'}</span>
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        color: 'var(--primary)',
+                                        fontWeight: '600',
+                                        fontSize: '0.85rem'
+                                    }}>
+                                        Baca <ChevronRight size={16} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* Book Reader Modal */}
-            {selectedBook && (
-                <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.7)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000,
-                    padding: '1rem'
-                }}>
-                    <div style={{
-                        background: 'white',
-                        borderRadius: '1rem',
-                        width: '100%',
-                        maxWidth: '900px',
-                        maxHeight: '90vh',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        flexDirection: 'column'
-                    }}>
-                        <div style={{
-                            padding: '1.5rem',
-                            borderBottom: '1px solid #e2e8f0',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <div>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>{selectedBook.title}</h2>
-                                {selectedBook.author && (
-                                    <p style={{ color: '#64748b' }}>oleh {selectedBook.author}</p>
-                                )}
-                            </div>
-                            <button
-                                onClick={() => setSelectedBook(null)}
-                                style={{
-                                    background: '#f1f5f9',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '0.5rem',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Tutup
-                            </button>
-                        </div>
-                        <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem' }}>
-                            {selectedBook.contentType === 'pdf' && selectedBook.pdfUrl ? (
-                                <iframe
-                                    src={selectedBook.pdfUrl}
-                                    style={{ width: '100%', height: '70vh', border: 'none' }}
-                                    title={selectedBook.title}
-                                />
-                            ) : selectedBook.content ? (
-                                <div 
-                                    dangerouslySetInnerHTML={{ __html: selectedBook.content }}
-                                    style={{ lineHeight: 1.8, color: '#334155' }}
-                                />
-                            ) : (
-                                <p style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
-                                    Konten buku belum tersedia.
-                                </p>
-                            )}
-                        </div>
-                    </div>
                 </div>
             )}
         </div>
@@ -186,3 +182,4 @@ export const ClassLibrary: React.FC = () => {
 };
 
 export default ClassLibrary;
+

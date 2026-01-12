@@ -39,9 +39,18 @@ export interface Measurement {
     unit: string;
 }
 
+export interface FunctionExpression {
+    id: string;
+    expression: string;       // e.g., "x^2", "2*x+1", "sin(x)"
+    displayName: string;      // e.g., "y = x²"
+    color: string;
+    visible: boolean;
+}
+
 export interface CanvasState {
     objects: GeometryObject[];
     measurements: Measurement[];
+    functions: FunctionExpression[];
     selectedObjectId: string | null;
     currentTool: ToolType;
     zoom: number;

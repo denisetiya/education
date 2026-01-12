@@ -187,5 +187,32 @@ export const classesAPI = {
     updateBook: (classId: string, bookId: string, data: any) =>
         apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteBook: (classId: string, bookId: string) =>
-        apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'DELETE' })
+        apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'DELETE' }),
+    
+    // Exercises (Interactive Geometry)
+    getExercises: (classId: string) => apiFetch<any[]>(`/classes/${classId}/exercises`),
+    getExercise: (classId: string, exerciseId: string) => apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`),
+    createExercise: (classId: string, data: {
+        title: string;
+        description?: string;
+        instructions?: string;
+        exerciseType?: string;
+        difficulty?: string;
+        points?: number;
+        hasTimer?: boolean;
+        timerMinutes?: number;
+        canvasState?: string;
+        canvasMode?: string;
+        answerType?: string;
+        correctAnswer?: string;
+        options?: string;
+        isPublished?: boolean;
+        order?: number;
+    }) => apiFetch<any>(`/classes/${classId}/exercises`, { method: 'POST', body: JSON.stringify(data) }),
+    updateExercise: (classId: string, exerciseId: string, data: any) =>
+        apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteExercise: (classId: string, exerciseId: string) =>
+        apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`, { method: 'DELETE' }),
+    submitExerciseAttempt: (classId: string, exerciseId: string, data: { answer: any; canvasData?: string; timeSpent?: number }) =>
+        apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}/attempt`, { method: 'POST', body: JSON.stringify(data) })
 };

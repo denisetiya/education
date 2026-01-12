@@ -23,6 +23,7 @@ import { ClassLibrary } from './pages/student/ClassLibrary';
 import { ClassJourney } from './pages/student/ClassJourney';
 import { ClassCanvas } from './pages/student/ClassCanvas';
 import { ClassAchievements } from './pages/student/ClassAchievements';
+import { BookReader } from './pages/student/BookReader';
 import { GeometryPractice } from './pages/student/GeometryPractice';
 import { TeacherLayout } from './layouts/TeacherLayout';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
@@ -31,6 +32,9 @@ import { TeacherMaterials } from './pages/teacher/TeacherMaterials';
 import { TeacherCurriculum } from './pages/teacher/TeacherCurriculum';
 import { TeacherAnalytics } from './pages/teacher/TeacherAnalytics';
 import { TeacherClassDetail } from './pages/teacher/TeacherClassDetail';
+import { BookEditor } from './pages/teacher/BookEditor';
+import { ExerciseEditor } from './pages/teacher/ExerciseEditor';
+import { ExerciseSession } from './pages/student/ExerciseSession';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminOverview } from './pages/admin/AdminOverview';
 import { AdminUsers } from './pages/admin/AdminUsers';
@@ -59,9 +63,11 @@ function App() {
             <Route path="class/:classId/materials" element={<ClassMaterials />} />
             <Route path="class/:classId/exercises" element={<ClassExercises />} />
             <Route path="class/:classId/library" element={<ClassLibrary />} />
+            <Route path="class/:classId/library/:bookId" element={<BookReader />} />
             <Route path="class/:classId/journey" element={<ClassJourney />} />
             <Route path="class/:classId/canvas" element={<ClassCanvas />} />
             <Route path="class/:classId/achievements" element={<ClassAchievements />} />
+            <Route path="class/:classId/exercise/:exerciseId" element={<ExerciseSession />} />
             <Route path="geometry" element={<GeometryPractice />} />
             <Route path="geometry" element={<GeometryPractice />} />
             <Route path="materials" element={<StudentMaterials />} />
@@ -87,6 +93,10 @@ function App() {
             <Route path="materials" element={<TeacherMaterials />} />
             <Route path="curriculum" element={<TeacherCurriculum />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
+            <Route path="classes/:classId/book-editor" element={<BookEditor />} />
+            <Route path="classes/:classId/book-editor/:bookId" element={<BookEditor />} />
+            <Route path="classes/:classId/exercise-editor" element={<ExerciseEditor />} />
+            <Route path="classes/:classId/exercise-editor/:exerciseId" element={<ExerciseEditor />} />
           </Route>
 
           {/* Admin Routes - Protected */}

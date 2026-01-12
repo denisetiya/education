@@ -636,5 +636,260 @@ router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMI
     }
 });
 
-export default router;
+// ============ EXERCISES ROUTES ============
 
+// Get all exercises for a class
+router.get('/:id/exercises', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // @ts-ignore
+        const userId = req.user.id;
+        // @ts-ignore
+        const role = req.user.role;
+
+        // For students, only show published exercises
+        const whereClause = role === 'STUDENT' 
+            ? { classId: id, isPublished: true }
+            : { classId: id };
+
+        const exercises = await prisma.classExercise.findMany({
+            where: whereClause,
+            orderBy: { order: 'asc' },
+            include: {
+                attempts: role === 'STUDENT' ? {
+                    where: { studentId: userId },
+                    select: { isCorrect: true, score: true, createdAt: true }
+                } : {
+                    select: { id: true, isCorrect: true }
+                }
+            }
+        });
+
+        res.json(exercises);
+    } catch (error) {
+        console.error('Get exercises error:', error);
+        res.status(500).json({ error: 'Failed to fetch exercises' });
+    }
+});
+
+// Get single exercise with details
+router.get('/:id/exercises/:exerciseId', authMiddleware, async (req, res) => {
+    try {
+        const { exerciseId } = req.params;
+        // @ts-ignore
+        const userId = req.user.id;
+        // @ts-ignore
+        const role = req.user.role;
+
+        const exercise = await prisma.classExercise.findUnique({
+            where: { id: exerciseId },
+            include: {
+                attempts: role === 'STUDENT' ? {
+                    where: { studentId: userId },
+                    select: { isCorrect: true, score: true, answer: true, createdAt: true }
+                } : {
+                    include: { student: { select: { name: true } } }
+                }
+            }
+        });
+
+        if (!exercise) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
+
+        // For students on unpublished exercises
+        if (role === 'STUDENT' && !exercise.isPublished) {
+            return res.status(403).json({ error: 'Exercise not available' });
+        }
+
+        res.json(exercise);
+    } catch (error) {
+        console.error('Get exercise error:', error);
+        res.status(500).json({ error: 'Failed to fetch exercise' });
+    }
+});
+
+// Create exercise (Teacher only)
+router.post('/:id/exercises', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            title, description, instructions, exerciseType, difficulty, points,
+            hasTimer, timerMinutes, canvasState, canvasMode,
+            answerType, correctAnswer, options, isPublished, order
+        } = req.body;
+
+        if (!title) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+
+        const exercise = await prisma.classExercise.create({
+            data: {
+                classId: id,
+                title,
+                description,
+                instructions,
+                exerciseType: exerciseType || 'geometry',
+                difficulty: difficulty || 'medium',
+                points: points || 10,
+                hasTimer: hasTimer || false,
+                timerMinutes,
+                canvasState,
+                canvasMode: canvasMode || 'readonly',
+                answerType: answerType || 'multiple_choice',
+                correctAnswer,
+                options,
+                isPublished: isPublished || false,
+                order: order || 0
+            }
+        });
+
+        res.status(201).json(exercise);
+    } catch (error) {
+        console.error('Create exercise error:', error);
+        res.status(500).json({ error: 'Failed to create exercise' });
+    }
+});
+
+// Update exercise (Teacher only)
+router.put('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { exerciseId } = req.params;
+        const { 
+            title, description, instructions, exerciseType, difficulty, points,
+            hasTimer, timerMinutes, canvasState, canvasMode,
+            answerType, correctAnswer, options, isPublished, order
+        } = req.body;
+
+        const exercise = await prisma.classExercise.update({
+            where: { id: exerciseId },
+            data: {
+                ...(title && { title }),
+                ...(description !== undefined && { description }),
+                ...(instructions !== undefined && { instructions }),
+                ...(exerciseType && { exerciseType }),
+                ...(difficulty && { difficulty }),
+                ...(points !== undefined && { points }),
+                ...(hasTimer !== undefined && { hasTimer }),
+                ...(timerMinutes !== undefined && { timerMinutes }),
+                ...(canvasState !== undefined && { canvasState }),
+                ...(canvasMode && { canvasMode }),
+                ...(answerType && { answerType }),
+                ...(correctAnswer !== undefined && { correctAnswer }),
+                ...(options !== undefined && { options }),
+                ...(isPublished !== undefined && { isPublished }),
+                ...(order !== undefined && { order })
+            }
+        });
+
+        res.json(exercise);
+    } catch (error) {
+        console.error('Update exercise error:', error);
+        res.status(500).json({ error: 'Failed to update exercise' });
+    }
+});
+
+// Delete exercise (Teacher only)
+router.delete('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        const { exerciseId } = req.params;
+        await prisma.classExercise.delete({ where: { id: exerciseId } });
+        res.json({ message: 'Exercise deleted successfully' });
+    } catch (error) {
+        console.error('Delete exercise error:', error);
+        res.status(500).json({ error: 'Failed to delete exercise' });
+    }
+});
+
+// Submit exercise attempt (Student only)
+router.post('/:id/exercises/:exerciseId/attempt', authMiddleware, async (req, res) => {
+    try {
+        const { exerciseId } = req.params;
+        // @ts-ignore
+        const studentId = req.user.id;
+        const { answer, canvasData, timeSpent } = req.body;
+
+        // Get the exercise
+        const exercise = await prisma.classExercise.findUnique({
+            where: { id: exerciseId }
+        });
+
+        if (!exercise || !exercise.isPublished) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
+
+        // Check if already attempted
+        const existingAttempt = await prisma.exerciseAttempt.findUnique({
+            where: {
+                studentId_exerciseId: { studentId, exerciseId }
+            }
+        });
+
+        if (existingAttempt) {
+            return res.status(400).json({ error: 'Already attempted', attempt: existingAttempt });
+        }
+
+        // Calculate if correct
+        let isCorrect = false;
+        let score = 0;
+
+        if (exercise.answerType === 'multiple_choice' && exercise.correctAnswer) {
+            try {
+                const correct = JSON.parse(exercise.correctAnswer);
+                isCorrect = answer === correct.id || answer === correct;
+                score = isCorrect ? exercise.points : 0;
+            } catch (e) {
+                isCorrect = answer === exercise.correctAnswer;
+                score = isCorrect ? exercise.points : 0;
+            }
+        } else if (exercise.answerType === 'numeric' && exercise.correctAnswer) {
+            try {
+                const correct = JSON.parse(exercise.correctAnswer);
+                const tolerance = correct.tolerance || 0;
+                const numAnswer = parseFloat(answer);
+                isCorrect = Math.abs(numAnswer - correct.value) <= tolerance;
+                score = isCorrect ? exercise.points : 0;
+            } catch (e) {
+                isCorrect = parseFloat(answer) === parseFloat(exercise.correctAnswer);
+                score = isCorrect ? exercise.points : 0;
+            }
+        } else if (exercise.answerType === 'canvas') {
+            // Canvas answers need manual grading or specific validation
+            isCorrect = false; // Will be graded by teacher
+            score = 0;
+        }
+
+        // Create attempt
+        const attempt = await prisma.exerciseAttempt.create({
+            data: {
+                studentId,
+                exerciseId,
+                answer: JSON.stringify(answer),
+                canvasData,
+                isCorrect,
+                score,
+                timeSpent: timeSpent || 0
+            }
+        });
+
+        // Update student XP if correct
+        if (isCorrect && score > 0) {
+            await prisma.user.update({
+                where: { id: studentId },
+                data: { xp: { increment: score } }
+            });
+        }
+
+        res.status(201).json({
+            attempt,
+            isCorrect,
+            score,
+            message: isCorrect ? 'Correct! Well done!' : 'Incorrect. Try again next time.'
+        });
+    } catch (error) {
+        console.error('Submit attempt error:', error);
+        res.status(500).json({ error: 'Failed to submit attempt' });
+    }
+});
+
+export default router;

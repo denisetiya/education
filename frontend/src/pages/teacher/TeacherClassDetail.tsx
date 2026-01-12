@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
     ArrowLeft, Users, BookOpen, Settings, Copy, Plus,
-    Award, BarChart3, Clock, ExternalLink, FileText, X
+    Award, BarChart3, Clock, ExternalLink, FileText, X,
+    Library, Edit, Trash2, FileUp, Type, PenTool
 } from 'lucide-react';
 import { classesAPI, modulesAPI } from '../../utils/api';
 
@@ -15,6 +16,7 @@ interface ClassData {
     isPublic: boolean;
     progressionMode: string;
     xpMultiplier: number;
+    geogebraEnabled?: boolean;
     _count?: {
         students: number;
         modules: number;
@@ -52,12 +54,24 @@ interface Achievement {
     unlockedCount?: number;
 }
 
+interface ClassBook {
+    id: string;
+    title: string;
+    author?: string;
+    description?: string;
+    coverUrl?: string;
+    contentType: 'rich_text' | 'pdf';
+    content?: string;
+    pdfUrl?: string;
+    createdAt: string;
+}
+
 export const TeacherClassDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [classData, setClassData] = useState<ClassData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'students' | 'settings'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'students' | 'exercises' | 'library' | 'settings'>('overview');
     const [success, setSuccess] = useState<string | null>(null);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [unassignedModules, setUnassignedModules] = useState<ModuleItem[]>([]);
@@ -75,6 +89,20 @@ export const TeacherClassDetail: React.FC = () => {
         xpReward: 50,
         conditionType: 'complete_materials',
         conditionTarget: 5
+    });
+
+    // Library state
+    const [books, setBooks] = useState<ClassBook[]>([]);
+    const [loadingBooks, setLoadingBooks] = useState(false);
+    const [showBookModal, setShowBookModal] = useState(false);
+    const [editingBook, setEditingBook] = useState<ClassBook | null>(null);
+    const [newBook, setNewBook] = useState({
+        title: '',
+        author: '',
+        description: '',
+        contentType: 'rich_text' as 'rich_text' | 'pdf',
+        content: '',
+        pdfUrl: ''
     });
 
     useEffect(() => {
@@ -161,6 +189,18 @@ export const TeacherClassDetail: React.FC = () => {
         }
     };
 
+    const handleToggleGeogebra = async () => {
+        if (!id || !classData) return;
+        try {
+            const newValue = !classData.geogebraEnabled;
+            await classesAPI.updateSettings(id, { geogebraEnabled: newValue });
+            setClassData({ ...classData, geogebraEnabled: newValue });
+            setSuccess(newValue ? 'Geometry Canvas diaktifkan!' : 'Geometry Canvas dinonaktifkan!');
+        } catch (error) {
+            console.error('Failed to toggle geogebra', error);
+        }
+    };
+
     const fetchAchievements = async () => {
         if (!id) return;
         setLoadingAchievements(true);
@@ -209,6 +249,91 @@ export const TeacherClassDetail: React.FC = () => {
             console.error('Failed to create achievement', error);
         }
     };
+
+    // ============ LIBRARY HANDLERS ============
+    const fetchBooks = async () => {
+        if (!id) return;
+        setLoadingBooks(true);
+        try {
+            const data = await classesAPI.getBooks(id);
+            setBooks(data as ClassBook[]);
+        } catch (error) {
+            console.error('Failed to fetch books', error);
+        } finally {
+            setLoadingBooks(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'library' && id) {
+            fetchBooks();
+        }
+    }, [activeTab, id]);
+
+    const handleCreateBook = async () => {
+        if (!id) return;
+        try {
+            await classesAPI.createBook(id, {
+                title: newBook.title,
+                author: newBook.author || undefined,
+                description: newBook.description || undefined,
+                contentType: newBook.contentType,
+                content: newBook.contentType === 'rich_text' ? newBook.content : undefined,
+                pdfUrl: newBook.contentType === 'pdf' ? newBook.pdfUrl : undefined
+            });
+            setSuccess('Buku berhasil ditambahkan!');
+            setShowBookModal(false);
+            setNewBook({ title: '', author: '', description: '', contentType: 'rich_text', content: '', pdfUrl: '' });
+            fetchBooks();
+        } catch (error) {
+            console.error('Failed to create book', error);
+        }
+    };
+
+    const handleUpdateBook = async () => {
+        if (!id || !editingBook) return;
+        try {
+            await classesAPI.updateBook(id, editingBook.id, {
+                title: newBook.title,
+                author: newBook.author || undefined,
+                description: newBook.description || undefined,
+                contentType: newBook.contentType,
+                content: newBook.contentType === 'rich_text' ? newBook.content : undefined,
+                pdfUrl: newBook.contentType === 'pdf' ? newBook.pdfUrl : undefined
+            });
+            setSuccess('Buku berhasil diperbarui!');
+            setShowBookModal(false);
+            setEditingBook(null);
+            setNewBook({ title: '', author: '', description: '', contentType: 'rich_text', content: '', pdfUrl: '' });
+            fetchBooks();
+        } catch (error) {
+            console.error('Failed to update book', error);
+        }
+    };
+
+    const handleDeleteBook = async (bookId: string) => {
+        if (!id || !confirm('Yakin ingin menghapus buku ini?')) return;
+        try {
+            await classesAPI.deleteBook(id, bookId);
+            setSuccess('Buku berhasil dihapus!');
+            fetchBooks();
+        } catch (error) {
+            console.error('Failed to delete book', error);
+        }
+    };
+
+    const openEditBook = (book: ClassBook) => {
+        setEditingBook(book);
+        setNewBook({
+            title: book.title,
+            author: book.author || '',
+            description: book.description || '',
+            contentType: book.contentType,
+            content: book.content || '',
+            pdfUrl: book.pdfUrl || ''
+        });
+        setShowBookModal(true);
+    };
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -235,6 +360,8 @@ export const TeacherClassDetail: React.FC = () => {
         { id: 'overview', label: 'Ringkasan', icon: <BarChart3 size={18} /> },
         { id: 'curriculum', label: 'Kurikulum', icon: <BookOpen size={18} /> },
         { id: 'students', label: 'Siswa', icon: <Users size={18} /> },
+        { id: 'exercises', label: 'Latihan', icon: <PenTool size={18} /> },
+        { id: 'library', label: 'Perpustakaan', icon: <Library size={18} /> },
         { id: 'settings', label: 'Pengaturan', icon: <Settings size={18} /> }
     ];
 
@@ -585,6 +712,149 @@ export const TeacherClassDetail: React.FC = () => {
                     </div>
                 )}
 
+                {activeTab === 'exercises' && (
+                    <ExercisesTabContent classId={id!} navigate={navigate} />
+                )}
+
+                {activeTab === 'library' && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <div>
+                                <h3 style={{ fontWeight: '600' }}>Perpustakaan Kelas</h3>
+                                <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Tambahkan buku, artikel, atau dokumen PDF untuk siswa</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button 
+                                    onClick={() => navigate(`/teacher/classes/${id}/book-editor`)}
+                                    className="btn btn-primary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                    <Type size={18} /> Tulis Buku
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        setEditingBook(null);
+                                        setNewBook({ title: '', author: '', description: '', contentType: 'pdf', content: '', pdfUrl: '' });
+                                        setShowBookModal(true);
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                    <FileUp size={18} /> Upload PDF
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {loadingBooks ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
+                                Memuat perpustakaan...
+                            </div>
+                        ) : books.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                                {books.map(book => (
+                                    <div 
+                                        key={book.id}
+                                        style={{ 
+                                            padding: '1.25rem', background: '#f8fafc', 
+                                            border: '1px solid #e2e8f0', borderRadius: '1rem',
+                                            display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                                            <div style={{ 
+                                                width: '48px', height: '64px', 
+                                                background: book.contentType === 'pdf' 
+                                                    ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                                                    : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                                                borderRadius: '8px',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                color: 'white', fontSize: '1.5rem'
+                                            }}>
+                                                {book.contentType === 'pdf' ? <FileUp size={24} /> : <Type size={24} />}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <h4 style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{book.title}</h4>
+                                                {book.author && (
+                                                    <p style={{ fontSize: '0.85rem', color: '#64748b' }}>oleh {book.author}</p>
+                                                )}
+                                                {book.description && (
+                                                    <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.5rem' }}>
+                                                        {book.description.slice(0, 100)}{book.description.length > 100 ? '...' : ''}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                                            <span style={{ 
+                                                fontSize: '0.75rem', padding: '0.25rem 0.5rem', 
+                                                background: book.contentType === 'pdf' ? '#fef2f2' : '#eef2ff',
+                                                color: book.contentType === 'pdf' ? '#dc2626' : '#4f46e5',
+                                                borderRadius: '0.25rem'
+                                            }}>
+                                                {book.contentType === 'pdf' ? 'PDF' : 'Teks'}
+                                            </span>
+                                            <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                                                <button 
+                                                    onClick={() => {
+                                                        if (book.contentType === 'rich_text') {
+                                                            navigate(`/teacher/classes/${id}/book-editor/${book.id}`);
+                                                        } else {
+                                                            openEditBook(book);
+                                                        }
+                                                    }}
+                                                    style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'white', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                                                    title="Edit"
+                                                >
+                                                    <Edit size={16} color="#64748b" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteBook(book.id)}
+                                                    style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'white', border: '1px solid #fecaca', cursor: 'pointer' }}
+                                                    title="Hapus"
+                                                >
+                                                    <Trash2 size={16} color="#ef4444" />
+                                                </button>
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '3rem', background: '#f8fafc', borderRadius: '1rem', border: '2px dashed #cbd5e1' }}>
+                                <Library size={48} style={{ marginBottom: '1rem', color: '#94a3b8' }} />
+                                <p style={{ color: '#64748b', marginBottom: '1rem' }}>Belum ada buku di perpustakaan</p>
+                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                                    <button 
+                                        onClick={() => navigate(`/teacher/classes/${id}/book-editor`)}
+                                        className="btn btn-primary"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                        <Type size={16} /> Tulis Buku
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setEditingBook(null);
+                                            setNewBook({ title: '', author: '', description: '', contentType: 'pdf', content: '', pdfUrl: '' });
+                                            setShowBookModal(true);
+                                        }}
+                                        className="btn btn-secondary"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                        <FileUp size={16} /> Upload PDF
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>
+                                📚 <strong>Tip:</strong> Anda bisa menulis buku sendiri menggunakan editor teks, atau mengupload link PDF dari Google Drive atau layanan lainnya.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === 'settings' && (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -659,6 +929,58 @@ export const TeacherClassDetail: React.FC = () => {
                                 </button>
                             </div>
                         )}
+                        
+                        {/* Geogebra Toggle Section */}
+                        <div style={{ marginTop: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <div>
+                                    <h3 style={{ fontWeight: '600' }}>Fitur Tambahan</h3>
+                                    <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Aktifkan fitur tambahan untuk kelas ini</p>
+                                </div>
+                            </div>
+                            
+                            <div 
+                                onClick={handleToggleGeogebra}
+                                style={{ 
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem',
+                                    border: classData.geogebraEnabled ? '2px solid #10b981' : '2px solid #e2e8f0',
+                                    cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div style={{ 
+                                        width: '48px', height: '48px', borderRadius: '12px', 
+                                        background: classData.geogebraEnabled 
+                                            ? 'linear-gradient(135deg, #10b981, #059669)' 
+                                            : 'linear-gradient(135deg, #94a3b8, #64748b)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '1.5rem'
+                                    }}>
+                                        📐
+                                    </div>
+                                    <div>
+                                        <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Geometry Canvas</p>
+                                        <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                            Aktifkan canvas interaktif untuk geometri (Geogebra)
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style={{ 
+                                    width: '50px', height: '28px', borderRadius: '14px',
+                                    background: classData.geogebraEnabled ? '#10b981' : '#cbd5e1',
+                                    padding: '3px', transition: 'all 0.2s',
+                                    display: 'flex', alignItems: classData.geogebraEnabled ? 'center' : 'center',
+                                    justifyContent: classData.geogebraEnabled ? 'flex-end' : 'flex-start'
+                                }}>
+                                    <div style={{ 
+                                        width: '22px', height: '22px', borderRadius: '50%', 
+                                        background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                        transition: 'all 0.2s'
+                                    }} />
+                                </div>
+                            </div>
+                        </div>
                         
                         {/* Info Card */}
                         <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fefce8', borderRadius: '0.75rem', border: '1px solid #fef08a' }}>
@@ -855,6 +1177,152 @@ export const TeacherClassDetail: React.FC = () => {
                 </div>
             )}
 
+            {/* Book Create/Edit Modal */}
+            {showBookModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+                    overflow: 'auto', padding: '2rem'
+                }}>
+                    <div className="card glass" style={{ width: '700px', maxHeight: '90vh', padding: '2rem', overflow: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontWeight: '700' }}>{editingBook ? 'Edit Buku' : 'Tambah Buku Baru'}</h2>
+                            <button onClick={() => { setShowBookModal(false); setEditingBook(null); }} style={{ padding: '0.5rem', cursor: 'pointer', background: 'none', border: 'none' }}>
+                                <X size={20} color="#64748b" />
+                            </button>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Judul Buku *</label>
+                                <input 
+                                    type="text"
+                                    value={newBook.title}
+                                    onChange={(e) => setNewBook({...newBook, title: e.target.value})}
+                                    className="form-input"
+                                    placeholder="contoh: Pengantar Aljabar Linear"
+                                    style={{ width: '100%', padding: '0.75rem' }}
+                                />
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Penulis</label>
+                                    <input 
+                                        type="text"
+                                        value={newBook.author}
+                                        onChange={(e) => setNewBook({...newBook, author: e.target.value})}
+                                        className="form-input"
+                                        placeholder="Nama penulis (opsional)"
+                                        style={{ width: '100%', padding: '0.75rem' }}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Deskripsi</label>
+                                <textarea 
+                                    value={newBook.description}
+                                    onChange={(e) => setNewBook({...newBook, description: e.target.value})}
+                                    className="form-input"
+                                    placeholder="Deskripsi singkat tentang buku..."
+                                    rows={2}
+                                    style={{ width: '100%', padding: '0.75rem', resize: 'vertical' }}
+                                />
+                            </div>
+                            
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Jenis Konten</label>
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <button 
+                                        onClick={() => setNewBook({...newBook, contentType: 'rich_text'})}
+                                        style={{ 
+                                            flex: 1, padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem',
+                                            border: newBook.contentType === 'rich_text' ? '2px solid var(--primary)' : '2px solid #e2e8f0',
+                                            cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <Type size={24} color={newBook.contentType === 'rich_text' ? 'var(--primary)' : '#94a3b8'} />
+                                            <div>
+                                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Tulis Sendiri</p>
+                                                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Gunakan editor teks</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button 
+                                        onClick={() => setNewBook({...newBook, contentType: 'pdf'})}
+                                        style={{ 
+                                            flex: 1, padding: '1rem', background: '#f8fafc', borderRadius: '0.75rem',
+                                            border: newBook.contentType === 'pdf' ? '2px solid #ef4444' : '2px solid #e2e8f0',
+                                            cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <FileUp size={24} color={newBook.contentType === 'pdf' ? '#ef4444' : '#94a3b8'} />
+                                            <div>
+                                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Upload PDF</p>
+                                                <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Link dari Google Drive, dll</p>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {newBook.contentType === 'rich_text' ? (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Konten Buku</label>
+                                    <textarea 
+                                        value={newBook.content}
+                                        onChange={(e) => setNewBook({...newBook, content: e.target.value})}
+                                        className="form-input"
+                                        placeholder="Tulis konten buku di sini... (mendukung HTML)"
+                                        rows={10}
+                                        style={{ width: '100%', padding: '0.75rem', resize: 'vertical', fontFamily: 'inherit' }}
+                                    />
+                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>
+                                        💡 Tip: Gunakan tag HTML seperti &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;strong&gt; untuk format teks
+                                    </p>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>URL PDF</label>
+                                    <input 
+                                        type="url"
+                                        value={newBook.pdfUrl}
+                                        onChange={(e) => setNewBook({...newBook, pdfUrl: e.target.value})}
+                                        className="form-input"
+                                        placeholder="https://drive.google.com/file/d/..."
+                                        style={{ width: '100%', padding: '0.75rem' }}
+                                    />
+                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>
+                                        📁 Tip: Upload PDF ke Google Drive, lalu salin link "Anyone with the link can view"
+                                    </p>
+                                </div>
+                            )}
+                            
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                                <button 
+                                    onClick={() => { setShowBookModal(false); setEditingBook(null); }}
+                                    className="btn btn-secondary"
+                                    style={{ flex: 1 }}
+                                >
+                                    Batal
+                                </button>
+                                <button 
+                                    onClick={editingBook ? handleUpdateBook : handleCreateBook}
+                                    className="btn btn-primary"
+                                    style={{ flex: 1 }}
+                                    disabled={!newBook.title || (newBook.contentType === 'pdf' && !newBook.pdfUrl)}
+                                >
+                                    {editingBook ? 'Simpan Perubahan' : 'Tambah Buku'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Success Toast */}
             {success && (
                 <div style={{
@@ -868,6 +1336,267 @@ export const TeacherClassDetail: React.FC = () => {
                     ✓ {success}
                 </div>
             )}
+        </div>
+    );
+};
+
+// Exercises Tab Content Component
+interface ExercisesTabContentProps {
+    classId: string;
+    navigate: (path: string) => void;
+}
+
+interface ExerciseItem {
+    id: string;
+    title: string;
+    description?: string;
+    difficulty: string;
+    points: number;
+    hasTimer: boolean;
+    timerMinutes?: number;
+    answerType: string;
+    isPublished: boolean;
+    attempts?: Array<{ id: string }>;
+}
+
+const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classId, navigate }) => {
+    const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        fetchExercises();
+    }, [classId]);
+
+    const fetchExercises = async () => {
+        try {
+            setLoading(true);
+            const data = await classesAPI.getExercises(classId);
+            setExercises(data);
+        } catch (error) {
+            console.error('Failed to fetch exercises:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (exerciseId: string) => {
+        if (!confirm('Hapus latihan ini?')) return;
+        try {
+            await classesAPI.deleteExercise(classId, exerciseId);
+            setExercises(prev => prev.filter(e => e.id !== exerciseId));
+        } catch (error) {
+            console.error('Failed to delete exercise:', error);
+        }
+    };
+
+    const difficultyConfig: Record<string, { text: string; color: string; bg: string }> = {
+        easy: { text: 'Mudah', color: '#22c55e', bg: '#dcfce7' },
+        medium: { text: 'Sedang', color: '#f59e0b', bg: '#fef3c7' },
+        hard: { text: 'Sulit', color: '#ef4444', bg: '#fee2e2' }
+    };
+
+    const answerTypeLabels: Record<string, string> = {
+        multiple_choice: 'Pilihan Ganda',
+        numeric: 'Angka',
+        canvas: 'Gambar'
+    };
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                <div className="animate-spin" style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                    <h3 style={{ fontWeight: '600' }}>Latihan Interaktif</h3>
+                    <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Buat latihan dengan visualisasi geometri untuk siswa</p>
+                </div>
+                <button
+                    onClick={() => navigate(`/teacher/classes/${classId}/exercise-editor`)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: 'linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                    }}
+                >
+                    <Plus size={18} /> Buat Latihan
+                </button>
+            </div>
+
+            {exercises.length === 0 ? (
+                <div className="card glass" style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                    <PenTool size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                    <p>Belum ada latihan interaktif.</p>
+                    <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                        Klik "Buat Latihan" untuk membuat latihan dengan visualisasi geometri.
+                    </p>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                    {exercises.map((exercise) => {
+                        const difficulty = difficultyConfig[exercise.difficulty] || difficultyConfig.medium;
+                        
+                        return (
+                            <div
+                                key={exercise.id}
+                                className="card glass"
+                                style={{
+                                    padding: 0,
+                                    overflow: 'hidden',
+                                    position: 'relative'
+                                }}
+                            >
+                                {/* Status badge */}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '0.75rem',
+                                    right: '0.75rem',
+                                    background: exercise.isPublished ? '#dcfce7' : '#f1f5f9',
+                                    color: exercise.isPublished ? '#166534' : '#64748b',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '0.5rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '600'
+                                }}>
+                                    {exercise.isPublished ? '✅ Publik' : '📝 Draft'}
+                                </div>
+
+                                {/* Header gradient */}
+                                <div style={{
+                                    height: '6px',
+                                    background: `linear-gradient(90deg, ${difficulty.color}, ${difficulty.color}88)`
+                                }} />
+
+                                <div style={{ padding: '1.25rem' }}>
+                                    <h4 style={{ fontWeight: '700', marginBottom: '0.5rem', paddingRight: '4rem' }}>
+                                        {exercise.title}
+                                    </h4>
+                                    {exercise.description && (
+                                        <p style={{ 
+                                            fontSize: '0.85rem', 
+                                            color: '#64748b', 
+                                            marginBottom: '1rem',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden'
+                                        }}>
+                                            {exercise.description}
+                                        </p>
+                                    )}
+
+                                    {/* Meta info */}
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        flexWrap: 'wrap', 
+                                        gap: '0.5rem', 
+                                        marginBottom: '1rem',
+                                        fontSize: '0.75rem'
+                                    }}>
+                                        <span style={{ 
+                                            background: difficulty.bg, 
+                                            color: difficulty.color,
+                                            padding: '0.25rem 0.5rem',
+                                            borderRadius: '0.375rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            {difficulty.text}
+                                        </span>
+                                        <span style={{ 
+                                            background: '#fef3c7', 
+                                            color: '#92400e',
+                                            padding: '0.25rem 0.5rem',
+                                            borderRadius: '0.375rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            {exercise.points} XP
+                                        </span>
+                                        <span style={{ 
+                                            background: '#f1f5f9', 
+                                            color: '#475569',
+                                            padding: '0.25rem 0.5rem',
+                                            borderRadius: '0.375rem'
+                                        }}>
+                                            {answerTypeLabels[exercise.answerType] || exercise.answerType}
+                                        </span>
+                                        {exercise.hasTimer && exercise.timerMinutes && (
+                                            <span style={{ 
+                                                background: '#fee2e2', 
+                                                color: '#991b1b',
+                                                padding: '0.25rem 0.5rem',
+                                                borderRadius: '0.375rem'
+                                            }}>
+                                                ⏱️ {exercise.timerMinutes}m
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Attempts count */}
+                                    {exercise.attempts && exercise.attempts.length > 0 && (
+                                        <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
+                                            📊 {exercise.attempts.length} siswa sudah mengerjakan
+                                        </p>
+                                    )}
+
+                                    {/* Actions */}
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button
+                                            onClick={() => navigate(`/teacher/classes/${classId}/exercise-editor/${exercise.id}`)}
+                                            style={{
+                                                flex: 1,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.5rem',
+                                                background: '#f1f5f9',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                fontWeight: '500'
+                                            }}
+                                        >
+                                            <Edit size={14} /> Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(exercise.id)}
+                                            style={{
+                                                padding: '0.5rem 0.75rem',
+                                                background: '#fee2e2',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                cursor: 'pointer',
+                                                color: '#ef4444'
+                                            }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
+                <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>
+                    📐 <strong>Tip:</strong> Latihan interaktif mendukung visualisasi geometri seperti GeoGebra. Siswa dapat melihat dan berinteraksi dengan canvas untuk memahami konsep matematika.
+                </p>
+            </div>
         </div>
     );
 };

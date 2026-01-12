@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Hexagon, Loader, AlertCircle } from 'lucide-react';
+import { Loader, AlertCircle, Maximize2, Minimize2, X } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { GeometryCanvas } from '../../components/geometry/GeometryCanvas';
 
@@ -10,6 +10,7 @@ export const ClassCanvas: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [className, setClassName] = useState('');
     const [geogebraEnabled, setGeogebraEnabled] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
         if (classId) {
@@ -17,12 +18,34 @@ export const ClassCanvas: React.FC = () => {
         }
     }, [classId]);
 
+    // Prevent body scroll when fullscreen
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isFullscreen]);
+
+    // Handle escape key
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, [isFullscreen]);
+
     const fetchClassData = async () => {
         try {
             setLoading(true);
             const data = await classesAPI.getDashboard(classId!);
             setClassName(data.class.name);
-            // Check if geogebra is enabled for this class
             setGeogebraEnabled(data.class.geogebraEnabled ?? false);
         } catch (err) {
             console.error('Failed to fetch class data', err);
@@ -61,13 +84,120 @@ export const ClassCanvas: React.FC = () => {
         );
     }
 
+    // Fullscreen overlay mode
+    if (isFullscreen) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 9999,
+                background: '#f8fafc',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                {/* Minimal Header */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 1rem',
+                    background: 'white',
+                    borderBottom: '1px solid #e2e8f0',
+                    flexShrink: 0
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '1.25rem' }}>🔷</span>
+                        <span style={{ fontWeight: '600', color: '#1e293b' }}>Canvas Geometri</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>• {className}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                            onClick={() => setIsFullscreen(false)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid #e2e8f0',
+                                background: 'white',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                color: '#64748b'
+                            }}
+                        >
+                            <Minimize2 size={16} />
+                            Exit Fullscreen
+                        </button>
+                        <button
+                            onClick={() => setIsFullscreen(false)}
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '0.5rem',
+                                border: 'none',
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+                
+                {/* Full canvas area */}
+                <div style={{ flex: 1, padding: '0.75rem', overflow: 'hidden' }}>
+                    <GeometryCanvas 
+                        width={window.innerWidth - 24}
+                        height={window.innerHeight - 80}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Normal mode
     return (
         <div style={{ padding: '1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                    🔷 Canvas Geometri
-                </h1>
-                <p style={{ color: '#64748b' }}>Kelas: {className}</p>
+            <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: '1.5rem' 
+            }}>
+                <div>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
+                        🔷 Canvas Geometri
+                    </h1>
+                    <p style={{ color: '#64748b' }}>Kelas: {className}</p>
+                </div>
+                <button
+                    onClick={() => setIsFullscreen(true)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: '0.75rem',
+                        border: 'none',
+                        background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.9rem',
+                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                    }}
+                >
+                    <Maximize2 size={18} />
+                    Mode Fullscreen
+                </button>
             </div>
 
             <div className="card glass" style={{ padding: '0.5rem', overflow: 'hidden' }}>
@@ -88,10 +218,10 @@ export const ClassCanvas: React.FC = () => {
                     💡 Tips Menggunakan Canvas
                 </h3>
                 <ul style={{ color: '#0369a1', fontSize: '0.9rem', paddingLeft: '1.25rem' }}>
-                    <li>Pilih tool dari toolbar untuk menggambar bentuk</li>
+                    <li>Klik <strong>Mode Fullscreen</strong> untuk layar penuh</li>
+                    <li>Masukkan rumus di panel <strong>Grafik Fungsi</strong> (contoh: x^2, sin(x))</li>
                     <li>Gunakan <strong>Ruler</strong> untuk mengukur jarak</li>
-                    <li>Gunakan <strong>Angle</strong> untuk mengukur sudut</li>
-                    <li>Klik <strong>Export</strong> untuk menyimpan gambar</li>
+                    <li>Tekan <strong>ESC</strong> untuk keluar dari fullscreen</li>
                 </ul>
             </div>
         </div>

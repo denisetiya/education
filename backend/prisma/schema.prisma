@@ -29,6 +29,7 @@ model User {
   teachingClasses  Class[]    @relation("TeachingClasses")
   enrolledClasses  ClassEnrollment[]
   classAchievements StudentClassAchievement[]
+  exerciseAttempts  ExerciseAttempt[]
 }
 
 model Material {
@@ -99,6 +100,7 @@ model Class {
   modules      Module[]
   achievements ClassAchievement[]
   books        ClassBook[]
+  exercises    ClassExercise[]
 }
 
 model ClassEnrollment {
@@ -189,3 +191,60 @@ model ClassBook {
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   classId     String
 }
+
+// Interactive exercises with geometry visualization
+model ClassExercise {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  instructions  String?  // Instruksi soal dalam HTML/markdown
+  exerciseType  String   @default("geometry") // geometry, calculation, mixed
+  difficulty    String   @default("medium")   // easy, medium, hard
+  points        Int      @default(10)         // XP reward
+  
+  // Timer settings (optional)
+  hasTimer      Boolean  @default(false)
+  timerMinutes  Int?     // Durasi dalam menit
+  
+  // Geometry canvas state (JSON string of CanvasState)
+  canvasState   String?
+  canvasMode    String   @default("readonly") // readonly, interactive
+  
+  // Answer configuration
+  answerType    String   @default("multiple_choice") // multiple_choice, numeric, canvas, mixed
+  correctAnswer String?  // JSON: untuk numeric bisa {value: 42, tolerance: 0.1}
+  options       String?  // JSON array: [{id, text, isCorrect}] untuk multiple choice
+  
+  // Status
+  isPublished   Boolean  @default(false)
+  order         Int      @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId       String
+  attempts      ExerciseAttempt[]
+}
+
+// Student exercise attempts
+model ExerciseAttempt {
+  id          String   @id @default(uuid())
+  answer      String?  // JSON: submitted answer
+  canvasData  String?  // JSON: submitted canvas state (for canvas answer type)
+  isCorrect   Boolean  @default(false)
+  score       Int      @default(0)
+  timeSpent   Int      @default(0) // in seconds
+  
+  createdAt   DateTime @default(now())
+
+  // Relations
+  student     User          @relation(fields: [studentId], references: [id])
+  studentId   String
+  exercise    ClassExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  exerciseId  String
+  
+  @@unique([studentId, exerciseId])
+}
+
