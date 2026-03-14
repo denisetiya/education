@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -14,6 +14,14 @@ import {
 } from 'lucide-react';
 import GeometryCanvas from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
+import {
+    getQuestionTypeLabel,
+    parseExerciseQuestions,
+    parseQuestionResults,
+    parseStoredAnswers,
+    type ExerciseQuestion,
+    type ExerciseQuestionResult
+} from '../../features/exercises/exercise-config';
 import type { ClassExerciseSummary, ExerciseAttemptSummary } from '../../types/api.types';
 import { classesAPI } from '../../utils/api';
 
@@ -22,36 +30,6 @@ interface ClassInfo {
     name: string;
     subject: string;
 }
-
-const parseCanvasState = (value?: string | null): CanvasState | undefined => {
-    if (!value) {
-        return undefined;
-    }
-
-    try {
-        return JSON.parse(value) as CanvasState;
-    } catch (error) {
-        console.error('Failed to parse canvas state', error);
-        return undefined;
-    }
-};
-
-const parseStoredAnswer = (value?: string | null): string => {
-    if (!value) {
-        return 'Tidak ada jawaban teks.';
-    }
-
-    try {
-        const parsed = JSON.parse(value) as unknown;
-        if (typeof parsed === 'string') {
-            return parsed;
-        }
-
-        return JSON.stringify(parsed, null, 2);
-    } catch {
-        return value;
-    }
-};
 
 const formatDate = (value?: string | null) => {
     if (!value) {
@@ -88,20 +66,49 @@ const getAttemptStatusMeta = (attempt: ExerciseAttemptSummary) => {
     };
 };
 
+const getQuestionStatusMeta = (result?: ExerciseQuestionResult) => {
+    if (!result) {
+        return null;
+    }
+
+    if (result.status === 'pending_review') {
+        return {
+            label: 'Butuh review',
+            background: '#fef3c7',
+            color: '#92400e'
+        };
+    }
+
+    if (result.status === 'correct') {
+        return {
+            label: 'Auto benar',
+            background: '#dcfce7',
+            color: '#166534'
+        };
+    }
+
+    return {
+        label: 'Auto salah',
+        background: '#fee2e2',
+        color: '#b91c1c'
+    };
+};
+
 export const ExerciseReview: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId: string }>();
     const navigate = useNavigate();
-    const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
-    const [exercise, setExercise] = useState<ClassExerciseSummary | null>(null);
-    const [selectedAttemptId, setSelectedAttemptId] = useState<string>('');
-    const [scoreInput, setScoreInput] = useState<string>('0');
-    const [feedback, setFeedback] = useState('');
-    const [markCorrect, setMarkCorrect] = useState(true);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [notice, setNotice] = useState<string | null>(null);
+    const [classInfo, setClassInfo] = React.useState<ClassInfo | null>(null);
+    const [exercise, setExercise] = React.useState<ClassExerciseSummary | null>(null);
+    const [questions, setQuestions] = React.useState<ExerciseQuestion[]>([]);
+    const [selectedAttemptId, setSelectedAttemptId] = React.useState<string>('');
+    const [scoreInput, setScoreInput] = React.useState<string>('0');
+    const [feedback, setFeedback] = React.useState('');
+    const [markCorrect, setMarkCorrect] = React.useState(true);
+    const [loading, setLoading] = React.useState(true);
+    const [saving, setSaving] = React.useState(false);
+    const [notice, setNotice] = React.useState<string | null>(null);
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (!classId || !exerciseId) {
             return;
         }
@@ -120,6 +127,7 @@ export const ExerciseReview: React.FC = () => {
                     subject: classData.subject
                 });
                 setExercise(exerciseData);
+                setQuestions(parseExerciseQuestions(exerciseData));
 
                 const attempts = exerciseData.attempts || [];
                 const preferredAttempt = attempts.find((attempt) => attempt.gradingStatus === 'pending_review') || attempts[0];
@@ -139,13 +147,13 @@ export const ExerciseReview: React.FC = () => {
         void loadReviewData();
     }, [classId, exerciseId]);
 
-    const attempts = useMemo(() => exercise?.attempts || [], [exercise?.attempts]);
-    const selectedAttempt = useMemo(
+    const attempts = React.useMemo(() => exercise?.attempts || [], [exercise?.attempts]);
+    const selectedAttempt = React.useMemo(
         () => attempts.find((attempt) => attempt.id === selectedAttemptId) || null,
         [attempts, selectedAttemptId]
     );
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (!selectedAttempt || !exercise) {
             return;
         }
@@ -156,8 +164,14 @@ export const ExerciseReview: React.FC = () => {
     }, [selectedAttempt, exercise]);
 
     const pendingCount = attempts.filter((attempt) => attempt.gradingStatus === 'pending_review').length;
-    const promptCanvasState = parseCanvasState(exercise?.canvasState);
-    const answerCanvasState = parseCanvasState(selectedAttempt?.canvasData);
+    const answerSheet = React.useMemo(
+        () => parseStoredAnswers(selectedAttempt?.answer),
+        [selectedAttempt?.answer]
+    );
+    const questionResults = React.useMemo(
+        () => parseQuestionResults(selectedAttempt?.questionResults),
+        [selectedAttempt?.questionResults]
+    );
 
     const handleSaveGrade = async () => {
         if (!classId || !exerciseId || !selectedAttempt || !exercise) {
@@ -235,17 +249,7 @@ export const ExerciseReview: React.FC = () => {
             >
                 <button
                     onClick={() => navigate(`/teacher/classes/${classId}?tab=exercises`)}
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#0f172a',
-                        cursor: 'pointer',
-                        marginBottom: '1rem',
-                        fontWeight: '600'
-                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', border: 'none', color: '#0f172a', cursor: 'pointer', marginBottom: '1rem', fontWeight: '600' }}
                 >
                     <ArrowLeft size={18} />
                     Kembali ke latihan kelas
@@ -253,15 +257,9 @@ export const ExerciseReview: React.FC = () => {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                     <div>
-                        <p style={{ color: '#0f766e', fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                            Review Penilaian
-                        </p>
-                        <h1 style={{ fontSize: '1.9rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>
-                            {exercise.title}
-                        </h1>
-                        <p style={{ color: '#475569' }}>
-                            {classInfo.name} · {classInfo.subject}
-                        </p>
+                        <p style={{ color: '#0f766e', fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Review Penilaian</p>
+                        <h1 style={{ fontSize: '1.9rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>{exercise.title}</h1>
+                        <p style={{ color: '#475569' }}>{classInfo.name} - {classInfo.subject}</p>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -282,16 +280,7 @@ export const ExerciseReview: React.FC = () => {
             </div>
 
             {notice && (
-                <div
-                    style={{
-                        padding: '0.9rem 1rem',
-                        borderRadius: '0.9rem',
-                        background: '#dcfce7',
-                        color: '#166534',
-                        border: '1px solid #86efac',
-                        fontWeight: '600'
-                    }}
-                >
+                <div style={{ padding: '0.9rem 1rem', borderRadius: '0.9rem', background: '#dcfce7', color: '#166534', border: '1px solid #86efac', fontWeight: '600' }}>
                     {notice}
                 </div>
             )}
@@ -307,15 +296,7 @@ export const ExerciseReview: React.FC = () => {
                     </div>
 
                     {attempts.length === 0 ? (
-                        <div
-                            style={{
-                                padding: '1.25rem',
-                                borderRadius: '0.9rem',
-                                background: '#f8fafc',
-                                color: '#64748b',
-                                textAlign: 'center'
-                            }}
-                        >
+                        <div style={{ padding: '1.25rem', borderRadius: '0.9rem', background: '#f8fafc', color: '#64748b', textAlign: 'center' }}>
                             Belum ada siswa yang mengerjakan latihan ini.
                         </div>
                     ) : (
@@ -347,17 +328,7 @@ export const ExerciseReview: React.FC = () => {
                                                     {attempt.student?.email || 'Tanpa email'}
                                                 </p>
                                             </div>
-                                            <span
-                                                style={{
-                                                    padding: '0.3rem 0.6rem',
-                                                    borderRadius: '999px',
-                                                    background: status.background,
-                                                    color: status.color,
-                                                    fontSize: '0.72rem',
-                                                    fontWeight: '700',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
+                                            <span style={{ padding: '0.3rem 0.6rem', borderRadius: '999px', background: status.background, color: status.color, fontSize: '0.72rem', fontWeight: '700', whiteSpace: 'nowrap' }}>
                                                 {status.label}
                                             </span>
                                         </div>
@@ -374,47 +345,13 @@ export const ExerciseReview: React.FC = () => {
                 </aside>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    <div className="card glass" style={{ padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                            <div>
-                                <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>
-                                    Brief Soal
-                                </h2>
-                                <p style={{ color: '#64748b', lineHeight: 1.7 }}>
-                                    {exercise.instructions || exercise.description || 'Guru belum menambahkan instruksi khusus.'}
-                                </p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                                <span style={{ padding: '0.45rem 0.75rem', borderRadius: '999px', background: '#dbeafe', color: '#1d4ed8', fontWeight: '700', fontSize: '0.8rem' }}>
-                                    {exercise.answerType.replace('_', ' ')}
-                                </span>
-                                <span style={{ padding: '0.45rem 0.75rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontWeight: '700', fontSize: '0.8rem' }}>
-                                    {exercise.points} XP
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {promptCanvasState && (
-                        <div className="card glass" style={{ padding: '1.5rem' }}>
-                            <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1rem' }}>
-                                Canvas Soal
-                            </h3>
-                            <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white' }}>
-                                <GeometryCanvas width={900} height={460} initialState={promptCanvasState} />
-                            </div>
-                        </div>
-                    )}
-
                     {selectedAttempt ? (
                         <>
                             <div className="card glass" style={{ padding: '1.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                     <div>
-                                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>
-                                            Jawaban Siswa
-                                        </h3>
-                                        <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                                        <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>Ringkasan attempt</h2>
+                                        <p style={{ color: '#64748b', lineHeight: 1.7 }}>
                                             Ditinjau untuk {selectedAttempt.student?.name || 'siswa'} pada {formatDate(selectedAttempt.createdAt)}.
                                         </p>
                                     </div>
@@ -423,41 +360,90 @@ export const ExerciseReview: React.FC = () => {
                                         {selectedAttempt.student?.email || 'Email tidak tersedia'}
                                     </div>
                                 </div>
-
-                                <div
-                                    style={{
-                                        padding: '1rem',
-                                        borderRadius: '1rem',
-                                        background: '#f8fafc',
-                                        border: '1px solid #e2e8f0',
-                                        whiteSpace: 'pre-wrap',
-                                        lineHeight: 1.7,
-                                        color: '#0f172a'
-                                    }}
-                                >
-                                    {parseStoredAnswer(selectedAttempt.answer)}
-                                </div>
                             </div>
 
-                            {answerCanvasState && (
-                                <div className="card glass" style={{ padding: '1.5rem' }}>
-                                    <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1rem' }}>
-                                        Canvas Jawaban Siswa
-                                    </h3>
-                                    <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white' }}>
-                                        <GeometryCanvas width={900} height={460} initialState={answerCanvasState} />
+                            {questions.map((question, index) => {
+                                const storedAnswer = answerSheet.find((answer) => answer.questionId === question.id);
+                                const questionResult = questionResults.find((item) => item.questionId === question.id);
+                                const status = getQuestionStatusMeta(questionResult);
+                                const answerCanvasState = storedAnswer?.canvasState as CanvasState | undefined;
+                                const promptCanvasState = question.visual?.canvasState as CanvasState | undefined;
+
+                                return (
+                                    <div key={question.id} className="card glass" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                            <div>
+                                                <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Soal {index + 1}</p>
+                                                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>{question.title}</h3>
+                                                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                                    <span style={{ padding: '0.3rem 0.55rem', borderRadius: '999px', background: '#eef2ff', color: '#4338ca', fontSize: '0.72rem', fontWeight: '700' }}>
+                                                        {getQuestionTypeLabel(question.type)}
+                                                    </span>
+                                                    {status && (
+                                                        <span style={{ padding: '0.3rem 0.55rem', borderRadius: '999px', background: status.background, color: status.color, fontSize: '0.72rem', fontWeight: '700' }}>
+                                                            {status.label}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {questionResult && (
+                                                <div style={{ fontWeight: '800', color: '#0f172a' }}>
+                                                    {questionResult.score}/{questionResult.maxScore}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <p style={{ color: '#475569', lineHeight: 1.7 }}>{question.prompt}</p>
+
+                                        {promptCanvasState && (
+                                            <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white' }}>
+                                                <GeometryCanvas
+                                                    width={900}
+                                                    height={360}
+                                                    initialState={promptCanvasState}
+                                                    readOnly
+                                                    showToolbar={false}
+                                                    showFunctionPanel={Boolean(question.visual?.showFunctionPanel)}
+                                                    hideFunctionExpressions={Boolean(question.visual?.hideFunctionExpressions)}
+                                                    showCoordinates={Boolean(question.visual?.showCoordinates)}
+                                                    compactMode
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div style={{ padding: '1rem', borderRadius: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                            <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.35rem' }}>Jawaban siswa</p>
+                                            {question.type === 'canvas' && answerCanvasState ? (
+                                                <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #dbe3f1', background: 'white' }}>
+                                                    <GeometryCanvas
+                                                        width={900}
+                                                        height={360}
+                                                        initialState={answerCanvasState}
+                                                        readOnly
+                                                        showToolbar={false}
+                                                        showFunctionPanel={false}
+                                                        showCoordinates={false}
+                                                        compactMode
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p style={{ color: '#0f172a', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                                                    {storedAnswer?.value !== undefined && storedAnswer?.value !== null && String(storedAnswer.value).trim()
+                                                        ? String(storedAnswer.value)
+                                                        : 'Tidak ada jawaban teks.'}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })}
 
                             <div className="card glass" style={{ padding: '1.5rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                                     <div>
-                                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>
-                                            Form Penilaian
-                                        </h3>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>Form penilaian akhir</h3>
                                         <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-                                            Simpan nilai, status, dan catatan agar siswa menerima hasil yang jelas.
+                                            Simpan nilai total dan feedback agar siswa melihat hasil lengkap.
                                         </p>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem' }}>
@@ -468,97 +454,47 @@ export const ExerciseReview: React.FC = () => {
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '180px minmax(0, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>
-                                            Nilai
-                                        </label>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>Nilai</label>
                                         <input
                                             type="number"
                                             min={0}
                                             max={exercise.points}
                                             value={scoreInput}
                                             onChange={(event) => setScoreInput(event.target.value)}
-                                            style={{
-                                                width: '100%',
-                                                padding: '0.9rem 1rem',
-                                                borderRadius: '0.85rem',
-                                                border: '1px solid #cbd5e1',
-                                                background: 'white'
-                                            }}
+                                            style={{ width: '100%', padding: '0.9rem 1rem', borderRadius: '0.85rem', border: '1px solid #cbd5e1', background: 'white' }}
                                         />
-                                        <p style={{ marginTop: '0.45rem', color: '#64748b', fontSize: '0.8rem' }}>
-                                            Maksimal {exercise.points} XP
-                                        </p>
+                                        <p style={{ marginTop: '0.45rem', color: '#64748b', fontSize: '0.8rem' }}>Maksimal {exercise.points} XP</p>
                                     </div>
 
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>
-                                            Status Hasil
-                                        </label>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>Status hasil</label>
                                         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                                             <button
                                                 onClick={() => setMarkCorrect(true)}
-                                                style={{
-                                                    flex: 1,
-                                                    minWidth: '160px',
-                                                    padding: '0.9rem 1rem',
-                                                    borderRadius: '0.85rem',
-                                                    border: markCorrect ? '2px solid #22c55e' : '1px solid #cbd5e1',
-                                                    background: markCorrect ? '#f0fdf4' : 'white',
-                                                    color: markCorrect ? '#166534' : '#334155',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.55rem',
-                                                    fontWeight: '700'
-                                                }}
+                                                style={{ flex: 1, minWidth: '160px', padding: '0.9rem 1rem', borderRadius: '0.85rem', border: markCorrect ? '2px solid #22c55e' : '1px solid #cbd5e1', background: markCorrect ? '#f0fdf4' : 'white', color: markCorrect ? '#166534' : '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55rem', fontWeight: '700' }}
                                             >
                                                 <CheckCircle2 size={18} />
                                                 Tuntas
                                             </button>
                                             <button
                                                 onClick={() => setMarkCorrect(false)}
-                                                style={{
-                                                    flex: 1,
-                                                    minWidth: '160px',
-                                                    padding: '0.9rem 1rem',
-                                                    borderRadius: '0.85rem',
-                                                    border: !markCorrect ? '2px solid #ef4444' : '1px solid #cbd5e1',
-                                                    background: !markCorrect ? '#fef2f2' : 'white',
-                                                    color: !markCorrect ? '#b91c1c' : '#334155',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.55rem',
-                                                    fontWeight: '700'
-                                                }}
+                                                style={{ flex: 1, minWidth: '160px', padding: '0.9rem 1rem', borderRadius: '0.85rem', border: !markCorrect ? '2px solid #ef4444' : '1px solid #cbd5e1', background: !markCorrect ? '#fef2f2' : 'white', color: !markCorrect ? '#b91c1c' : '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55rem', fontWeight: '700' }}
                                             >
                                                 <XCircle size={18} />
-                                                Perlu Revisi
+                                                Perlu revisi
                                             </button>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div style={{ marginBottom: '1.25rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>
-                                        Feedback untuk siswa
-                                    </label>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700', color: '#0f172a' }}>Feedback untuk siswa</label>
                                     <textarea
                                         value={feedback}
                                         onChange={(event) => setFeedback(event.target.value)}
                                         rows={5}
                                         placeholder="Tulis arahan singkat, apresiasi, atau perbaikan yang perlu dilakukan."
-                                        style={{
-                                            width: '100%',
-                                            padding: '1rem',
-                                            borderRadius: '0.95rem',
-                                            border: '1px solid #cbd5e1',
-                                            resize: 'vertical',
-                                            background: 'white',
-                                            lineHeight: 1.6
-                                        }}
+                                        style={{ width: '100%', padding: '1rem', borderRadius: '0.95rem', border: '1px solid #cbd5e1', resize: 'vertical', background: 'white', lineHeight: 1.6 }}
                                     />
                                 </div>
 
@@ -568,21 +504,9 @@ export const ExerciseReview: React.FC = () => {
                                         Hasil akan langsung muncul di halaman siswa.
                                     </div>
                                     <button
-                                        onClick={handleSaveGrade}
+                                        onClick={() => void handleSaveGrade()}
                                         disabled={saving}
-                                        style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.6rem',
-                                            background: 'linear-gradient(135deg, #0f766e, #0ea5e9)',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '0.95rem 1.4rem',
-                                            borderRadius: '0.95rem',
-                                            cursor: saving ? 'not-allowed' : 'pointer',
-                                            fontWeight: '700',
-                                            boxShadow: '0 16px 35px rgba(14, 165, 233, 0.24)'
-                                        }}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', background: 'linear-gradient(135deg, #0f766e, #0ea5e9)', color: 'white', border: 'none', padding: '0.95rem 1.4rem', borderRadius: '0.95rem', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: '700', boxShadow: '0 16px 35px rgba(14, 165, 233, 0.24)' }}
                                     >
                                         {saving ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                         Simpan Penilaian

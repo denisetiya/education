@@ -4,8 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const zod_1 = require("zod");
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const auth_middleware_1 = require("../middleware/auth.middleware");
+const validation_middleware_1 = require("../middleware/validation.middleware");
+const exercise_config_1 = require("../features/exercises/exercise-config");
 const router = (0, express_1.Router)();
 const classDetailInclude = {
     teacher: { select: { id: true, name: true } },
@@ -105,9 +108,267 @@ const getClassAccess = async (classId, userId, role) => {
 };
 const canAccessClass = (access) => access.isAdmin || access.isTeacher || access.isEnrolled;
 const canManageClass = (access) => access.isAdmin || access.isTeacher;
-const EXERCISE_STATUS_GRADED = 'graded';
-const EXERCISE_STATUS_PENDING_REVIEW = 'pending_review';
 const clampScore = (value, min, max) => Math.min(Math.max(value, min), max);
+const discussionThreadSchema = zod_1.z.object({
+    title: zod_1.z.string().trim().min(3, 'Judul minimal 3 karakter').max(120, 'Judul terlalu panjang'),
+    content: zod_1.z.string().trim().min(3, 'Isi diskusi minimal 3 karakter').max(4000, 'Isi diskusi terlalu panjang')
+});
+const discussionReplySchema = zod_1.z.object({
+    content: zod_1.z.string().trim().min(1, 'Balasan tidak boleh kosong').max(2000, 'Balasan terlalu panjang')
+});
+const discussionToggleSchema = zod_1.z.object({
+    value: zod_1.z.boolean()
+});
+const safeJsonParse = (value) => {
+    if (!value) {
+        return null;
+    }
+    try {
+        return JSON.parse(value);
+    }
+    catch {
+        return null;
+    }
+};
+const getExerciseQuestions = (exercise) => (0, exercise_config_1.parseQuestionSet)(exercise.questionSet ?? null, exercise);
+const formatExerciseForResponse = (exercise, includeTeacherFields) => {
+    const questions = getExerciseQuestions(exercise);
+    const primaryQuestion = questions[0];
+    const formattedExercise = {
+        ...exercise,
+        questionSet: JSON.stringify(includeTeacherFields ? questions : (0, exercise_config_1.sanitizeQuestionSetForStudent)(questions)),
+        questionCount: questions.length,
+        questionTypes: questions.map((question) => question.type),
+        answerType: questions.length > 1
+            ? 'mixed'
+            : primaryQuestion?.type ?? exercise.answerType ?? 'multiple_choice',
+        points: questions.reduce((sum, question) => sum + question.points, 0) || exercise.points || 0
+    };
+    if (!includeTeacherFields) {
+        formattedExercise.options = sanitizeExerciseOptionsForStudent(exercise.options ?? null);
+        delete formattedExercise.correctAnswer;
+    }
+    return formattedExercise;
+};
+const buildExerciseMutationData = (payload) => {
+    const normalizedQuestions = (0, exercise_config_1.normalizeQuestionSetInput)(payload.questionSet, {
+        title: typeof payload.title === 'string' ? payload.title : null,
+        description: typeof payload.description === 'string' ? payload.description : null,
+        instructions: typeof payload.instructions === 'string' ? payload.instructions : null,
+        points: typeof payload.points === 'number' ? payload.points : Number(payload.points ?? 10),
+        answerType: typeof payload.answerType === 'string' ? payload.answerType : null,
+        correctAnswer: typeof payload.correctAnswer === 'string' ? payload.correctAnswer : null,
+        options: typeof payload.options === 'string' ? payload.options : null,
+        canvasState: typeof payload.canvasState === 'string' ? payload.canvasState : null,
+        canvasMode: typeof payload.canvasMode === 'string' ? payload.canvasMode : null
+    });
+    const projectedLegacyFields = (0, exercise_config_1.projectQuestionSetToLegacyFields)(normalizedQuestions);
+    return {
+        normalizedQuestions,
+        data: {
+            questionSet: (0, exercise_config_1.serializeQuestionSet)(normalizedQuestions),
+            points: projectedLegacyFields.points,
+            answerType: projectedLegacyFields.answerType,
+            correctAnswer: projectedLegacyFields.correctAnswer,
+            options: projectedLegacyFields.options,
+            canvasState: projectedLegacyFields.canvasState,
+            canvasMode: projectedLegacyFields.canvasMode
+        }
+    };
+};
+const getQuestionResultsSummary = (value) => safeJsonParse(value) ?? [];
+const buildClassLeaderboard = async (classId, currentUserId) => {
+    const classData = await prisma_1.default.class.findUnique({
+        where: { id: classId },
+        select: {
+            id: true,
+            name: true,
+            xpMultiplier: true,
+            students: {
+                include: {
+                    student: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            avatar: true,
+                            level: true,
+                            xp: true
+                        }
+                    }
+                }
+            },
+            modules: {
+                include: {
+                    materials: {
+                        select: {
+                            id: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+    if (!classData) {
+        return null;
+    }
+    const materialIds = classData.modules.flatMap((module) => module.materials.map((material) => material.id));
+    const studentIds = classData.students.map((enrollment) => enrollment.studentId);
+    const [progressRows, attemptRows, achievementRows, discussionThreads] = await Promise.all([
+        prisma_1.default.progress.findMany({
+            where: {
+                userId: { in: studentIds },
+                materialId: { in: materialIds },
+                status: 'completed'
+            },
+            select: {
+                userId: true,
+                score: true,
+                materialId: true
+            }
+        }),
+        prisma_1.default.exerciseAttempt.findMany({
+            where: {
+                studentId: { in: studentIds },
+                exercise: {
+                    classId
+                }
+            },
+            select: {
+                studentId: true,
+                score: true,
+                gradingStatus: true,
+                questionResults: true
+            }
+        }),
+        prisma_1.default.studentClassAchievement.findMany({
+            where: {
+                studentId: { in: studentIds },
+                achievement: { classId }
+            },
+            include: {
+                achievement: {
+                    select: {
+                        id: true,
+                        title: true,
+                        icon: true,
+                        xpReward: true
+                    }
+                }
+            }
+        }),
+        prisma_1.default.classDiscussionThread.findMany({
+            where: { classId },
+            select: {
+                authorId: true,
+                replies: {
+                    select: {
+                        authorId: true
+                    }
+                }
+            }
+        })
+    ]);
+    const progressByStudent = new Map();
+    progressRows.forEach((progress) => {
+        const existing = progressByStudent.get(progress.userId) ?? { materialXp: 0, completedMaterials: 0 };
+        existing.materialXp += Math.round((progress.score || 50) * (classData.xpMultiplier || 1));
+        existing.completedMaterials += 1;
+        progressByStudent.set(progress.userId, existing);
+    });
+    const exerciseByStudent = new Map();
+    attemptRows.forEach((attempt) => {
+        const existing = exerciseByStudent.get(attempt.studentId) ?? { exerciseXp: 0, pendingReviews: 0, solvedQuestions: 0 };
+        existing.exerciseXp += attempt.score;
+        if (attempt.gradingStatus === exercise_config_1.EXERCISE_STATUS_PENDING_REVIEW) {
+            existing.pendingReviews += 1;
+        }
+        existing.solvedQuestions += getQuestionResultsSummary(attempt.questionResults).length;
+        exerciseByStudent.set(attempt.studentId, existing);
+    });
+    const achievementByStudent = new Map();
+    achievementRows.forEach((row) => {
+        const existing = achievementByStudent.get(row.studentId) ?? { achievementXp: 0, badges: [] };
+        existing.achievementXp += row.achievement.xpReward;
+        existing.badges.push({
+            id: row.achievement.id,
+            label: row.achievement.title,
+            icon: row.achievement.icon,
+            tone: 'gold'
+        });
+        achievementByStudent.set(row.studentId, existing);
+    });
+    const discussionCountByStudent = new Map();
+    discussionThreads.forEach((thread) => {
+        discussionCountByStudent.set(thread.authorId, (discussionCountByStudent.get(thread.authorId) ?? 0) + 1);
+        thread.replies.forEach((reply) => {
+            discussionCountByStudent.set(reply.authorId, (discussionCountByStudent.get(reply.authorId) ?? 0) + 1);
+        });
+    });
+    const totalMaterials = materialIds.length;
+    const rankedEntries = classData.students.map((enrollment) => {
+        const materialProgress = progressByStudent.get(enrollment.studentId) ?? { materialXp: 0, completedMaterials: 0 };
+        const exerciseProgress = exerciseByStudent.get(enrollment.studentId) ?? { exerciseXp: 0, pendingReviews: 0, solvedQuestions: 0 };
+        const achievementProgress = achievementByStudent.get(enrollment.studentId) ?? { achievementXp: 0, badges: [] };
+        const discussionCount = discussionCountByStudent.get(enrollment.studentId) ?? 0;
+        const completionRate = totalMaterials > 0
+            ? Math.round((materialProgress.completedMaterials / totalMaterials) * 100)
+            : 0;
+        const badges = [...achievementProgress.badges];
+        if (completionRate >= 100) {
+            badges.push({ id: `full-progress-${enrollment.studentId}`, label: 'Tuntas Penuh', icon: 'sparkles', tone: 'emerald' });
+        }
+        else if (completionRate >= 70) {
+            badges.push({ id: `steady-progress-${enrollment.studentId}`, label: 'Konsisten', icon: 'target', tone: 'blue' });
+        }
+        if (discussionCount >= 3) {
+            badges.push({ id: `discussion-${enrollment.studentId}`, label: 'Aktif Diskusi', icon: 'message-circle', tone: 'violet' });
+        }
+        return {
+            studentId: enrollment.student.id,
+            name: enrollment.student.name,
+            email: enrollment.student.email,
+            avatar: enrollment.student.avatar,
+            level: enrollment.student.level,
+            globalXp: enrollment.student.xp,
+            classXp: materialProgress.materialXp + exerciseProgress.exerciseXp + achievementProgress.achievementXp,
+            materialXp: materialProgress.materialXp,
+            exerciseXp: exerciseProgress.exerciseXp,
+            achievementXp: achievementProgress.achievementXp,
+            completionRate,
+            completedMaterials: materialProgress.completedMaterials,
+            discussionCount,
+            pendingReviews: exerciseProgress.pendingReviews,
+            solvedQuestions: exerciseProgress.solvedQuestions,
+            badges
+        };
+    }).sort((left, right) => {
+        if (right.classXp !== left.classXp) {
+            return right.classXp - left.classXp;
+        }
+        if (right.completionRate !== left.completionRate) {
+            return right.completionRate - left.completionRate;
+        }
+        return left.name.localeCompare(right.name);
+    }).map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        isCurrentUser: entry.studentId === currentUserId
+    }));
+    return rankedEntries.map((entry) => {
+        const rankBadges = [...entry.badges];
+        if (entry.rank === 1) {
+            rankBadges.unshift({ id: `rank-1-${entry.studentId}`, label: 'Juara Kelas', icon: 'crown', tone: 'amber' });
+        }
+        else if (entry.rank <= 3) {
+            rankBadges.unshift({ id: `podium-${entry.studentId}`, label: 'Podium Kelas', icon: 'medal', tone: 'amber' });
+        }
+        return {
+            ...entry,
+            badges: rankBadges.slice(0, 5)
+        };
+    });
+};
 const sanitizeExerciseOptionsForStudent = (options) => {
     if (!options) {
         return options;
@@ -125,14 +386,6 @@ const sanitizeExerciseOptionsForStudent = (options) => {
     catch (error) {
         return options;
     }
-};
-const sanitizeExerciseForStudent = (exercise) => {
-    const sanitizedExercise = {
-        ...exercise,
-        options: sanitizeExerciseOptionsForStudent(exercise.options ?? null)
-    };
-    delete sanitizedExercise.correctAnswer;
-    return sanitizedExercise;
 };
 // Create a new class (Teacher only)
 router.post('/', auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)('TEACHER', 'ADMIN'), async (req, res) => {
@@ -435,6 +688,258 @@ router.get('/:id/dashboard', auth_middleware_1.authMiddleware, async (req, res) 
     catch (error) {
         console.error('Get class dashboard error:', error);
         res.status(500).json({ error: 'Failed to fetch dashboard' });
+    }
+});
+// Class leaderboard
+router.get('/:id/leaderboard', auth_middleware_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view this leaderboard' });
+        }
+        const leaderboard = await buildClassLeaderboard(id, user.id);
+        res.json(leaderboard ?? []);
+    }
+    catch (error) {
+        console.error('Get class leaderboard error:', error);
+        res.status(500).json({ error: 'Failed to fetch class leaderboard' });
+    }
+});
+// List class discussions
+router.get('/:id/discussions', auth_middleware_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view class discussions' });
+        }
+        const threads = await prisma_1.default.classDiscussionThread.findMany({
+            where: { classId: id },
+            orderBy: [
+                { isPinned: 'desc' },
+                { updatedAt: 'desc' }
+            ],
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        name: true,
+                        role: true
+                    }
+                },
+                replies: {
+                    orderBy: { createdAt: 'asc' },
+                    include: {
+                        author: {
+                            select: {
+                                id: true,
+                                name: true,
+                                role: true
+                            }
+                        }
+                    }
+                },
+                _count: {
+                    select: {
+                        replies: true
+                    }
+                }
+            }
+        });
+        res.json(threads);
+    }
+    catch (error) {
+        console.error('Get class discussions error:', error);
+        res.status(500).json({ error: 'Failed to fetch discussions' });
+    }
+});
+// Create class discussion thread
+router.post('/:id/discussions', auth_middleware_1.authMiddleware, (0, validation_middleware_1.validateBody)(discussionThreadSchema), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to create discussion in this class' });
+        }
+        const thread = await prisma_1.default.classDiscussionThread.create({
+            data: {
+                classId: id,
+                authorId: user.id,
+                title: req.body.title,
+                content: req.body.content
+            },
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        name: true,
+                        role: true
+                    }
+                },
+                replies: {
+                    include: {
+                        author: {
+                            select: {
+                                id: true,
+                                name: true,
+                                role: true
+                            }
+                        }
+                    }
+                },
+                _count: {
+                    select: {
+                        replies: true
+                    }
+                }
+            }
+        });
+        res.status(201).json(thread);
+    }
+    catch (error) {
+        console.error('Create class discussion error:', error);
+        res.status(500).json({ error: 'Failed to create discussion thread' });
+    }
+});
+// Reply to class discussion thread
+router.post('/:id/discussions/:threadId/replies', auth_middleware_1.authMiddleware, (0, validation_middleware_1.validateBody)(discussionReplySchema), async (req, res) => {
+    try {
+        const { id, threadId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to reply in this class' });
+        }
+        const thread = await prisma_1.default.classDiscussionThread.findFirst({
+            where: {
+                id: threadId,
+                classId: id
+            },
+            select: {
+                id: true,
+                isLocked: true
+            }
+        });
+        if (!thread) {
+            return res.status(404).json({ error: 'Discussion thread not found' });
+        }
+        if (thread.isLocked && !canManageClass(access)) {
+            return res.status(403).json({ error: 'Thread is locked by the teacher' });
+        }
+        const reply = await prisma_1.default.$transaction(async (tx) => {
+            const createdReply = await tx.classDiscussionReply.create({
+                data: {
+                    threadId,
+                    authorId: user.id,
+                    content: req.body.content
+                },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            name: true,
+                            role: true
+                        }
+                    }
+                }
+            });
+            await tx.classDiscussionThread.update({
+                where: { id: threadId },
+                data: {
+                    updatedAt: new Date()
+                }
+            });
+            return createdReply;
+        });
+        res.status(201).json(reply);
+    }
+    catch (error) {
+        console.error('Create discussion reply error:', error);
+        res.status(500).json({ error: 'Failed to create discussion reply' });
+    }
+});
+// Pin or unpin discussion thread
+router.patch('/:id/discussions/:threadId/pin', auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)('TEACHER', 'ADMIN'), (0, validation_middleware_1.validateBody)(discussionToggleSchema), async (req, res) => {
+    try {
+        const { id, threadId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to moderate this class discussion' });
+        }
+        const thread = await prisma_1.default.classDiscussionThread.findFirst({
+            where: {
+                id: threadId,
+                classId: id
+            }
+        });
+        if (!thread) {
+            return res.status(404).json({ error: 'Discussion thread not found' });
+        }
+        const updatedThread = await prisma_1.default.classDiscussionThread.update({
+            where: { id: threadId },
+            data: {
+                isPinned: req.body.value
+            }
+        });
+        res.json(updatedThread);
+    }
+    catch (error) {
+        console.error('Pin discussion thread error:', error);
+        res.status(500).json({ error: 'Failed to update pinned state' });
+    }
+});
+// Lock or unlock discussion thread
+router.patch('/:id/discussions/:threadId/lock', auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)('TEACHER', 'ADMIN'), (0, validation_middleware_1.validateBody)(discussionToggleSchema), async (req, res) => {
+    try {
+        const { id, threadId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to moderate this class discussion' });
+        }
+        const thread = await prisma_1.default.classDiscussionThread.findFirst({
+            where: {
+                id: threadId,
+                classId: id
+            }
+        });
+        if (!thread) {
+            return res.status(404).json({ error: 'Discussion thread not found' });
+        }
+        const updatedThread = await prisma_1.default.classDiscussionThread.update({
+            where: { id: threadId },
+            data: {
+                isLocked: req.body.value
+            }
+        });
+        res.json(updatedThread);
+    }
+    catch (error) {
+        console.error('Lock discussion thread error:', error);
+        res.status(500).json({ error: 'Failed to update locked state' });
     }
 });
 // Create achievement (Teacher)
@@ -762,7 +1267,8 @@ router.get('/:id/exercises', auth_middleware_1.authMiddleware, async (req, res) 
                             gradingStatus: true,
                             feedback: true,
                             gradedAt: true,
-                            timeSpent: true
+                            timeSpent: true,
+                            questionResults: true
                         }
                     }
                     : {
@@ -771,15 +1277,13 @@ router.get('/:id/exercises', auth_middleware_1.authMiddleware, async (req, res) 
                             isCorrect: true,
                             score: true,
                             gradingStatus: true,
-                            createdAt: true
+                            createdAt: true,
+                            questionResults: true
                         }
                     }
             }
         });
-        if (user.role === 'STUDENT') {
-            return res.json(exercises.map((exercise) => sanitizeExerciseForStudent(exercise)));
-        }
-        res.json(exercises);
+        res.json(exercises.map((exercise) => formatExerciseForResponse(exercise, user.role !== 'STUDENT')));
     }
     catch (error) {
         console.error('Get exercises error:', error);
@@ -814,7 +1318,8 @@ router.get('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, async
                             createdAt: true,
                             gradingStatus: true,
                             feedback: true,
-                            gradedAt: true
+                            gradedAt: true,
+                            questionResults: true
                         }
                     }
                     : {
@@ -829,6 +1334,7 @@ router.get('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, async
                             gradingStatus: true,
                             feedback: true,
                             gradedAt: true,
+                            questionResults: true,
                             student: {
                                 select: {
                                     id: true,
@@ -846,10 +1352,7 @@ router.get('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, async
         if (user.role === 'STUDENT' && !exercise.isPublished) {
             return res.status(403).json({ error: 'Exercise not available' });
         }
-        if (user.role === 'STUDENT') {
-            return res.json(sanitizeExerciseForStudent(exercise));
-        }
-        res.json(exercise);
+        res.json(formatExerciseForResponse(exercise, user.role !== 'STUDENT'));
     }
     catch (error) {
         console.error('Get exercise error:', error);
@@ -860,7 +1363,6 @@ router.get('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, async
 router.post('/:id/exercises', auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)('TEACHER', 'ADMIN'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, instructions, exerciseType, difficulty, points, hasTimer, timerMinutes, canvasState, canvasMode, answerType, correctAnswer, options, isPublished, order } = req.body;
         const user = getRequestUser(req);
         const access = await getClassAccess(id, user.id, user.role);
         if (!access.targetClass) {
@@ -869,32 +1371,38 @@ router.post('/:id/exercises', auth_middleware_1.authMiddleware, (0, auth_middlew
         if (!canManageClass(access)) {
             return res.status(403).json({ error: 'Not authorized to create exercises in this class' });
         }
+        const title = String(req.body.title || '').trim();
         if (!title || !String(title).trim()) {
             return res.status(400).json({ error: 'Title is required' });
         }
+        const exerciseMutation = buildExerciseMutationData(req.body);
         const exercise = await prisma_1.default.classExercise.create({
             data: {
                 classId: id,
-                title: String(title).trim(),
-                description,
-                instructions,
-                exerciseType: exerciseType || 'geometry',
-                difficulty: difficulty || 'medium',
-                points: points || 10,
-                hasTimer: Boolean(hasTimer),
-                timerMinutes,
-                canvasState,
-                canvasMode: canvasMode || 'readonly',
-                answerType: answerType || 'multiple_choice',
-                correctAnswer,
-                options,
-                isPublished: Boolean(isPublished),
-                order: order || 0
+                title,
+                description: typeof req.body.description === 'string' ? req.body.description : null,
+                instructions: typeof req.body.instructions === 'string' ? req.body.instructions : null,
+                exerciseType: typeof req.body.exerciseType === 'string' ? req.body.exerciseType : 'mixed',
+                difficulty: typeof req.body.difficulty === 'string' ? req.body.difficulty : 'medium',
+                hasTimer: Boolean(req.body.hasTimer),
+                timerMinutes: req.body.hasTimer ? Number(req.body.timerMinutes || 0) || null : null,
+                isPublished: Boolean(req.body.isPublished),
+                order: Number(req.body.order || 0) || 0,
+                ...exerciseMutation.data
             }
         });
-        res.status(201).json(exercise);
+        res.status(201).json(formatExerciseForResponse(exercise, true));
     }
     catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({
+                error: 'Exercise payload is invalid',
+                details: error.issues.map((issue) => ({
+                    path: issue.path.join('.'),
+                    message: issue.message
+                }))
+            });
+        }
         console.error('Create exercise error:', error);
         res.status(500).json({ error: 'Failed to create exercise' });
     }
@@ -903,7 +1411,6 @@ router.post('/:id/exercises', auth_middleware_1.authMiddleware, (0, auth_middlew
 router.put('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, (0, auth_middleware_1.requireRole)('TEACHER', 'ADMIN'), async (req, res) => {
     try {
         const { id, exerciseId } = req.params;
-        const { title, description, instructions, exerciseType, difficulty, points, hasTimer, timerMinutes, canvasState, canvasMode, answerType, correctAnswer, options, isPublished, order } = req.body;
         const user = getRequestUser(req);
         const access = await getClassAccess(id, user.id, user.role);
         if (!access.targetClass) {
@@ -918,29 +1425,40 @@ router.put('/:id/exercises/:exerciseId', auth_middleware_1.authMiddleware, (0, a
         if (!existingExercise) {
             return res.status(404).json({ error: 'Exercise not found' });
         }
+        if (req.body.title !== undefined && !String(req.body.title).trim()) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+        const exerciseMutation = buildExerciseMutationData({
+            ...existingExercise,
+            ...req.body
+        });
         const exercise = await prisma_1.default.classExercise.update({
             where: { id: exerciseId },
             data: {
-                ...(title !== undefined && { title }),
-                ...(description !== undefined && { description }),
-                ...(instructions !== undefined && { instructions }),
-                ...(exerciseType !== undefined && { exerciseType }),
-                ...(difficulty !== undefined && { difficulty }),
-                ...(points !== undefined && { points }),
-                ...(hasTimer !== undefined && { hasTimer: Boolean(hasTimer) }),
-                ...(timerMinutes !== undefined && { timerMinutes }),
-                ...(canvasState !== undefined && { canvasState }),
-                ...(canvasMode !== undefined && { canvasMode }),
-                ...(answerType !== undefined && { answerType }),
-                ...(correctAnswer !== undefined && { correctAnswer }),
-                ...(options !== undefined && { options }),
-                ...(isPublished !== undefined && { isPublished: Boolean(isPublished) }),
-                ...(order !== undefined && { order })
+                ...(req.body.title !== undefined && { title: String(req.body.title).trim() }),
+                ...(req.body.description !== undefined && { description: typeof req.body.description === 'string' ? req.body.description : null }),
+                ...(req.body.instructions !== undefined && { instructions: typeof req.body.instructions === 'string' ? req.body.instructions : null }),
+                ...(req.body.exerciseType !== undefined && { exerciseType: String(req.body.exerciseType) }),
+                ...(req.body.difficulty !== undefined && { difficulty: String(req.body.difficulty) }),
+                ...(req.body.hasTimer !== undefined && { hasTimer: Boolean(req.body.hasTimer) }),
+                ...(req.body.timerMinutes !== undefined && { timerMinutes: Number(req.body.timerMinutes || 0) || null }),
+                ...(req.body.isPublished !== undefined && { isPublished: Boolean(req.body.isPublished) }),
+                ...(req.body.order !== undefined && { order: Number(req.body.order || 0) || 0 }),
+                ...exerciseMutation.data
             }
         });
-        res.json(exercise);
+        res.json(formatExerciseForResponse(exercise, true));
     }
     catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({
+                error: 'Exercise payload is invalid',
+                details: error.issues.map((issue) => ({
+                    path: issue.path.join('.'),
+                    message: issue.message
+                }))
+            });
+        }
         console.error('Update exercise error:', error);
         res.status(500).json({ error: 'Failed to update exercise' });
     }
@@ -1001,64 +1519,36 @@ router.post('/:id/exercises/:exerciseId/attempt', auth_middleware_1.authMiddlewa
         if (existingAttempt) {
             return res.status(400).json({ error: 'Already attempted', attempt: existingAttempt });
         }
-        let isCorrect = false;
-        let score = 0;
-        let gradingStatus = EXERCISE_STATUS_GRADED;
-        let gradedAt = new Date();
-        if (exercise.answerType === 'multiple_choice' && exercise.correctAnswer) {
-            try {
-                const correct = JSON.parse(exercise.correctAnswer);
-                isCorrect = answer === correct.id || answer === correct;
-            }
-            catch (parseError) {
-                isCorrect = answer === exercise.correctAnswer;
-            }
-            score = isCorrect ? exercise.points : 0;
-        }
-        else if (exercise.answerType === 'numeric' && exercise.correctAnswer) {
-            try {
-                const correct = JSON.parse(exercise.correctAnswer);
-                const tolerance = correct.tolerance || 0;
-                const numericAnswer = parseFloat(answer);
-                isCorrect = Math.abs(numericAnswer - correct.value) <= tolerance;
-            }
-            catch (parseError) {
-                isCorrect = parseFloat(answer) === parseFloat(exercise.correctAnswer);
-            }
-            score = isCorrect ? exercise.points : 0;
-        }
-        else if (exercise.answerType === 'canvas') {
-            gradingStatus = EXERCISE_STATUS_PENDING_REVIEW;
-            score = 0;
-            gradedAt = null;
-        }
+        const questions = getExerciseQuestions(exercise);
+        const gradingOutcome = (0, exercise_config_1.gradeExerciseSubmission)(questions, answer, canvasData);
         const attempt = await prisma_1.default.exerciseAttempt.create({
             data: {
                 studentId: user.id,
                 exerciseId,
-                answer: JSON.stringify(answer ?? null),
-                canvasData,
-                isCorrect,
-                score,
-                gradingStatus,
-                gradedAt,
-                timeSpent: timeSpent || 0
+                answer: JSON.stringify(gradingOutcome.normalizedAnswers),
+                canvasData: gradingOutcome.primaryCanvasData,
+                questionResults: JSON.stringify(gradingOutcome.questionResults),
+                isCorrect: gradingOutcome.isCorrect,
+                score: gradingOutcome.score,
+                gradingStatus: gradingOutcome.gradingStatus,
+                gradedAt: gradingOutcome.gradedAt,
+                timeSpent: Number(timeSpent || 0) || 0
             }
         });
-        if (gradingStatus === EXERCISE_STATUS_GRADED && score > 0) {
+        if (gradingOutcome.score > 0) {
             await prisma_1.default.user.update({
                 where: { id: user.id },
-                data: { xp: { increment: score } }
+                data: { xp: { increment: gradingOutcome.score } }
             });
         }
         res.status(201).json({
             attempt,
-            gradingStatus,
-            isCorrect: gradingStatus === EXERCISE_STATUS_PENDING_REVIEW ? null : isCorrect,
-            score,
-            message: gradingStatus === EXERCISE_STATUS_PENDING_REVIEW
-                ? 'Jawaban berhasil dikirim dan sedang menunggu penilaian guru.'
-                : isCorrect
+            gradingStatus: gradingOutcome.gradingStatus,
+            isCorrect: gradingOutcome.gradingStatus === exercise_config_1.EXERCISE_STATUS_PENDING_REVIEW ? null : gradingOutcome.isCorrect,
+            score: gradingOutcome.score,
+            message: gradingOutcome.gradingStatus === exercise_config_1.EXERCISE_STATUS_PENDING_REVIEW
+                ? 'Jawaban berhasil dikirim. Sebagian hasil menunggu penilaian guru.'
+                : gradingOutcome.isCorrect
                     ? 'Jawaban benar. Kerja bagus!'
                     : 'Jawaban sudah tersimpan. Cek kembali pembahasan dari guru.'
         });
@@ -1116,7 +1606,7 @@ router.post('/:id/exercises/:exerciseId/attempts/:attemptId/grade', auth_middlew
                 data: {
                     score: nextScore,
                     isCorrect: nextIsCorrect,
-                    gradingStatus: EXERCISE_STATUS_GRADED,
+                    gradingStatus: exercise_config_1.EXERCISE_STATUS_GRADED,
                     gradedAt: new Date(),
                     ...(feedback !== undefined && { feedback: String(feedback).trim() || null })
                 },

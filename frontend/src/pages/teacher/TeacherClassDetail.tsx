@@ -3,9 +3,11 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { 
     ArrowLeft, Users, BookOpen, Settings, Copy, Plus,
     Award, BarChart3, Clock, ExternalLink, FileText, X,
-    Library, Edit, Trash2, FileUp, Type, PenTool
+    Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy
 } from 'lucide-react';
 import { classesAPI, modulesAPI } from '../../utils/api';
+import ClassDiscussionPanel from '../../components/classes/ClassDiscussionPanel';
+import ClassLeaderboardPanel from '../../components/classes/ClassLeaderboardPanel';
 import { TeacherExercisesTab } from './TeacherExercisesTab';
 
 interface ClassData {
@@ -67,9 +69,9 @@ interface ClassBook {
     createdAt: string;
 }
 
-type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'library' | 'settings';
+type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'leaderboard' | 'forum' | 'library' | 'settings';
 
-const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'library', 'settings'];
+const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'leaderboard', 'forum', 'library', 'settings'];
 
 const getTeacherTab = (value: string | null): TeacherTab => {
     if (value && teacherTabs.includes(value as TeacherTab)) {
@@ -384,11 +386,13 @@ export const TeacherClassDetail: React.FC = () => {
 
     const tabs: Array<{ id: TeacherTab; label: string; icon: React.ReactNode }> = [
         { id: 'overview', label: 'Ringkasan', icon: <BarChart3 size={18} /> },
-        { id: 'curriculum', label: 'Kurikulum', icon: <BookOpen size={18} /> },
+        { id: 'curriculum', label: 'Materi', icon: <BookOpen size={18} /> },
         { id: 'students', label: 'Siswa', icon: <Users size={18} /> },
         { id: 'exercises', label: 'Latihan', icon: <PenTool size={18} /> },
-        { id: 'library', label: 'Perpustakaan', icon: <Library size={18} /> },
-        { id: 'settings', label: 'Pengaturan', icon: <Settings size={18} /> }
+        { id: 'leaderboard', label: 'Leaderboard', icon: <Trophy size={18} /> },
+        { id: 'forum', label: 'Forum', icon: <MessageSquare size={18} /> },
+        { id: 'library', label: 'Pustaka', icon: <Library size={18} /> },
+        { id: 'settings', label: 'Atur', icon: <Settings size={18} /> }
     ];
 
     return (
@@ -494,7 +498,7 @@ export const TeacherClassDetail: React.FC = () => {
                         <div>
                             <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Status</p>
                             <p style={{ fontSize: '1rem', fontWeight: '600' }}>
-                                {classData.isPublic ? '🌐 Publik' : '🔒 Privat'}
+                                {classData.isPublic ? 'Publik' : 'Privat'}
                             </p>
                         </div>
                     </div>
@@ -502,20 +506,30 @@ export const TeacherClassDetail: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0' }}>
+            <div
+                style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    flexWrap: 'wrap',
+                    borderBottom: '2px solid #e2e8f0',
+                    paddingBottom: '0.25rem'
+                }}
+            >
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => handleTabChange(tab.id)}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            padding: '0.75rem 1.25rem',
+                            padding: '0.65rem 0.95rem',
                             background: 'none', border: 'none', cursor: 'pointer',
                             color: activeTab === tab.id ? 'var(--primary)' : '#64748b',
                             fontWeight: activeTab === tab.id ? '600' : '500',
                             borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
                             marginBottom: '-2px',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            fontSize: '0.9rem',
+                            whiteSpace: 'nowrap'
                         }}
                     >
                         {tab.icon} {tab.label}
@@ -740,6 +754,21 @@ export const TeacherClassDetail: React.FC = () => {
 
                 {activeTab === 'exercises' && (
                     <TeacherExercisesTab classId={id!} navigate={navigate} />
+                )}
+
+                {activeTab === 'leaderboard' && (
+                    <ClassLeaderboardPanel
+                        classId={id!}
+                        className={classData.name}
+                        viewer="teacher"
+                    />
+                )}
+
+                {activeTab === 'forum' && (
+                    <ClassDiscussionPanel
+                        classId={id!}
+                        viewer="teacher"
+                    />
                 )}
 
                 {activeTab === 'library' && (

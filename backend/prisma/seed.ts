@@ -308,7 +308,7 @@ async function main() {
         }
     });
 
-    const rectangleLesson = await prisma.material.create({
+    await prisma.material.create({
         data: {
             title: 'Luas Persegi dan Persegi Panjang',
             type: 'article',
@@ -340,7 +340,7 @@ async function main() {
         }
     });
 
-    const mapsVideo = await prisma.material.create({
+    await prisma.material.create({
         data: {
             title: 'Membaca Skala Peta',
             type: 'video',
@@ -607,6 +607,7 @@ async function main() {
             prompt: 'Berdasarkan grafik yang sama, sumbu simetri parabola adalah...',
             type: 'multiple_choice',
             points: 8,
+            tolerance: 0,
             options: [
                 { id: 'axis_a', text: 'x = -1' },
                 { id: 'axis_b', text: 'x = 0', isCorrect: true },
@@ -682,6 +683,7 @@ async function main() {
             prompt: 'Bangun datar yang semua sisinya sama panjang dan semua sudutnya siku-siku disebut...',
             type: 'short_text',
             points: 5,
+            tolerance: 0,
             acceptedText: 'persegi',
             manualReview: false,
             placeholder: 'Tulis nama bangun datar'
@@ -695,6 +697,7 @@ async function main() {
             prompt: 'Gunakan canvas untuk menggambar segitiga sama kaki. Tandai dua sisi yang sama panjang.',
             type: 'canvas',
             points: 15,
+            tolerance: 0,
             manualReview: true,
             visual: {
                 enabled: true,
@@ -713,6 +716,7 @@ async function main() {
             prompt: 'Tuliskan singkat bagaimana kamu memastikan dua sisinya sama panjang.',
             type: 'short_text',
             points: 5,
+            tolerance: 0,
             manualReview: true,
             placeholder: 'Jelaskan cara kamu menggambar'
         }
@@ -725,6 +729,7 @@ async function main() {
             prompt: 'Bayangan titik (2, 4) terhadap sumbu-Y adalah...',
             type: 'multiple_choice',
             points: 10,
+            tolerance: 0,
             options: [
                 { id: 'draft_a', text: '(2, -4)' },
                 { id: 'draft_b', text: '(-2, 4)', isCorrect: true },
@@ -740,6 +745,7 @@ async function main() {
             type: 'short_text',
             acceptedText: '(6, 4)',
             points: 8,
+            tolerance: 0,
             manualReview: false,
             placeholder: 'Contoh: (6, 4)'
         }

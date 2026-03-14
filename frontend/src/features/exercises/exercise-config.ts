@@ -1,3 +1,4 @@
+import type { CanvasState } from '../../components/geometry/types';
 import type { ClassExerciseSummary } from '../../types/api.types';
 
 export type ExerciseQuestionType =
@@ -94,7 +95,7 @@ const safeJsonParse = <T>(value?: string | null): T | null => {
     }
 };
 
-export const createEmptyCanvasState = () => ({
+export const createEmptyCanvasState = (): CanvasState => ({
     objects: [],
     measurements: [],
     functions: [],
