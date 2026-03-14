@@ -87,6 +87,24 @@ fn database_url(path: &Path) -> String {
     format!("file:{}", path.to_string_lossy().replace('\\', "/"))
 }
 
+fn resolve_seed_database(backend_root: &Path) -> Result<PathBuf, String> {
+    let candidates = [
+        backend_root.join("prisma").join("dev.db"),
+        backend_root.join("dev.db"),
+    ];
+
+    candidates
+        .into_iter()
+        .find(|path| path.exists())
+        .ok_or_else(|| {
+            format!(
+                "Seed database was not found. Checked: {} and {}",
+                backend_root.join("prisma").join("dev.db").display(),
+                backend_root.join("dev.db").display()
+            )
+        })
+}
+
 fn read_or_create_secret(path: &Path) -> Result<String, String> {
     if path.exists() {
         let secret = fs::read_to_string(path)
@@ -125,14 +143,7 @@ fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, 
 
     let database_path = runtime_root.join("app.db");
     if !database_path.exists() {
-        let seed_database = backend_root.join("dev.db");
-
-        if !seed_database.exists() {
-            return Err(format!(
-                "Seed database was not found at {}",
-                seed_database.display()
-            ));
-        }
+        let seed_database = resolve_seed_database(&backend_root)?;
 
         fs::copy(&seed_database, &database_path).map_err(|error| {
             format!(
