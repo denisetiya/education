@@ -1,4 +1,17 @@
-import type { AuthResponse, ClassItem, LeaderboardEntry, Material, Module, ProgressHistory, QuizResult, User } from '../types/api.types';
+import type {
+    AuthResponse,
+    ClassExerciseSummary,
+    ClassItem,
+    ExerciseAttemptSummary,
+    LeaderboardEntry,
+    Material,
+    Module,
+    ProgressHistory,
+    QuizResult,
+    TeacherDashboardData,
+    User
+} from '../types/api.types';
+import { getStoredAuthToken } from './auth-token';
 
 // In production, VITE_API_URL is empty and we use relative /api path (proxied by nginx)
 // In development, VITE_API_URL defaults to http://localhost:3001/api
@@ -9,10 +22,15 @@ async function apiFetch<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const headers: HeadersInit = {
+    const headers = new Headers({
         'Content-Type': 'application/json',
         ...options.headers
-    };
+    });
+
+    const authToken = getStoredAuthToken();
+    if (authToken && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${authToken}`);
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
@@ -30,7 +48,7 @@ async function apiFetch<T>(
 
 // Auth API
 export const authAPI = {
-    register: (data: { email: string; password: string; name: string; role?: string }) =>
+    register: (data: { email: string; password: string; name: string }) =>
         apiFetch<AuthResponse>('/auth/register', {
             method: 'POST',
             body: JSON.stringify(data)
@@ -54,10 +72,10 @@ export const authAPI = {
 export const usersAPI = {
     getAll: () => apiFetch<User[]>('/users'),
     getById: (id: string) => apiFetch<User>(`/users/${id}`),
-    update: (id: string, data: any) =>
-        apiFetch<any>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+        apiFetch<Record<string, unknown>>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
-        apiFetch<any>(`/users/${id}`, { method: 'DELETE' })
+        apiFetch<Record<string, unknown>>(`/users/${id}`, { method: 'DELETE' })
 };
 
 // Materials API
@@ -73,12 +91,12 @@ export const materialsAPI = {
     },
     getById: (id: string) => apiFetch<Material>(`/materials/${id}`),
     getQuizzes: () => apiFetch<Material[]>('/materials/quizzes'),
-    create: (data: any) =>
+    create: (data: Record<string, unknown>) =>
         apiFetch<Material>('/materials', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) =>
+    update: (id: string, data: Record<string, unknown>) =>
         apiFetch<Material>(`/materials/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>
-        apiFetch<any>(`/materials/${id}`, { method: 'DELETE' })
+        apiFetch<Record<string, unknown>>(`/materials/${id}`, { method: 'DELETE' })
 };
 
 // Modules API
@@ -92,20 +110,20 @@ export const modulesAPI = {
         }
         return apiFetch<Module[]>(`/modules?${params.toString()}`);
     },
-    create: (data: any) =>
+    create: (data: Record<string, unknown>) =>
         apiFetch<Module>('/modules', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) =>
+    update: (id: string, data: Record<string, unknown>) =>
         apiFetch<Module>(`/modules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     reorder: (orderedIds: string[]) =>
-        apiFetch<any>('/modules/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
+        apiFetch<Record<string, unknown>>('/modules/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
     assignMaterials: (moduleId: string, materialIds: string[]) =>
-        apiFetch<any>(`/modules/${moduleId}/materials`, { method: 'POST', body: JSON.stringify({ materialIds }) }),
+        apiFetch<Record<string, unknown>>(`/modules/${moduleId}/materials`, { method: 'POST', body: JSON.stringify({ materialIds }) }),
     getByClass: (classId: string) => apiFetch<Module[]>(`/modules/by-class/${classId}`),
     getUnassigned: () => apiFetch<Module[]>('/modules/unassigned'),
     assignToClass: (moduleId: string, classId: string | null) =>
         apiFetch<Module>(`/modules/${moduleId}/assign-class`, { method: 'PUT', body: JSON.stringify({ classId }) }),
     delete: (id: string) =>
-        apiFetch<any>(`/modules/${id}`, { method: 'DELETE' })
+        apiFetch<Record<string, unknown>>(`/modules/${id}`, { method: 'DELETE' })
 };
 
 // Leaderboard API
@@ -116,7 +134,7 @@ export const leaderboardAPI = {
 // Dashboard API
 export const dashboardAPI = {
     student: () => apiFetch<any>('/dashboard/student'),
-    teacher: () => apiFetch<any>('/dashboard/teacher'),
+    teacher: () => apiFetch<TeacherDashboardData>('/dashboard/teacher'),
     admin: () => apiFetch<any>('/dashboard/admin')
 };
 
@@ -153,45 +171,45 @@ export const classesAPI = {
     create: (data: { name: string; subject?: string; description?: string }) =>
         apiFetch<ClassItem>('/classes', { method: 'POST', body: JSON.stringify(data) }),
     join: (code: string) =>
-        apiFetch<any>('/classes/join', { method: 'POST', body: JSON.stringify({ code }) }),
-    addModule: (classId: string, moduleData: any) =>
-        apiFetch<any>(`/classes/${classId}/modules`, { method: 'POST', body: JSON.stringify(moduleData) }),
+        apiFetch<Record<string, unknown>>('/classes/join', { method: 'POST', body: JSON.stringify({ code }) }),
+    addModule: (classId: string, moduleData: Record<string, unknown>) =>
+        apiFetch<Record<string, unknown>>(`/classes/${classId}/modules`, { method: 'POST', body: JSON.stringify(moduleData) }),
     
     // Public class discovery
     getPublic: (filters?: { search?: string; subject?: string }) => {
         const params = new URLSearchParams();
         if (filters?.search) params.append('search', filters.search);
         if (filters?.subject) params.append('subject', filters.subject);
-        return apiFetch<any[]>(`/classes/public/discover?${params.toString()}`);
+        return apiFetch<ClassItem[]>(`/classes/public/discover?${params.toString()}`);
     },
-    getPublicById: (id: string) => apiFetch<any>(`/classes/public/${id}`),
+    getPublicById: (id: string) => apiFetch<ClassItem>(`/classes/public/${id}`),
     
     // Class settings
     updateSettings: (id: string, settings: { isPublic?: boolean; progressionMode?: string; thumbnail?: string; xpMultiplier?: number; geogebraEnabled?: boolean }) =>
         apiFetch<any>(`/classes/${id}/settings`, { method: 'PUT', body: JSON.stringify(settings) }),
-    
+
     // Class dashboard
     getDashboard: (id: string) => apiFetch<any>(`/classes/${id}/dashboard`),
-    
+
     // Achievements
     getAchievements: (classId: string) => apiFetch<any[]>(`/classes/${classId}/achievements`),
-    createAchievement: (classId: string, data: { title: string; description: string; icon?: string; xpReward?: number; condition: any }) =>
+    createAchievement: (classId: string, data: { title: string; description: string; icon?: string; xpReward?: number; condition: string }) =>
         apiFetch<any>(`/classes/${classId}/achievements`, { method: 'POST', body: JSON.stringify(data) }),
     claimAchievement: (classId: string, achievementId: string) =>
         apiFetch<any>(`/classes/${classId}/achievements/${achievementId}/claim`, { method: 'POST' }),
-    
+
     // Books (Library)
     getBooks: (classId: string) => apiFetch<any[]>(`/classes/${classId}/books`),
     createBook: (classId: string, data: { title: string; author?: string; description?: string; coverUrl?: string; contentType: string; content?: string; pdfUrl?: string }) =>
         apiFetch<any>(`/classes/${classId}/books`, { method: 'POST', body: JSON.stringify(data) }),
-    updateBook: (classId: string, bookId: string, data: any) =>
+    updateBook: (classId: string, bookId: string, data: Record<string, unknown>) =>
         apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteBook: (classId: string, bookId: string) =>
         apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'DELETE' }),
-    
+
     // Exercises (Interactive Geometry)
-    getExercises: (classId: string) => apiFetch<any[]>(`/classes/${classId}/exercises`),
-    getExercise: (classId: string, exerciseId: string) => apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`),
+    getExercises: (classId: string) => apiFetch<ClassExerciseSummary[]>(`/classes/${classId}/exercises`),
+    getExercise: (classId: string, exerciseId: string) => apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises/${exerciseId}`),
     createExercise: (classId: string, data: {
         title: string;
         description?: string;
@@ -200,19 +218,30 @@ export const classesAPI = {
         difficulty?: string;
         points?: number;
         hasTimer?: boolean;
-        timerMinutes?: number;
-        canvasState?: string;
+        timerMinutes?: number | null;
+        canvasState?: string | null;
         canvasMode?: string;
         answerType?: string;
-        correctAnswer?: string;
-        options?: string;
+        correctAnswer?: string | null;
+        options?: string | null;
         isPublished?: boolean;
         order?: number;
-    }) => apiFetch<any>(`/classes/${classId}/exercises`, { method: 'POST', body: JSON.stringify(data) }),
-    updateExercise: (classId: string, exerciseId: string, data: any) =>
-        apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`, { method: 'PUT', body: JSON.stringify(data) }),
+    }) => apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises`, { method: 'POST', body: JSON.stringify(data) }),
+    updateExercise: (classId: string, exerciseId: string, data: Record<string, unknown>) =>
+        apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises/${exerciseId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteExercise: (classId: string, exerciseId: string) =>
         apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}`, { method: 'DELETE' }),
-    submitExerciseAttempt: (classId: string, exerciseId: string, data: { answer: any; canvasData?: string; timeSpent?: number }) =>
-        apiFetch<any>(`/classes/${classId}/exercises/${exerciseId}/attempt`, { method: 'POST', body: JSON.stringify(data) })
+    submitExerciseAttempt: (classId: string, exerciseId: string, data: { answer: unknown; canvasData?: string; timeSpent?: number }) =>
+        apiFetch<{
+            attempt: ExerciseAttemptSummary;
+            gradingStatus: 'graded' | 'pending_review';
+            isCorrect: boolean | null;
+            score: number;
+            message: string;
+        }>(`/classes/${classId}/exercises/${exerciseId}/attempt`, { method: 'POST', body: JSON.stringify(data) }),
+    gradeExerciseAttempt: (classId: string, exerciseId: string, attemptId: string, data: { score: number; isCorrect?: boolean; feedback?: string }) =>
+        apiFetch<{ message: string; attempt: ExerciseAttemptSummary }>(
+            `/classes/${classId}/exercises/${exerciseId}/attempts/${attemptId}/grade`,
+            { method: 'POST', body: JSON.stringify(data) }
+        )
 };

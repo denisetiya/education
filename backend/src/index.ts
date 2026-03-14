@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import materialRoutes from './routes/material.routes';
@@ -10,42 +9,45 @@ import dashboardRoutes from './routes/dashboard.routes';
 import progressRoutes from './routes/progress.routes';
 import moduleRoutes from './routes/module.routes';
 import classRoutes from './routes/class.routes';
-
-dotenv.config();
+import env from './config/env';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import { apiRateLimitMiddleware, securityHeadersMiddleware } from './middleware/security.middleware';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
-// CORS origins - supports both development and production
-const allowedOrigins = [
-    'http://localhost:5173', // Development
-    process.env.FRONTEND_URL // Production (e.g., https://geoeducation.denisetiya.site)
-].filter(Boolean) as string[];
+app.disable('x-powered-by');
+app.set('trust proxy', env.isProduction ? 1 : false);
 
-// Middleware
-app.use(cors({
-    origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
-}));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin) {
+                return callback(null, true);
+            }
+
+            if (env.frontendOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+
+            return callback(new Error('Not allowed by CORS'));
+        },
+        credentials: true
+    })
+);
+app.use(securityHeadersMiddleware);
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: env.requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: env.requestBodyLimit }));
+app.use(apiRateLimitMiddleware);
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', (_req, res) => {
+    res.json({
+        status: 'ok',
+        environment: env.nodeEnv,
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/materials', materialRoutes);
@@ -55,14 +57,11 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/classes', classRoutes);
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(env.port, () => {
+    console.log(`Server running on http://localhost:${env.port}`);
 });
 
 export default app;

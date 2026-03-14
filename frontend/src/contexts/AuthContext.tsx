@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authAPI } from '../utils/api';
+import { setStoredAuthToken } from '../utils/auth-token';
 
 interface User {
     id: string;
@@ -15,7 +16,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     login: (email: string, password: string) => Promise<User>;
-    register: (email: string, password: string, name: string, role?: string) => Promise<User>;
+    register: (email: string, password: string, name: string) => Promise<User>;
     logout: () => Promise<void>;
     isAuthenticated: boolean;
 }
@@ -30,24 +31,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Check if user is authenticated by calling /me endpoint
         authAPI.me()
             .then(setUser)
-            .catch(() => setUser(null))
+            .catch(() => {
+                setStoredAuthToken(null);
+                setUser(null);
+            })
             .finally(() => setLoading(false));
     }, []);
 
     const login = async (email: string, password: string): Promise<User> => {
-        const { user } = await authAPI.login({ email, password });
+        const { user, token } = await authAPI.login({ email, password });
+        setStoredAuthToken(token || null);
         setUser(user);
         return user;
     };
 
-    const register = async (email: string, password: string, name: string, role = 'STUDENT'): Promise<User> => {
-        const { user } = await authAPI.register({ email, password, name, role });
+    const register = async (email: string, password: string, name: string): Promise<User> => {
+        const { user, token } = await authAPI.register({ email, password, name });
+        setStoredAuthToken(token || null);
         setUser(user);
         return user;
     };
 
     const logout = async () => {
         await authAPI.logout();
+        setStoredAuthToken(null);
         setUser(null);
     };
 

@@ -6,7 +6,7 @@ import {
     Settings, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
-import GeometryCanvas from '../../components/geometry/GeometryCanvas';
+import GeometryCanvas, { type GeometryCanvasHandle } from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
 
 interface ExerciseOption {
@@ -60,7 +60,7 @@ export const ExerciseEditor: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
-    const canvasRef = useRef<{ getState: () => CanvasState } | null>(null);
+    const canvasRef = useRef<GeometryCanvasHandle | null>(null);
 
     const isEditing = !!exerciseId;
 

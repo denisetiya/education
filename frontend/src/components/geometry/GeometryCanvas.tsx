@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import {
     MousePointer, Circle, Square, Triangle, Minus, Move,
     Undo2, Redo2, Trash2, Grid, ZoomIn, ZoomOut, Download,
@@ -11,6 +11,10 @@ interface GeometryCanvasProps {
     height?: number;
     onSave?: (data: CanvasState) => void;
     initialState?: CanvasState;
+}
+
+export interface GeometryCanvasHandle {
+    getState: () => CanvasState;
 }
 
 const COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6'];
@@ -30,11 +34,12 @@ const initialState: CanvasState = {
     snapToGrid: true
 };
 
-export const GeometryCanvas: React.FC<GeometryCanvasProps> = ({
+export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCanvasProps>(({
     width = 800,
     height = 600,
+    onSave,
     initialState: savedState
-}) => {
+}, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +68,14 @@ export const GeometryCanvas: React.FC<GeometryCanvasProps> = ({
     // Formula input state
     const [formulaInput, setFormulaInput] = useState('');
     const [formulaError, setFormulaError] = useState<string | null>(null);
+
+    useImperativeHandle(ref, () => ({
+        getState: () => state
+    }), [state]);
+
+    useEffect(() => {
+        onSave?.(state);
+    }, [onSave, state]);
 
     // Check for mobile and sync canvas dimensions with props
     useEffect(() => {
@@ -1066,6 +1079,8 @@ export const GeometryCanvas: React.FC<GeometryCanvasProps> = ({
             </div>
         </div>
     );
-};
+});
+
+GeometryCanvas.displayName = 'GeometryCanvas';
 
 export default GeometryCanvas;

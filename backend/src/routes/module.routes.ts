@@ -1,8 +1,16 @@
 import { Router } from 'express';
 import prisma from '../utils/prisma';
-import { authMiddleware, requireRole } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
+
+const getRequestUser = (req: AuthRequest) => {
+    if (!req.user) {
+        throw new Error('Missing authenticated user');
+    }
+
+    return req.user;
+};
 
 // Get modules with materials
 router.get('/', async (req, res) => {
@@ -109,9 +117,26 @@ router.delete('/:moduleId/materials/:materialId', authMiddleware, requireRole('T
 });
 
 // Assign module to class
-router.put('/:id/assign-class', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.put('/:id/assign-class', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const { classId } = req.body; // classId can be null to unassign
+        const user = getRequestUser(req);
+
+        if (classId) {
+            const targetClass = await prisma.class.findUnique({
+                where: { id: classId },
+                select: { teacherId: true }
+            });
+
+            if (!targetClass) {
+                return res.status(404).json({ error: 'Class not found' });
+            }
+
+            if (user.role !== 'ADMIN' && targetClass.teacherId !== user.id) {
+                return res.status(403).json({ error: 'Not authorized to manage this class' });
+            }
+        }
+
         const module = await prisma.module.update({
             where: { id: req.params.id },
             data: { classId: classId || null }
@@ -123,8 +148,22 @@ router.put('/:id/assign-class', authMiddleware, requireRole('TEACHER', 'ADMIN'),
 });
 
 // Get modules by class
-router.get('/by-class/:classId', authMiddleware, async (req, res) => {
+router.get('/by-class/:classId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
+        const user = getRequestUser(req);
+        const targetClass = await prisma.class.findUnique({
+            where: { id: req.params.classId },
+            select: { teacherId: true }
+        });
+
+        if (!targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (user.role !== 'ADMIN' && targetClass.teacherId !== user.id) {
+            return res.status(403).json({ error: 'Not authorized to view these modules' });
+        }
+
         const modules = await prisma.module.findMany({
             where: { classId: req.params.classId },
             include: {
@@ -142,7 +181,7 @@ router.get('/by-class/:classId', authMiddleware, async (req, res) => {
 });
 
 // Get unassigned modules (no classId)
-router.get('/unassigned', authMiddleware, async (req, res) => {
+router.get('/unassigned', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (_req, res) => {
     try {
         const modules = await prisma.module.findMany({
             where: { classId: null },

@@ -5,13 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev:desktop": "node ./scripts/run-vite-desktop.mjs",
+    "build:web": "tsc -b && vite build",
+    "build": "pnpm run build:web",
+    "build:desktop": "node ./scripts/build-desktop.mjs",
+    "tauri:dev": "node ./scripts/prepare-node-sidecar.mjs && pnpm --dir ../backend build && tauri dev",
+    "tauri:build": "node ./scripts/prepare-node-sidecar.mjs && tauri build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
+    "@tauri-apps/plugin-shell": "~2.3.5",
     "@types/three": "^0.182.0",
     "lucide-react": "^0.556.0",
     "react": "^19.2.0",
@@ -22,6 +28,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

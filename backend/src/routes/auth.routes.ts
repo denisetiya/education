@@ -1,55 +1,102 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import prisma from '../utils/prisma';
+import env from '../config/env';
+import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
+import { authRateLimitMiddleware } from '../middleware/security.middleware';
+import { validateBody } from '../middleware/validation.middleware';
+import {
+    AppRole,
+    authCookieOptions,
+    clearAuthCookieOptions,
+    sanitizeRoleForSelfRegistration,
+    signAuthToken
+} from '../utils/auth';
 
 const router = Router();
 
-// Cookie options
-const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+const emailSchema = z
+    .string()
+    .trim()
+    .email('Email tidak valid')
+    .transform((value) => value.toLowerCase());
+
+const passwordSchema = z
+    .string()
+    .min(8, 'Password minimal 8 karakter')
+    .max(72, 'Password terlalu panjang')
+    .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
+    .regex(/\d/, 'Password harus mengandung angka');
+
+const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    name: z.string().trim().min(2, 'Nama minimal 2 karakter').max(80, 'Nama terlalu panjang'),
+    role: z.string().trim().optional()
+});
+
+const loginSchema = z.object({
+    email: emailSchema,
+    password: z.string().min(1, 'Password wajib diisi')
+});
+
+const safeUserSelect = {
+    id: true,
+    email: true,
+    name: true,
+    role: true,
+    xp: true,
+    level: true,
+    streak: true,
+    avatar: true
+} as const;
+
+const toAppRole = (role: string): AppRole => {
+    if (role === 'ADMIN' || role === 'TEACHER') {
+        return role;
+    }
+
+    return 'STUDENT';
 };
 
-// Register
-router.post('/register', async (req, res) => {
+router.post('/register', authRateLimitMiddleware, validateBody(registerSchema), async (req, res) => {
     try {
-        const { email, password, name, role = 'STUDENT' } = req.body;
+        const { email, password, name, role } = req.body;
 
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email already registered' });
+        let assignedRole: ReturnType<typeof sanitizeRoleForSelfRegistration>;
+        try {
+            assignedRole = sanitizeRoleForSelfRegistration(role);
+        } catch (error) {
+            return res.status(403).json({ error: 'Self-registration hanya tersedia untuk akun siswa.' });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const existingUser = await prisma.user.findUnique({
+            where: { email }
+        });
 
-        // Create user
+        if (existingUser) {
+            return res.status(409).json({ error: 'Email already registered' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, env.bcryptRounds);
         const user = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
                 name,
-                role
-            }
+                role: assignedRole
+            },
+            select: safeUserSelect
         });
 
-        // Generate token
-        const token = jwt.sign(
-            { userId: user.id, role: user.role },
-            process.env.JWT_SECRET || 'fallback-secret',
-            { expiresIn: '7d' }
-        );
-
-        // Set HTTP-only cookie
-        res.cookie('token', token, cookieOptions);
+        const token = signAuthToken({ userId: user.id, role: toAppRole(user.role) });
+        res.cookie(env.authCookieName, token, authCookieOptions);
 
         res.status(201).json({
             message: 'User registered successfully',
-            user: { id: user.id, email: user.email, name: user.name, role: user.role }
+            token,
+            user
         });
     } catch (error) {
         console.error('Register error:', error);
@@ -57,35 +104,29 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Login
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimitMiddleware, validateBody(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Find user
-        const user = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findUnique({
+            where: { email }
+        });
+
         if (!user || !user.password) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Check password
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Generate token
-        const token = jwt.sign(
-            { userId: user.id, role: user.role },
-            process.env.JWT_SECRET || 'fallback-secret',
-            { expiresIn: '7d' }
-        );
-
-        // Set HTTP-only cookie
-        res.cookie('token', token, cookieOptions);
+        const token = signAuthToken({ userId: user.id, role: toAppRole(user.role) });
+        res.cookie(env.authCookieName, token, authCookieOptions);
 
         res.json({
             message: 'Login successful',
+            token,
             user: {
                 id: user.id,
                 email: user.email,
@@ -93,7 +134,8 @@ router.post('/login', async (req, res) => {
                 role: user.role,
                 xp: user.xp,
                 level: user.level,
-                streak: user.streak
+                streak: user.streak,
+                avatar: user.avatar
             }
         });
     } catch (error) {
@@ -102,34 +144,27 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Logout
-router.post('/logout', (req, res) => {
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax' as const
-    });
+router.post('/logout', (_req, res) => {
+    res.clearCookie(env.authCookieName, clearAuthCookieOptions);
     res.json({ message: 'Logged out successfully' });
 });
 
-// Get current user (protected)
-router.get('/me', async (req, res) => {
-    // Read token from cookie first, fallback to Authorization header
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token' });
-
+router.get('/me', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as { userId: string };
         const user = await prisma.user.findUnique({
-            where: { id: decoded.userId },
-            select: { id: true, email: true, name: true, role: true, xp: true, level: true, streak: true, avatar: true }
+            where: { id: req.user!.id },
+            select: safeUserSelect
         });
-        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
         res.json(user);
     } catch (error) {
+        console.error('Get current user error:', error);
         res.status(401).json({ error: 'Invalid token' });
     }
 });
 
 export default router;
-

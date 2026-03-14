@@ -11,7 +11,7 @@ interface ModuleItem {
     semester: number;
     subject: string;
     order: number;
-    materials: any[];
+    materials: MaterialItem[];
 }
 
 interface MaterialItem {
@@ -42,7 +42,10 @@ export const TeacherCurriculum: React.FC = () => {
                 modulesAPI.getAll(),
                 materialsAPI.getAll()
             ]);
-            setModules(modulesData);
+            setModules(modulesData.map((module) => ({
+                ...module,
+                materials: module.materials ?? []
+            })));
             setLibraryMaterials(materialsData);
         } catch (error) {
             console.error("Failed to fetch data", error);

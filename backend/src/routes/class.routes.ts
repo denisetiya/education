@@ -1,38 +1,185 @@
 import { Router } from 'express';
 import prisma from '../utils/prisma';
-import { authMiddleware, requireRole } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Helper to generate unique class code
+const classDetailInclude = {
+    teacher: { select: { id: true, name: true } },
+    modules: {
+        include: {
+            materials: {
+                select: { id: true, title: true, type: true, moduleOrder: true },
+                orderBy: { moduleOrder: 'asc' as const }
+            }
+        },
+        orderBy: { order: 'asc' as const }
+    },
+    students: {
+        select: {
+            joinedAt: true,
+            student: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            }
+        },
+        orderBy: { joinedAt: 'desc' as const }
+    },
+    _count: {
+        select: {
+            students: true,
+            modules: true
+        }
+    }
+};
+
+const classDashboardInclude = {
+    teacher: { select: { name: true } },
+    modules: {
+        include: {
+            materials: {
+                select: { id: true, title: true, type: true, moduleOrder: true },
+                orderBy: { moduleOrder: 'asc' as const }
+            }
+        },
+        orderBy: { order: 'asc' as const }
+    },
+    achievements: true,
+    _count: { select: { students: true } }
+};
+
 const generateClassCode = async (): Promise<string> => {
     let code = '';
     let exists = true;
+
     while (exists) {
         code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const existingClass = await prisma.class.findUnique({ where: { code } });
-        if (!existingClass) exists = false;
+        exists = Boolean(existingClass);
     }
+
     return code;
 };
 
+const normalizeClassCode = (code: string) => code.trim().toUpperCase();
+
+const getRequestUser = (req: AuthRequest) => {
+    if (!req.user) {
+        throw new Error('Missing authenticated user');
+    }
+
+    return req.user;
+};
+
+const getClassAccess = async (classId: string, userId: string, role: string) => {
+    const targetClass = await prisma.class.findUnique({
+        where: { id: classId },
+        select: { id: true, teacherId: true }
+    });
+
+    if (!targetClass) {
+        return {
+            targetClass: null,
+            isAdmin: role === 'ADMIN',
+            isTeacher: false,
+            isEnrolled: false
+        };
+    }
+
+    const isAdmin = role === 'ADMIN';
+    const isTeacher = targetClass.teacherId === userId;
+
+    let isEnrolled = false;
+    if (!isAdmin && !isTeacher) {
+        const enrollment = await prisma.classEnrollment.findUnique({
+            where: {
+                studentId_classId: {
+                    studentId: userId,
+                    classId
+                }
+            }
+        });
+        isEnrolled = Boolean(enrollment);
+    }
+
+    return {
+        targetClass,
+        isAdmin,
+        isTeacher,
+        isEnrolled
+    };
+};
+
+const canAccessClass = (access: Awaited<ReturnType<typeof getClassAccess>>) =>
+    access.isAdmin || access.isTeacher || access.isEnrolled;
+
+const canManageClass = (access: Awaited<ReturnType<typeof getClassAccess>>) =>
+    access.isAdmin || access.isTeacher;
+
+const EXERCISE_STATUS_GRADED = 'graded';
+const EXERCISE_STATUS_PENDING_REVIEW = 'pending_review';
+
+const clampScore = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max);
+
+const sanitizeExerciseOptionsForStudent = (options: string | null) => {
+    if (!options) {
+        return options;
+    }
+
+    try {
+        const parsed = JSON.parse(options);
+        if (!Array.isArray(parsed)) {
+            return options;
+        }
+
+        return JSON.stringify(
+            parsed.map((option: Record<string, unknown>) => ({
+                id: option.id,
+                text: option.text
+            }))
+        );
+    } catch (error) {
+        return options;
+    }
+};
+
+const sanitizeExerciseForStudent = <T extends { correctAnswer?: string | null; options?: string | null }>(exercise: T) => {
+    const sanitizedExercise = {
+        ...exercise,
+        options: sanitizeExerciseOptionsForStudent(exercise.options ?? null)
+    } as Omit<T, 'correctAnswer'> & { options: string | null };
+
+    delete (sanitizedExercise as Record<string, unknown>).correctAnswer;
+
+    return sanitizedExercise;
+};
+
 // Create a new class (Teacher only)
-router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const { name, subject, description } = req.body;
+
+        if (!name || !String(name).trim()) {
+            return res.status(400).json({ error: 'Class name is required' });
+        }
+
         const code = await generateClassCode();
-        // @ts-ignore - req.user is added by authMiddleware
-        const teacherId = req.user.id; 
+        const user = getRequestUser(req);
 
         const newClass = await prisma.class.create({
             data: {
-                name,
-                subject,
-                description,
+                name: String(name).trim(),
+                subject: String(subject || 'Umum').trim() || 'Umum',
+                description: description ? String(description).trim() : null,
                 code,
-                teacherId
+                teacherId: user.id
             }
         });
+
         res.status(201).json(newClass);
     } catch (error) {
         console.error('Create class error:', error);
@@ -41,39 +188,43 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, re
 });
 
 // List classes (Role based)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        // @ts-ignore
-        const userId = req.user.id;
-        // @ts-ignore
-        const role = req.user.role;
+        const user = getRequestUser(req);
 
         let classes;
-        if (role === 'TEACHER' || role === 'ADMIN') {
-            // Get created classes
+        if (user.role === 'ADMIN') {
             classes = await prisma.class.findMany({
-                where: { teacherId: userId },
-                include: { 
-                    teacher: { select: { name: true } }, 
-                    _count: { select: { modules: true, students: true } } 
+                include: {
+                    teacher: { select: { name: true } },
+                    _count: { select: { modules: true, students: true } }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+        } else if (user.role === 'TEACHER') {
+            classes = await prisma.class.findMany({
+                where: { teacherId: user.id },
+                include: {
+                    teacher: { select: { name: true } },
+                    _count: { select: { modules: true, students: true } }
                 },
                 orderBy: { createdAt: 'desc' }
             });
         } else {
-            // Get enrolled classes
             classes = await prisma.class.findMany({
                 where: {
                     students: {
-                        some: { studentId: userId }
+                        some: { studentId: user.id }
                     }
                 },
-                include: { 
-                    teacher: { select: { name: true } }, 
-                    _count: { select: { modules: true, students: true } } 
+                include: {
+                    teacher: { select: { name: true } },
+                    _count: { select: { modules: true, students: true } }
                 },
                 orderBy: { createdAt: 'desc' }
             });
         }
+
         res.json(classes);
     } catch (error) {
         console.error('Get classes error:', error);
@@ -81,88 +232,29 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-// Get Class Details (including modules)
-router.get('/:id', authMiddleware, async (req, res) => {
-    try {
-        const { id } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
-
-        const classDetail = await prisma.class.findUnique({
-            where: { id },
-            include: {
-                modules: {
-                    include: {
-                        materials: {
-                            select: { id: true, title: true, type: true, moduleOrder: true },
-                            orderBy: { moduleOrder: 'asc' }
-                        }
-                    },
-                    orderBy: { order: 'asc' }
-                },
-                teacher: { select: { id: true, name: true } }
-            }
-        });
-
-        if (!classDetail) {
-            return res.status(404).json({ error: 'Class not found' });
-        }
-
-        // Security check: User must be teacher of class OR enrolled student
-        const isTeacher = classDetail.teacherId === userId;
-        let isEnrolled = false;
-
-        if (!isTeacher) {
-            const enrollment = await prisma.classEnrollment.findUnique({
-                where: {
-                    studentId_classId: {
-                        studentId: userId,
-                        classId: id
-                    }
-                }
-            });
-            isEnrolled = !!enrollment;
-        }
-
-        if (!isTeacher && !isEnrolled) {
-            return res.status(403).json({ error: 'Not authorized to view this class' });
-        }
-
-        res.json(classDetail);
-    } catch (error) {
-        console.error('Get class detail error:', error);
-        res.status(500).json({ error: 'Failed to fetch class details' });
-    }
-});
-
 // Join Class (Student)
-router.post('/join', authMiddleware, async (req, res) => {
+router.post('/join', authMiddleware, requireRole('STUDENT'), async (req: AuthRequest, res) => {
     try {
         const { code } = req.body;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
 
-        if (!code) {
+        if (!code || !String(code).trim()) {
             return res.status(400).json({ error: 'Code is required' });
         }
 
+        const normalizedCode = normalizeClassCode(String(code));
         const targetClass = await prisma.class.findUnique({
-            where: { code }
+            where: { code: normalizedCode }
         });
 
         if (!targetClass) {
             return res.status(404).json({ error: 'Invalid class code' });
         }
 
-        if (targetClass.teacherId === userId) {
-            return res.status(400).json({ error: 'Teachers cannot join their own class as a student' });
-        }
-
-        // Check if already enrolled
         const existingEnrollment = await prisma.classEnrollment.findUnique({
-             where: {
+            where: {
                 studentId_classId: {
-                    studentId: userId,
+                    studentId: user.id,
                     classId: targetClass.id
                 }
             }
@@ -174,35 +266,35 @@ router.post('/join', authMiddleware, async (req, res) => {
 
         await prisma.classEnrollment.create({
             data: {
-                studentId: userId,
+                studentId: user.id,
                 classId: targetClass.id
             }
         });
 
-        res.json({ message: 'Successfully joined class', classId: targetClass.id });
-
+        res.json({
+            message: 'Successfully joined class',
+            classId: targetClass.id,
+            className: targetClass.name
+        });
     } catch (error) {
         console.error('Join class error:', error);
         res.status(500).json({ error: 'Failed to join class' });
     }
 });
 
-// ============ PUBLIC CLASS DISCOVERY ============
-
-// List public classes for discovery (no auth required, but auth helps to exclude already enrolled)
+// List public classes for discovery
 router.get('/public/discover', async (req, res) => {
     try {
         const { search, subject } = req.query;
-        
-        const where: any = { isPublic: true };
-        
+        const where: Record<string, unknown> = { isPublic: true };
+
         if (search) {
             where.OR = [
                 { name: { contains: String(search) } },
                 { description: { contains: String(search) } }
             ];
         }
-        
+
         if (subject) {
             where.subject = String(subject);
         }
@@ -234,8 +326,8 @@ router.get('/public/discover', async (req, res) => {
 router.get('/public/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        
-        const classDetail = await prisma.class.findUnique({
+
+        const classDetail = await prisma.class.findFirst({
             where: { id, isPublic: true },
             select: {
                 id: true,
@@ -265,32 +357,66 @@ router.get('/public/:id', async (req, res) => {
     }
 });
 
-// ============ CLASS SETTINGS (Teacher only) ============
-
-router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+// Get Class Details
+router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        const { isPublic, progressionMode, thumbnail, xpMultiplier } = req.body;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // Verify teacher owns this class
-        const existingClass = await prisma.class.findUnique({ where: { id } });
-        if (!existingClass) {
+        if (!access.targetClass) {
             return res.status(404).json({ error: 'Class not found' });
         }
-        if (existingClass.teacherId !== userId) {
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view this class' });
+        }
+
+        const classDetail = await prisma.class.findUnique({
+            where: { id },
+            include: classDetailInclude
+        });
+
+        if (!classDetail) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (canManageClass(access)) {
+            return res.json(classDetail);
+        }
+
+        const { students, ...studentView } = classDetail;
+        res.json(studentView);
+    } catch (error) {
+        console.error('Get class detail error:', error);
+        res.status(500).json({ error: 'Failed to fetch class details' });
+    }
+});
+
+// Class settings (Teacher only)
+router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const { isPublic, progressionMode, thumbnail, xpMultiplier, geogebraEnabled } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
             return res.status(403).json({ error: 'Not authorized to modify this class' });
         }
 
         const updated = await prisma.class.update({
             where: { id },
             data: {
-                ...(isPublic !== undefined && { isPublic }),
+                ...(isPublic !== undefined && { isPublic: Boolean(isPublic) }),
                 ...(progressionMode !== undefined && { progressionMode }),
                 ...(thumbnail !== undefined && { thumbnail }),
-                ...(xpMultiplier !== undefined && { xpMultiplier }),
-                ...(req.body.geogebraEnabled !== undefined && { geogebraEnabled: req.body.geogebraEnabled })
+                ...(xpMultiplier !== undefined && { xpMultiplier: Number(xpMultiplier) }),
+                ...(geogebraEnabled !== undefined && { geogebraEnabled: Boolean(geogebraEnabled) })
             }
         });
 
@@ -301,63 +427,56 @@ router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), asy
     }
 });
 
-// ============ CLASS DASHBOARD ============
-
-router.get('/:id/dashboard', authMiddleware, async (req, res) => {
+// Class dashboard
+router.get('/:id/dashboard', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // Get class with modules and materials
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view this dashboard' });
+        }
+
         const classData = await prisma.class.findUnique({
             where: { id },
-            include: {
-                teacher: { select: { name: true } },
-                modules: {
-                    include: {
-                        materials: {
-                            select: { id: true, title: true, type: true, moduleOrder: true },
-                            orderBy: { moduleOrder: 'asc' }
-                        }
-                    },
-                    orderBy: { order: 'asc' }
-                },
-                achievements: true,
-                _count: { select: { students: true } }
-            }
+            include: classDashboardInclude
         });
 
         if (!classData) {
             return res.status(404).json({ error: 'Class not found' });
         }
 
-        // Get all material IDs from this class
-        const materialIds = classData.modules.flatMap(m => m.materials.map(mat => mat.id));
+        const materialIds = classData.modules.flatMap((module) => module.materials.map((material) => material.id));
 
-        // Get student's progress on these materials
-        const progress = await prisma.progress.findMany({
-            where: {
-                userId,
-                materialId: { in: materialIds }
-            }
-        });
+        const progress = access.isEnrolled
+            ? await prisma.progress.findMany({
+                where: {
+                    userId: user.id,
+                    materialId: { in: materialIds }
+                }
+            })
+            : [];
 
-        // Get unlocked achievements
-        const unlockedAchievements = await prisma.studentClassAchievement.findMany({
-            where: {
-                studentId: userId,
-                achievement: { classId: id }
-            },
-            include: { achievement: true }
-        });
+        const unlockedAchievements = access.isEnrolled
+            ? await prisma.studentClassAchievement.findMany({
+                where: {
+                    studentId: user.id,
+                    achievement: { classId: id }
+                },
+                include: { achievement: true }
+            })
+            : [];
 
-        // Calculate stats
         const totalMaterials = materialIds.length;
-        const completedMaterials = progress.filter(p => p.status === 'completed').length;
+        const completedMaterials = progress.filter((item) => item.status === 'completed').length;
         const totalXP = progress
-            .filter(p => p.status === 'completed')
-            .reduce((sum, p) => sum + (p.score || 50) * (classData.xpMultiplier || 1), 0);
+            .filter((item) => item.status === 'completed')
+            .reduce((sum, item) => sum + (item.score || 50) * (classData.xpMultiplier || 1), 0);
 
         res.json({
             class: classData,
@@ -379,27 +498,31 @@ router.get('/:id/dashboard', authMiddleware, async (req, res) => {
     }
 });
 
-// ============ CLASS ACHIEVEMENTS ============
-
 // Create achievement (Teacher)
-router.post('/:id/achievements', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.post('/:id/achievements', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
         const { title, description, icon, xpReward, condition } = req.body;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // Verify teacher owns this class
-        const existingClass = await prisma.class.findUnique({ where: { id } });
-        if (!existingClass || existingClass.teacherId !== userId) {
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
             return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        if (!title || !description || !condition) {
+            return res.status(400).json({ error: 'Title, description, and condition are required' });
         }
 
         const achievement = await prisma.classAchievement.create({
             data: {
                 title,
                 description,
-                icon: icon || '🏆',
+                icon: icon || 'trophy',
                 xpReward: xpReward || 50,
                 condition: typeof condition === 'string' ? condition : JSON.stringify(condition),
                 classId: id
@@ -414,27 +537,34 @@ router.post('/:id/achievements', authMiddleware, requireRole('TEACHER', 'ADMIN')
 });
 
 // List achievements for class
-router.get('/:id/achievements', authMiddleware, async (req, res) => {
+router.get('/:id/achievements', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view achievements for this class' });
+        }
 
         const achievements = await prisma.classAchievement.findMany({
             where: { classId: id },
             include: {
                 unlockedBy: {
-                    where: { studentId: userId },
+                    where: { studentId: user.id },
                     select: { unlockedAt: true }
                 }
             }
         });
 
-        // Format response
-        const formatted = achievements.map(ach => ({
-            ...ach,
-            unlocked: ach.unlockedBy.length > 0,
-            unlockedAt: ach.unlockedBy[0]?.unlockedAt || null
+        const formatted = achievements.map((achievement) => ({
+            ...achievement,
+            unlocked: achievement.unlockedBy.length > 0,
+            unlockedAt: achievement.unlockedBy[0]?.unlockedAt || null
         }));
 
         res.json(formatted);
@@ -445,14 +575,21 @@ router.get('/:id/achievements', authMiddleware, async (req, res) => {
 });
 
 // Claim/check achievement (Student)
-router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) => {
+router.post('/:id/achievements/:achId/claim', authMiddleware, requireRole('STUDENT'), async (req: AuthRequest, res) => {
     try {
         const { id, achId } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // Get achievement
-        const achievement = await prisma.classAchievement.findUnique({
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!access.isEnrolled) {
+            return res.status(403).json({ error: 'Only enrolled students can claim achievements' });
+        }
+
+        const achievement = await prisma.classAchievement.findFirst({
             where: { id: achId, classId: id }
         });
 
@@ -460,11 +597,10 @@ router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) =
             return res.status(404).json({ error: 'Achievement not found' });
         }
 
-        // Check if already unlocked
         const existing = await prisma.studentClassAchievement.findUnique({
             where: {
                 studentId_achievementId: {
-                    studentId: userId,
+                    studentId: user.id,
                     achievementId: achId
                 }
             }
@@ -474,74 +610,82 @@ router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) =
             return res.status(400).json({ error: 'Achievement already unlocked' });
         }
 
-        // Parse condition and verify
-        const condition = JSON.parse(achievement.condition);
-        let conditionMet = false;
+        let condition: { type?: string; target?: number };
+        try {
+            condition = JSON.parse(achievement.condition);
+        } catch (parseError) {
+            return res.status(400).json({ error: 'Achievement condition is invalid' });
+        }
 
-        // Get class materials for checking
+        let conditionMet = false;
         const classModules = await prisma.module.findMany({
             where: { classId: id },
             include: { materials: true }
         });
-        const materialIds = classModules.flatMap(m => m.materials.map(mat => mat.id));
+        const materialIds = classModules.flatMap((module) => module.materials.map((material) => material.id));
 
         if (condition.type === 'complete_materials') {
             const completed = await prisma.progress.count({
                 where: {
-                    userId,
+                    userId: user.id,
                     materialId: { in: materialIds },
                     status: 'completed'
                 }
             });
-            conditionMet = completed >= condition.target;
+            conditionMet = completed >= (condition.target || 0);
         } else if (condition.type === 'quiz_score') {
             const quizzes = await prisma.progress.findMany({
                 where: {
-                    userId,
+                    userId: user.id,
                     materialId: { in: materialIds },
                     status: 'completed',
-                    score: { gte: condition.target }
+                    score: { gte: condition.target || 0 }
                 }
             });
             conditionMet = quizzes.length > 0;
         } else if (condition.type === 'complete_module') {
-            // Check if target number of modules are fully completed
             let completedModules = 0;
-            for (const mod of classModules) {
-                const matIds = mod.materials.map(m => m.id);
-                if (matIds.length === 0) continue;
+
+            for (const module of classModules) {
+                const moduleMaterialIds = module.materials.map((material) => material.id);
+                if (moduleMaterialIds.length === 0) {
+                    continue;
+                }
+
                 const completed = await prisma.progress.count({
                     where: {
-                        userId,
-                        materialId: { in: matIds },
+                        userId: user.id,
+                        materialId: { in: moduleMaterialIds },
                         status: 'completed'
                     }
                 });
-                if (completed === matIds.length) completedModules++;
+
+                if (completed === moduleMaterialIds.length) {
+                    completedModules += 1;
+                }
             }
-            conditionMet = completedModules >= condition.target;
+
+            conditionMet = completedModules >= (condition.target || 0);
         }
 
         if (!conditionMet) {
             return res.status(400).json({ error: 'Achievement condition not met', condition });
         }
 
-        // Unlock achievement
-        const unlock = await prisma.studentClassAchievement.create({
+        await prisma.studentClassAchievement.create({
             data: {
-                studentId: userId,
+                studentId: user.id,
                 achievementId: achId
             }
         });
 
-        // Award XP to user
         await prisma.user.update({
-            where: { id: userId },
+            where: { id: user.id },
             data: { xp: { increment: achievement.xpReward } }
         });
 
-        res.json({ 
-            message: 'Achievement unlocked!', 
+        res.json({
+            message: 'Achievement unlocked!',
             achievement,
             xpAwarded: achievement.xpReward
         });
@@ -551,16 +695,26 @@ router.post('/:id/achievements/:achId/claim', authMiddleware, async (req, res) =
     }
 });
 
-// ============ CLASS BOOKS (Library) ============
-
 // Get all books for a class
-router.get('/:id/books', authMiddleware, async (req, res) => {
+router.get('/:id/books', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view class books' });
+        }
+
         const books = await prisma.classBook.findMany({
             where: { classId: id },
             orderBy: { createdAt: 'desc' }
         });
+
         res.json(books);
     } catch (error) {
         console.error('Get books error:', error);
@@ -569,19 +723,29 @@ router.get('/:id/books', authMiddleware, async (req, res) => {
 });
 
 // Create a book (Teacher only)
-router.post('/:id/books', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.post('/:id/books', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
         const { title, author, description, coverUrl, contentType, content, pdfUrl } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        if (!title) {
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to manage books in this class' });
+        }
+
+        if (!title || !String(title).trim()) {
             return res.status(400).json({ error: 'Title is required' });
         }
 
         const book = await prisma.classBook.create({
             data: {
                 classId: id,
-                title,
+                title: String(title).trim(),
                 author,
                 description,
                 coverUrl,
@@ -599,19 +763,37 @@ router.post('/:id/books', authMiddleware, requireRole('TEACHER', 'ADMIN'), async
 });
 
 // Update a book
-router.put('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.put('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { bookId } = req.params;
+        const { id, bookId } = req.params;
         const { title, author, description, coverUrl, contentType, content, pdfUrl } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to update books in this class' });
+        }
+
+        const existingBook = await prisma.classBook.findFirst({
+            where: { id: bookId, classId: id }
+        });
+
+        if (!existingBook) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
 
         const book = await prisma.classBook.update({
             where: { id: bookId },
             data: {
-                ...(title && { title }),
+                ...(title !== undefined && { title }),
                 ...(author !== undefined && { author }),
                 ...(description !== undefined && { description }),
                 ...(coverUrl !== undefined && { coverUrl }),
-                ...(contentType && { contentType }),
+                ...(contentType !== undefined && { contentType }),
                 ...(content !== undefined && { content }),
                 ...(pdfUrl !== undefined && { pdfUrl })
             }
@@ -625,9 +807,28 @@ router.put('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN')
 });
 
 // Delete a book
-router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { bookId } = req.params;
+        const { id, bookId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to delete books in this class' });
+        }
+
+        const existingBook = await prisma.classBook.findFirst({
+            where: { id: bookId, classId: id }
+        });
+
+        if (!existingBook) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
         await prisma.classBook.delete({ where: { id: bookId } });
         res.json({ message: 'Book deleted successfully' });
     } catch (error) {
@@ -636,19 +837,22 @@ router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMI
     }
 });
 
-// ============ EXERCISES ROUTES ============
-
 // Get all exercises for a class
-router.get('/:id/exercises', authMiddleware, async (req, res) => {
+router.get('/:id/exercises', authMiddleware, async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
-        // @ts-ignore
-        const role = req.user.role;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // For students, only show published exercises
-        const whereClause = role === 'STUDENT' 
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view class exercises' });
+        }
+
+        const whereClause = user.role === 'STUDENT'
             ? { classId: id, isPublished: true }
             : { classId: id };
 
@@ -656,14 +860,35 @@ router.get('/:id/exercises', authMiddleware, async (req, res) => {
             where: whereClause,
             orderBy: { order: 'asc' },
             include: {
-                attempts: role === 'STUDENT' ? {
-                    where: { studentId: userId },
-                    select: { isCorrect: true, score: true, createdAt: true }
-                } : {
-                    select: { id: true, isCorrect: true }
-                }
+                attempts: user.role === 'STUDENT'
+                    ? {
+                        where: { studentId: user.id },
+                        select: {
+                            id: true,
+                            isCorrect: true,
+                            score: true,
+                            createdAt: true,
+                            gradingStatus: true,
+                            feedback: true,
+                            gradedAt: true,
+                            timeSpent: true
+                        }
+                    }
+                    : {
+                        select: {
+                            id: true,
+                            isCorrect: true,
+                            score: true,
+                            gradingStatus: true,
+                            createdAt: true
+                        }
+                    }
             }
         });
+
+        if (user.role === 'STUDENT') {
+            return res.json(exercises.map((exercise) => sanitizeExerciseForStudent(exercise)));
+        }
 
         res.json(exercises);
     } catch (error) {
@@ -673,23 +898,60 @@ router.get('/:id/exercises', authMiddleware, async (req, res) => {
 });
 
 // Get single exercise with details
-router.get('/:id/exercises/:exerciseId', authMiddleware, async (req, res) => {
+router.get('/:id/exercises/:exerciseId', authMiddleware, async (req: AuthRequest, res) => {
     try {
-        const { exerciseId } = req.params;
-        // @ts-ignore
-        const userId = req.user.id;
-        // @ts-ignore
-        const role = req.user.role;
+        const { id, exerciseId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        const exercise = await prisma.classExercise.findUnique({
-            where: { id: exerciseId },
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canAccessClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to view this exercise' });
+        }
+
+        const exercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id },
             include: {
-                attempts: role === 'STUDENT' ? {
-                    where: { studentId: userId },
-                    select: { isCorrect: true, score: true, answer: true, createdAt: true }
-                } : {
-                    include: { student: { select: { name: true } } }
-                }
+                attempts: user.role === 'STUDENT'
+                    ? {
+                        where: { studentId: user.id },
+                        select: {
+                            id: true,
+                            isCorrect: true,
+                            score: true,
+                            answer: true,
+                            canvasData: true,
+                            timeSpent: true,
+                            createdAt: true,
+                            gradingStatus: true,
+                            feedback: true,
+                            gradedAt: true
+                        }
+                    }
+                    : {
+                        select: {
+                            id: true,
+                            answer: true,
+                            canvasData: true,
+                            isCorrect: true,
+                            score: true,
+                            timeSpent: true,
+                            createdAt: true,
+                            gradingStatus: true,
+                            feedback: true,
+                            gradedAt: true,
+                            student: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true
+                                }
+                            }
+                        }
+                    }
             }
         });
 
@@ -697,9 +959,12 @@ router.get('/:id/exercises/:exerciseId', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Exercise not found' });
         }
 
-        // For students on unpublished exercises
-        if (role === 'STUDENT' && !exercise.isPublished) {
+        if (user.role === 'STUDENT' && !exercise.isPublished) {
             return res.status(403).json({ error: 'Exercise not available' });
+        }
+
+        if (user.role === 'STUDENT') {
+            return res.json(sanitizeExerciseForStudent(exercise));
         }
 
         res.json(exercise);
@@ -710,36 +975,58 @@ router.get('/:id/exercises/:exerciseId', authMiddleware, async (req, res) => {
 });
 
 // Create exercise (Teacher only)
-router.post('/:id/exercises', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.post('/:id/exercises', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        const { 
-            title, description, instructions, exerciseType, difficulty, points,
-            hasTimer, timerMinutes, canvasState, canvasMode,
-            answerType, correctAnswer, options, isPublished, order
+        const {
+            title,
+            description,
+            instructions,
+            exerciseType,
+            difficulty,
+            points,
+            hasTimer,
+            timerMinutes,
+            canvasState,
+            canvasMode,
+            answerType,
+            correctAnswer,
+            options,
+            isPublished,
+            order
         } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        if (!title) {
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to create exercises in this class' });
+        }
+
+        if (!title || !String(title).trim()) {
             return res.status(400).json({ error: 'Title is required' });
         }
 
         const exercise = await prisma.classExercise.create({
             data: {
                 classId: id,
-                title,
+                title: String(title).trim(),
                 description,
                 instructions,
                 exerciseType: exerciseType || 'geometry',
                 difficulty: difficulty || 'medium',
                 points: points || 10,
-                hasTimer: hasTimer || false,
+                hasTimer: Boolean(hasTimer),
                 timerMinutes,
                 canvasState,
                 canvasMode: canvasMode || 'readonly',
                 answerType: answerType || 'multiple_choice',
                 correctAnswer,
                 options,
-                isPublished: isPublished || false,
+                isPublished: Boolean(isPublished),
                 order: order || 0
             }
         });
@@ -752,32 +1039,62 @@ router.post('/:id/exercises', authMiddleware, requireRole('TEACHER', 'ADMIN'), a
 });
 
 // Update exercise (Teacher only)
-router.put('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.put('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { exerciseId } = req.params;
-        const { 
-            title, description, instructions, exerciseType, difficulty, points,
-            hasTimer, timerMinutes, canvasState, canvasMode,
-            answerType, correctAnswer, options, isPublished, order
+        const { id, exerciseId } = req.params;
+        const {
+            title,
+            description,
+            instructions,
+            exerciseType,
+            difficulty,
+            points,
+            hasTimer,
+            timerMinutes,
+            canvasState,
+            canvasMode,
+            answerType,
+            correctAnswer,
+            options,
+            isPublished,
+            order
         } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to update exercises in this class' });
+        }
+
+        const existingExercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id }
+        });
+
+        if (!existingExercise) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
 
         const exercise = await prisma.classExercise.update({
             where: { id: exerciseId },
             data: {
-                ...(title && { title }),
+                ...(title !== undefined && { title }),
                 ...(description !== undefined && { description }),
                 ...(instructions !== undefined && { instructions }),
-                ...(exerciseType && { exerciseType }),
-                ...(difficulty && { difficulty }),
+                ...(exerciseType !== undefined && { exerciseType }),
+                ...(difficulty !== undefined && { difficulty }),
                 ...(points !== undefined && { points }),
-                ...(hasTimer !== undefined && { hasTimer }),
+                ...(hasTimer !== undefined && { hasTimer: Boolean(hasTimer) }),
                 ...(timerMinutes !== undefined && { timerMinutes }),
                 ...(canvasState !== undefined && { canvasState }),
-                ...(canvasMode && { canvasMode }),
-                ...(answerType && { answerType }),
+                ...(canvasMode !== undefined && { canvasMode }),
+                ...(answerType !== undefined && { answerType }),
                 ...(correctAnswer !== undefined && { correctAnswer }),
                 ...(options !== undefined && { options }),
-                ...(isPublished !== undefined && { isPublished }),
+                ...(isPublished !== undefined && { isPublished: Boolean(isPublished) }),
                 ...(order !== undefined && { order })
             }
         });
@@ -790,9 +1107,28 @@ router.put('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 
 });
 
 // Delete exercise (Teacher only)
-router.delete('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.delete('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { exerciseId } = req.params;
+        const { id, exerciseId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to delete exercises in this class' });
+        }
+
+        const existingExercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id }
+        });
+
+        if (!existingExercise) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
+
         await prisma.classExercise.delete({ where: { id: exerciseId } });
         res.json({ message: 'Exercise deleted successfully' });
     } catch (error) {
@@ -802,26 +1138,35 @@ router.delete('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER
 });
 
 // Submit exercise attempt (Student only)
-router.post('/:id/exercises/:exerciseId/attempt', authMiddleware, async (req, res) => {
+router.post('/:id/exercises/:exerciseId/attempt', authMiddleware, requireRole('STUDENT'), async (req: AuthRequest, res) => {
     try {
-        const { exerciseId } = req.params;
-        // @ts-ignore
-        const studentId = req.user.id;
+        const { id, exerciseId } = req.params;
         const { answer, canvasData, timeSpent } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
 
-        // Get the exercise
-        const exercise = await prisma.classExercise.findUnique({
-            where: { id: exerciseId }
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!access.isEnrolled) {
+            return res.status(403).json({ error: 'Only enrolled students can submit this exercise' });
+        }
+
+        const exercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id }
         });
 
         if (!exercise || !exercise.isPublished) {
             return res.status(404).json({ error: 'Exercise not found' });
         }
 
-        // Check if already attempted
         const existingAttempt = await prisma.exerciseAttempt.findUnique({
             where: {
-                studentId_exerciseId: { studentId, exerciseId }
+                studentId_exerciseId: {
+                    studentId: user.id,
+                    exerciseId
+                }
             }
         });
 
@@ -829,66 +1174,174 @@ router.post('/:id/exercises/:exerciseId/attempt', authMiddleware, async (req, re
             return res.status(400).json({ error: 'Already attempted', attempt: existingAttempt });
         }
 
-        // Calculate if correct
         let isCorrect = false;
         let score = 0;
+        let gradingStatus = EXERCISE_STATUS_GRADED;
+        let gradedAt: Date | null = new Date();
 
         if (exercise.answerType === 'multiple_choice' && exercise.correctAnswer) {
             try {
                 const correct = JSON.parse(exercise.correctAnswer);
                 isCorrect = answer === correct.id || answer === correct;
-                score = isCorrect ? exercise.points : 0;
-            } catch (e) {
+            } catch (parseError) {
                 isCorrect = answer === exercise.correctAnswer;
-                score = isCorrect ? exercise.points : 0;
             }
+            score = isCorrect ? exercise.points : 0;
         } else if (exercise.answerType === 'numeric' && exercise.correctAnswer) {
             try {
                 const correct = JSON.parse(exercise.correctAnswer);
                 const tolerance = correct.tolerance || 0;
-                const numAnswer = parseFloat(answer);
-                isCorrect = Math.abs(numAnswer - correct.value) <= tolerance;
-                score = isCorrect ? exercise.points : 0;
-            } catch (e) {
+                const numericAnswer = parseFloat(answer);
+                isCorrect = Math.abs(numericAnswer - correct.value) <= tolerance;
+            } catch (parseError) {
                 isCorrect = parseFloat(answer) === parseFloat(exercise.correctAnswer);
-                score = isCorrect ? exercise.points : 0;
             }
+            score = isCorrect ? exercise.points : 0;
         } else if (exercise.answerType === 'canvas') {
-            // Canvas answers need manual grading or specific validation
-            isCorrect = false; // Will be graded by teacher
+            gradingStatus = EXERCISE_STATUS_PENDING_REVIEW;
             score = 0;
+            gradedAt = null;
         }
 
-        // Create attempt
         const attempt = await prisma.exerciseAttempt.create({
             data: {
-                studentId,
+                studentId: user.id,
                 exerciseId,
-                answer: JSON.stringify(answer),
+                answer: JSON.stringify(answer ?? null),
                 canvasData,
                 isCorrect,
                 score,
+                gradingStatus,
+                gradedAt,
                 timeSpent: timeSpent || 0
             }
         });
 
-        // Update student XP if correct
-        if (isCorrect && score > 0) {
+        if (gradingStatus === EXERCISE_STATUS_GRADED && score > 0) {
             await prisma.user.update({
-                where: { id: studentId },
+                where: { id: user.id },
                 data: { xp: { increment: score } }
             });
         }
 
         res.status(201).json({
             attempt,
-            isCorrect,
+            gradingStatus,
+            isCorrect: gradingStatus === EXERCISE_STATUS_PENDING_REVIEW ? null : isCorrect,
             score,
-            message: isCorrect ? 'Correct! Well done!' : 'Incorrect. Try again next time.'
+            message: gradingStatus === EXERCISE_STATUS_PENDING_REVIEW
+                ? 'Jawaban berhasil dikirim dan sedang menunggu penilaian guru.'
+                : isCorrect
+                    ? 'Jawaban benar. Kerja bagus!'
+                    : 'Jawaban sudah tersimpan. Cek kembali pembahasan dari guru.'
         });
     } catch (error) {
         console.error('Submit attempt error:', error);
         res.status(500).json({ error: 'Failed to submit attempt' });
+    }
+});
+
+// Grade exercise attempt (Teacher only)
+router.post('/:id/exercises/:exerciseId/attempts/:attemptId/grade', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const { id, exerciseId, attemptId } = req.params;
+        const { score, isCorrect, feedback } = req.body;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to grade this exercise' });
+        }
+
+        const exercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id },
+            select: { id: true, points: true }
+        });
+
+        if (!exercise) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
+
+        const numericScore = Number(score);
+        if (!Number.isFinite(numericScore)) {
+            return res.status(400).json({ error: 'Score must be a valid number' });
+        }
+
+        const nextScore = clampScore(Math.round(numericScore), 0, exercise.points);
+        const nextIsCorrect = typeof isCorrect === 'boolean'
+            ? isCorrect
+            : nextScore >= exercise.points;
+
+        const updatedAttempt = await prisma.$transaction(async (tx) => {
+            const existingAttempt = await tx.exerciseAttempt.findFirst({
+                where: {
+                    id: attemptId,
+                    exerciseId
+                },
+                select: {
+                    id: true,
+                    studentId: true,
+                    score: true
+                }
+            });
+
+            if (!existingAttempt) {
+                throw new Error('ATTEMPT_NOT_FOUND');
+            }
+
+            const attempt = await tx.exerciseAttempt.update({
+                where: { id: attemptId },
+                data: {
+                    score: nextScore,
+                    isCorrect: nextIsCorrect,
+                    gradingStatus: EXERCISE_STATUS_GRADED,
+                    gradedAt: new Date(),
+                    ...(feedback !== undefined && { feedback: String(feedback).trim() || null })
+                },
+                include: {
+                    student: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            });
+
+            const xpDelta = nextScore - existingAttempt.score;
+            if (xpDelta !== 0) {
+                const student = await tx.user.findUnique({
+                    where: { id: existingAttempt.studentId },
+                    select: { xp: true }
+                });
+
+                await tx.user.update({
+                    where: { id: existingAttempt.studentId },
+                    data: {
+                        xp: Math.max(0, (student?.xp || 0) + xpDelta)
+                    }
+                });
+            }
+
+            return attempt;
+        });
+
+        res.json({
+            message: 'Penilaian berhasil disimpan',
+            attempt: updatedAttempt
+        });
+    } catch (error) {
+        if (error instanceof Error && error.message === 'ATTEMPT_NOT_FOUND') {
+            return res.status(404).json({ error: 'Attempt not found' });
+        }
+
+        console.error('Grade attempt error:', error);
+        res.status(500).json({ error: 'Failed to grade attempt' });
     }
 });
 

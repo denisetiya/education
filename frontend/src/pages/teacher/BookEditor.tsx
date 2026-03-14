@@ -16,6 +16,7 @@ interface BookData {
 export const BookEditor: React.FC = () => {
     const { classId, bookId } = useParams<{ classId: string; bookId?: string }>();
     const navigate = useNavigate();
+    const classDetailPath = `/teacher/classes/${classId}?tab=library`;
     
     const [bookData, setBookData] = useState<BookData>({
         title: '',
@@ -164,7 +165,7 @@ export const BookEditor: React.FC = () => {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <button 
-                        onClick={() => navigate(`/teacher/classes/${classId}`)}
+                        onClick={() => navigate(classDetailPath)}
                         style={{ 
                             padding: '0.5rem', background: 'none', border: 'none', 
                             cursor: 'pointer', color: '#64748b', display: 'flex' 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Users, Compass, ChevronRight, Sparkles, GraduationCap, ArrowRight, Search, Clock, Zap, LogOut } from 'lucide-react';
+import { BookOpen, Users, Compass, Sparkles, GraduationCap, ArrowRight, Search, Clock, Zap, LogOut } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 

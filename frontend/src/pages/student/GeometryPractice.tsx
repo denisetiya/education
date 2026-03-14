@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Lightbulb, Save } from 'lucide-react';
+import { ArrowLeft, BookOpen, Lightbulb } from 'lucide-react';
 import { GeometryCanvas } from '../../components/geometry/GeometryCanvas';
 
 export const GeometryPractice: React.FC = () => {

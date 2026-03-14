@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Plus, MoreVertical, Edit, Users, Copy, BookOpen, Grid, List } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
+import type { ClassItem } from '../../types/api.types';
 
 export const TeacherClasses: React.FC = () => {
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
-    const [classes, setClasses] = useState<any[]>([]);
+    const [classes, setClasses] = useState<ClassItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newClass, setNewClass] = useState({ name: '', description: '' });
+    const [newClass, setNewClass] = useState({ name: '', subject: '', description: '' });
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,14 +43,18 @@ export const TeacherClasses: React.FC = () => {
         setError(null);
         setIsSubmitting(true);
         try {
-            await classesAPI.create(newClass);
+            await classesAPI.create({
+                name: newClass.name.trim(),
+                subject: newClass.subject.trim() || undefined,
+                description: newClass.description.trim() || undefined
+            });
             setShowCreateModal(false);
-            setNewClass({ name: '', description: '' });
+            setNewClass({ name: '', subject: '', description: '' });
             setSuccess('Kelas berhasil dibuat!');
             fetchClasses();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to create class', error);
-            setError(error.message || 'Gagal membuat kelas. Silakan coba lagi.');
+            setError(error instanceof Error ? error.message : 'Gagal membuat kelas. Silakan coba lagi.');
         } finally {
             setIsSubmitting(false);
         }
@@ -191,7 +196,7 @@ export const TeacherClasses: React.FC = () => {
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
                     background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
                 }}>
-                    <div className="card glass" style={{ width: '400px', padding: '2rem' }}>
+                    <div className="card glass" style={{ width: '440px', padding: '2rem' }}>
                         <h2 style={{ marginBottom: '1.5rem' }}>Buat Kelas Baru</h2>
                         {error && (
                             <div style={{ 
@@ -218,7 +223,17 @@ export const TeacherClasses: React.FC = () => {
                                     placeholder="Contoh: Kelas 10-A"
                                 />
                             </div>
-                             <div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Mata Pelajaran</label>
+                                <input
+                                    type="text"
+                                    value={newClass.subject}
+                                    onChange={e => setNewClass({ ...newClass, subject: e.target.value })}
+                                    style={{ width: '100%', padding: '0.8rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1' }}
+                                    placeholder="Contoh: Matematika"
+                                />
+                            </div>
+                            <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>Deskripsi (Opsional)</label>
                                 <textarea
                                     value={newClass.description}
@@ -229,7 +244,18 @@ export const TeacherClasses: React.FC = () => {
                                 />
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="button" onClick={() => { setShowCreateModal(false); setError(null); }} className="btn btn-secondary" style={{ flex: 1 }}>Batal</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowCreateModal(false);
+                                        setError(null);
+                                        setNewClass({ name: '', subject: '', description: '' });
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ flex: 1 }}
+                                >
+                                    Batal
+                                </button>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isSubmitting}>
                                     {isSubmitting ? 'Membuat...' : 'Buat'}
                                 </button>

@@ -61,35 +61,171 @@ router.get('/student', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/teacher', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
         const teacherId = req.user!.id;
+        const [
+            teacherClasses,
+            recentClasses,
+            totalMaterials,
+            totalExercises,
+            publishedExercises,
+            totalPendingReviews,
+            recentMaterials,
+            pendingReviews,
+            recentSubmissions
+        ] = await Promise.all([
+            prisma.class.findMany({
+                where: { teacherId },
+                include: {
+                    _count: {
+                        select: {
+                            students: true,
+                            modules: true,
+                            exercises: true
+                        }
+                    }
+                }
+            }),
+            prisma.class.findMany({
+                where: { teacherId },
+                orderBy: { updatedAt: 'desc' },
+                take: 6,
+                include: {
+                    _count: {
+                        select: {
+                            students: true,
+                            modules: true,
+                            exercises: true
+                        }
+                    }
+                }
+            }),
+            prisma.material.count({ where: { createdById: teacherId } }),
+            prisma.classExercise.count({
+                where: {
+                    class: { teacherId }
+                }
+            }),
+            prisma.classExercise.count({
+                where: {
+                    class: { teacherId },
+                    isPublished: true
+                }
+            }),
+            prisma.exerciseAttempt.count({
+                where: {
+                    gradingStatus: 'pending_review',
+                    exercise: {
+                        class: {
+                            teacherId
+                        }
+                    }
+                }
+            }),
+            prisma.material.findMany({
+                where: { createdById: teacherId },
+                take: 5,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    title: true,
+                    type: true,
+                    category: true,
+                    grade: true,
+                    semester: true,
+                    createdAt: true
+                }
+            }),
+            prisma.exerciseAttempt.findMany({
+                where: {
+                    gradingStatus: 'pending_review',
+                    exercise: {
+                        class: {
+                            teacherId
+                        }
+                    }
+                },
+                take: 8,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    exerciseId: true,
+                    exercise: {
+                        select: {
+                            id: true,
+                            title: true,
+                            points: true,
+                            class: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
+                        }
+                    },
+                    student: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    }
+                }
+            }),
+            prisma.exerciseAttempt.findMany({
+                where: {
+                    exercise: {
+                        class: {
+                            teacherId
+                        }
+                    }
+                },
+                take: 8,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    createdAt: true,
+                    gradingStatus: true,
+                    score: true,
+                    exercise: {
+                        select: {
+                            id: true,
+                            title: true,
+                            class: {
+                                select: {
+                                    id: true,
+                                    name: true
+                                }
+                            }
+                        }
+                    },
+                    student: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            })
+        ]);
 
-        // Get teacher's classes
-        const classes = await prisma.class.findMany({
-            where: { teacherId },
-            include: {
-                _count: { select: { students: true } }
-            }
-        });
-
-        // Get teacher's materials
-        const materials = await prisma.material.findMany({
-            where: { createdById: teacherId },
-            take: 5,
-            orderBy: { createdAt: 'desc' }
-        });
-
-        // Get total students (across all classes)
-        const totalStudents = classes.reduce((sum: number, cls: typeof classes[number]) => sum + cls._count.students, 0);
+        const totalStudents = teacherClasses.reduce((sum: number, cls: typeof teacherClasses[number]) => sum + cls._count.students, 0);
 
         res.json({
             stats: {
-                totalClasses: classes.length,
+                totalClasses: teacherClasses.length,
                 totalStudents,
-                totalMaterials: await prisma.material.count({ where: { createdById: teacherId } })
+                totalMaterials,
+                totalExercises,
+                publishedExercises,
+                pendingReviews: totalPendingReviews
             },
-            classes,
-            recentMaterials: materials
+            classes: recentClasses,
+            recentMaterials,
+            pendingReviews,
+            recentSubmissions
         });
     } catch (error) {
+        console.error('Teacher dashboard error:', error);
         res.status(500).json({ error: 'Failed to fetch teacher dashboard' });
     }
 });

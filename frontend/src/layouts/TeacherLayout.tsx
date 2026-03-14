@@ -134,7 +134,13 @@ export const TeacherLayout: React.FC = () => {
                             <Bell size={20} color="#64748b" />
                             <span style={{ position: 'absolute', top: -2, right: -1, width: '8px', height: '8px', background: 'var(--secondary)', borderRadius: '50%' }}></span>
                         </button>
-                        <button className="btn btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}>+ Buat Materi</button>
+                        <button
+                            className="btn btn-primary"
+                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}
+                            onClick={() => navigate('/teacher/materials?create=1')}
+                        >
+                            + Buat Materi
+                        </button>
                     </div>
                 </header>
 

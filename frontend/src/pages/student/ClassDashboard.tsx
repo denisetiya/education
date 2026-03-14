@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
     ArrowLeft, BookOpen, Trophy, Users, TrendingUp, Lock, CheckCircle, 
-    Play, Award, Star, Loader, Settings, ChevronRight 
+    Play, Star, Loader, ChevronRight 
 } from 'lucide-react';
-import { classesAPI, progressAPI } from '../../utils/api';
+import { classesAPI } from '../../utils/api';
 
 interface DashboardData {
     class: {
@@ -71,8 +71,8 @@ export const ClassDashboard: React.FC = () => {
             setLoading(true);
             const dashboardData = await classesAPI.getDashboard(classId!);
             setData(dashboardData);
-        } catch (err: any) {
-            setError(err.message || 'Gagal memuat dashboard');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Gagal memuat dashboard');
         } finally {
             setLoading(false);
         }

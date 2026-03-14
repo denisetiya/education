@@ -1,490 +1,576 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-    ArrowLeft, Zap, CheckCircle, XCircle, 
-    AlertCircle, Send, Timer, Trophy
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+    AlertCircle,
+    ArrowLeft,
+    CheckCircle,
+    Clock3,
+    Loader2,
+    Send,
+    Timer,
+    Trophy,
+    XCircle
 } from 'lucide-react';
-import { classesAPI } from '../../utils/api';
-import GeometryCanvas from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
-
-interface Exercise {
-    id: string;
-    title: string;
-    description?: string;
-    instructions?: string;
-    exerciseType: string;
-    difficulty: string;
-    points: number;
-    hasTimer: boolean;
-    timerMinutes?: number;
-    canvasState?: string;
-    canvasMode: string;
-    answerType: string;
-    options?: string;
-    attempts?: Array<{
-        isCorrect: boolean;
-        score: number;
-        answer?: string;
-        createdAt: string;
-    }>;
-}
+import GeometryCanvas, { type GeometryCanvasHandle } from '../../components/geometry/GeometryCanvas';
+import type {
+    ClassExerciseSummary,
+    ExerciseAttemptSummary,
+    ExerciseGradingStatus
+} from '../../types/api.types';
+import { classesAPI } from '../../utils/api';
 
 interface ExerciseOption {
     id: string;
     text: string;
-    isCorrect?: boolean;
 }
+
+interface ExerciseResult {
+    gradingStatus: ExerciseGradingStatus;
+    isCorrect: boolean | null;
+    score: number;
+    message: string;
+    feedback?: string | null;
+    gradedAt?: string | null;
+}
+
+const parseCanvasState = (value?: string | null): CanvasState | undefined => {
+    if (!value) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(value) as CanvasState;
+    } catch (error) {
+        console.error('Failed to parse canvas state', error);
+        return undefined;
+    }
+};
+
+const parseOptions = (value?: string | null): ExerciseOption[] => {
+    if (!value) {
+        return [];
+    }
+
+    try {
+        const parsed = JSON.parse(value) as ExerciseOption[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error('Failed to parse exercise options', error);
+        return [];
+    }
+};
+
+const buildResultFromAttempt = (attempt: ExerciseAttemptSummary): ExerciseResult => {
+    if (attempt.gradingStatus === 'pending_review') {
+        return {
+            gradingStatus: 'pending_review',
+            isCorrect: null,
+            score: attempt.score,
+            message: 'Jawaban kamu sudah terkirim dan sedang menunggu penilaian guru.',
+            feedback: attempt.feedback,
+            gradedAt: attempt.gradedAt
+        };
+    }
+
+    if (attempt.isCorrect) {
+        return {
+            gradingStatus: 'graded',
+            isCorrect: true,
+            score: attempt.score,
+            message: 'Jawaban kamu dinilai benar. Kerja bagus.',
+            feedback: attempt.feedback,
+            gradedAt: attempt.gradedAt
+        };
+    }
+
+    return {
+        gradingStatus: 'graded',
+        isCorrect: false,
+        score: attempt.score,
+        message: 'Jawaban kamu sudah dinilai. Lihat feedback guru untuk perbaikan.',
+        feedback: attempt.feedback,
+        gradedAt: attempt.gradedAt
+    };
+};
+
+const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
 
 export const ExerciseSession: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId: string }>();
     const navigate = useNavigate();
-    const [exercise, setExercise] = useState<Exercise | null>(null);
+    const [exercise, setExercise] = useState<ClassExerciseSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [selectedAnswer, setSelectedAnswer] = useState<string>('');
-    const [numericAnswer, setNumericAnswer] = useState<string>('');
+    const [selectedAnswer, setSelectedAnswer] = useState('');
+    const [numericAnswer, setNumericAnswer] = useState('');
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-    const [startTime] = useState<number>(Date.now());
-    const [result, setResult] = useState<{ isCorrect: boolean; score: number; message: string } | null>(null);
+    const [result, setResult] = useState<ExerciseResult | null>(null);
     const [alreadyAttempted, setAlreadyAttempted] = useState(false);
-    const canvasRef = useRef<{ getState: () => CanvasState } | null>(null);
+    const startTimeRef = useRef(Date.now());
+    const canvasRef = useRef<GeometryCanvasHandle | null>(null);
 
     useEffect(() => {
-        if (classId && exerciseId) {
-            fetchExercise();
+        if (!classId || !exerciseId) {
+            return;
         }
+
+        const loadExercise = async () => {
+            try {
+                setLoading(true);
+                const data = await classesAPI.getExercise(classId, exerciseId);
+                setExercise(data);
+
+                const latestAttempt = data.attempts?.[0];
+                if (latestAttempt) {
+                    setAlreadyAttempted(true);
+                    setResult(buildResultFromAttempt(latestAttempt));
+                }
+            } catch (error) {
+                console.error('Failed to fetch exercise', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadExercise();
     }, [classId, exerciseId]);
 
     useEffect(() => {
-        // Timer countdown
-        if (exercise?.hasTimer && exercise.timerMinutes && timeRemaining === null) {
+        if (exercise?.hasTimer && exercise.timerMinutes && timeRemaining === null && !alreadyAttempted) {
             setTimeRemaining(exercise.timerMinutes * 60);
         }
+    }, [exercise, timeRemaining, alreadyAttempted]);
 
-        if (timeRemaining !== null && timeRemaining > 0) {
-            const interval = setInterval(() => {
-                setTimeRemaining(prev => {
-                    if (prev && prev > 0) {
-                        return prev - 1;
-                    }
-                    return 0;
-                });
-            }, 1000);
-            return () => clearInterval(interval);
+    useEffect(() => {
+        if (timeRemaining === null || timeRemaining <= 0 || result || submitting) {
+            return;
         }
 
-        // Auto submit when time runs out
-        if (timeRemaining === 0 && !result && !submitting) {
-            handleSubmit();
-        }
-    }, [exercise, timeRemaining, result, submitting]);
+        const interval = window.setInterval(() => {
+            setTimeRemaining((prev) => {
+                if (prev === null) {
+                    return prev;
+                }
 
-    const fetchExercise = async () => {
-        try {
-            setLoading(true);
-            const data = await classesAPI.getExercise(classId!, exerciseId!);
-            setExercise(data);
-            
-            // Check if already attempted
-            if (data.attempts && data.attempts.length > 0) {
-                setAlreadyAttempted(true);
-                setResult({
-                    isCorrect: data.attempts[0].isCorrect,
-                    score: data.attempts[0].score,
-                    message: data.attempts[0].isCorrect ? 'Jawaban Benar!' : 'Jawaban Salah'
-                });
-            }
-        } catch (error) {
-            console.error('Failed to fetch exercise:', error);
-        } finally {
-            setLoading(false);
+                return prev > 0 ? prev - 1 : 0;
+            });
+        }, 1000);
+
+        return () => window.clearInterval(interval);
+    }, [timeRemaining, result, submitting]);
+
+    useEffect(() => {
+        if (timeRemaining === 0 && !result && !submitting && !alreadyAttempted) {
+            void handleSubmit();
         }
-    };
+    }, [timeRemaining, result, submitting, alreadyAttempted]);
+
+    const options = useMemo(() => parseOptions(exercise?.options), [exercise?.options]);
+    const promptCanvasState = useMemo(() => parseCanvasState(exercise?.canvasState), [exercise?.canvasState]);
 
     const handleSubmit = async () => {
-        if (alreadyAttempted) return;
-        
-        let answer;
-        if (exercise?.answerType === 'multiple_choice') {
+        if (!exercise || !classId || !exerciseId || alreadyAttempted) {
+            return;
+        }
+
+        let answer: string | undefined;
+        if (exercise.answerType === 'multiple_choice') {
             answer = selectedAnswer;
-        } else if (exercise?.answerType === 'numeric') {
+        } else if (exercise.answerType === 'numeric') {
             answer = numericAnswer;
-        } else if (exercise?.answerType === 'canvas') {
+        } else if (exercise.answerType === 'canvas') {
             answer = 'canvas_submission';
         }
 
-        if (!answer && exercise?.answerType !== 'canvas') {
-            alert('Pilih atau isi jawaban terlebih dahulu!');
+        if (!answer && exercise.answerType !== 'canvas') {
+            alert('Pilih atau isi jawaban terlebih dahulu.');
             return;
         }
 
         try {
             setSubmitting(true);
-            const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+            const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
             const currentCanvasState = canvasRef.current?.getState?.();
-            
-            const response = await classesAPI.submitExerciseAttempt(classId!, exerciseId!, {
+            const response = await classesAPI.submitExerciseAttempt(classId, exerciseId, {
                 answer,
                 canvasData: currentCanvasState ? JSON.stringify(currentCanvasState) : undefined,
                 timeSpent
             });
 
+            setAlreadyAttempted(true);
             setResult({
+                gradingStatus: response.gradingStatus,
                 isCorrect: response.isCorrect,
                 score: response.score,
-                message: response.message
+                message: response.message,
+                feedback: response.attempt.feedback,
+                gradedAt: response.attempt.gradedAt
             });
-            setAlreadyAttempted(true);
         } catch (error: unknown) {
-            console.error('Failed to submit:', error);
-            if (error && typeof error === 'object' && 'message' in error) {
-                const err = error as { message: string };
-                if (err.message.includes('Already attempted')) {
-                    setAlreadyAttempted(true);
-                    alert('Kamu sudah mengerjakan latihan ini!');
-                } else {
-                    alert('Gagal mengirim jawaban');
-                }
+            console.error('Failed to submit attempt', error);
+            if (error instanceof Error && error.message.includes('Already attempted')) {
+                setAlreadyAttempted(true);
+                alert('Latihan ini sudah pernah kamu kirim.');
+                return;
             }
+
+            alert('Gagal mengirim jawaban.');
         } finally {
             setSubmitting(false);
         }
     };
 
-    const formatTime = (seconds: number): string => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const difficultyLabels: Record<string, { text: string; color: string; bg: string }> = {
-        easy: { text: 'Mudah', color: '#22c55e', bg: '#dcfce7' },
-        medium: { text: 'Sedang', color: '#f59e0b', bg: '#fef3c7' },
-        hard: { text: 'Sulit', color: '#ef4444', bg: '#fee2e2' }
-    };
-
     if (loading) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <div className="animate-spin" style={{ width: 48, height: 48, border: '4px solid #e2e8f0', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Loader2 size={42} className="animate-spin" color="var(--primary)" />
             </div>
         );
     }
 
     if (!exercise) {
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', gap: '1rem' }}>
-                <AlertCircle size={48} color="#ef4444" />
-                <p style={{ fontSize: '1.25rem', fontWeight: '600' }}>Latihan tidak ditemukan</p>
-                <button
-                    onClick={() => navigate(`/student/class/${classId}/exercises`)}
-                    style={{
-                        background: 'var(--primary)',
-                        color: 'white',
-                        padding: '0.75rem 1.5rem',
-                        border: 'none',
-                        borderRadius: '0.5rem',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Kembali
-                </button>
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                <div className="card glass" style={{ padding: '2rem', textAlign: 'center', maxWidth: '420px' }}>
+                    <AlertCircle size={42} color="#ef4444" style={{ marginBottom: '1rem' }} />
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.5rem' }}>
+                        Latihan tidak ditemukan
+                    </h2>
+                    <p style={{ color: '#64748b', marginBottom: '1rem' }}>
+                        Coba kembali ke daftar latihan kelas.
+                    </p>
+                    <button className="btn btn-primary" onClick={() => navigate(`/student/class/${classId}/exercises`)}>
+                        Kembali
+                    </button>
+                </div>
             </div>
         );
     }
 
-    const difficulty = difficultyLabels[exercise.difficulty] || difficultyLabels.medium;
-    const options: ExerciseOption[] = exercise.options ? JSON.parse(exercise.options) : [];
-    const canvasState: CanvasState | undefined = exercise.canvasState ? JSON.parse(exercise.canvasState) : undefined;
+    const difficultyConfig: Record<string, { label: string; background: string; color: string }> = {
+        easy: { label: 'Mudah', background: '#dcfce7', color: '#166534' },
+        medium: { label: 'Sedang', background: '#fef3c7', color: '#92400e' },
+        hard: { label: 'Sulit', background: '#fee2e2', color: '#b91c1c' }
+    };
+    const difficulty = difficultyConfig[exercise.difficulty] || difficultyConfig.medium;
+
+    const resultMeta = result?.gradingStatus === 'pending_review'
+        ? {
+            background: 'linear-gradient(135deg, #0f766e, #0ea5e9)',
+            icon: <Clock3 size={42} />,
+            title: 'Menunggu Penilaian'
+        }
+        : result?.isCorrect
+            ? {
+                background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                icon: <Trophy size={42} />,
+                title: 'Jawaban Tuntas'
+            }
+            : result
+                ? {
+                    background: 'linear-gradient(135deg, #dc2626, #f97316)',
+                    icon: <XCircle size={42} />,
+                    title: 'Sudah Dinilai'
+                }
+                : null;
 
     return (
-        <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)' }}>
-            {/* Header */}
-            <div style={{
-                background: 'white',
-                borderBottom: '1px solid #e2e8f0',
-                padding: '1rem 2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                position: 'sticky',
-                top: 0,
-                zIndex: 100
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <button
-                        onClick={() => navigate(`/student/class/${classId}/exercises`)}
-                        style={{
-                            background: '#f1f5f9',
-                            border: 'none',
-                            padding: '0.5rem',
-                            borderRadius: '0.5rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
-                        }}
-                    >
-                        <ArrowLeft size={20} />
-                    </button>
-                    <div>
-                        <h1 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' }}>
-                            {exercise.title}
-                        </h1>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
-                            <span style={{ 
-                                fontSize: '0.75rem', 
-                                padding: '0.25rem 0.5rem', 
-                                background: difficulty.bg, 
-                                color: difficulty.color,
-                                borderRadius: '1rem',
-                                fontWeight: '600'
-                            }}>
-                                {difficulty.text}
-                            </span>
-                            <span style={{ fontSize: '0.875rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <Zap size={14} color="#f59e0b" /> {exercise.points} XP
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Timer */}
-                {exercise.hasTimer && timeRemaining !== null && !result && (
-                    <div style={{
+        <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)' }}>
+            <header
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 20,
+                    borderBottom: '1px solid #e2e8f0',
+                    background: 'rgba(255, 255, 255, 0.88)',
+                    backdropFilter: 'blur(14px)'
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: '1200px',
+                        margin: '0 auto',
+                        padding: '1rem 1.5rem',
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.75rem 1.5rem',
-                        background: timeRemaining < 60 ? '#fee2e2' : '#f1f5f9',
-                        borderRadius: '2rem',
-                        animation: timeRemaining < 60 ? 'pulse 1s infinite' : 'none'
-                    }}>
-                        <Timer size={20} color={timeRemaining < 60 ? '#ef4444' : '#64748b'} />
-                        <span style={{ 
-                            fontSize: '1.5rem', 
-                            fontWeight: '700', 
-                            fontFamily: 'monospace',
-                            color: timeRemaining < 60 ? '#ef4444' : '#1e293b'
-                        }}>
-                            {formatTime(timeRemaining)}
-                        </span>
-                    </div>
-                )}
-            </div>
-
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' }}>
-                {/* Result Banner */}
-                {result && (
-                    <div style={{
-                        marginBottom: '1.5rem',
-                        padding: '1.5rem',
-                        background: result.isCorrect 
-                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' 
-                            : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                        borderRadius: '1rem',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            {result.isCorrect ? <Trophy size={48} /> : <XCircle size={48} />}
-                            <div>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: '700' }}>
-                                    {result.isCorrect ? '🎉 Selamat!' : '😔 Coba Lagi Ya!'}
-                                </h2>
-                                <p style={{ opacity: 0.9 }}>{result.message}</p>
-                            </div>
-                        </div>
-                        {result.isCorrect && (
-                            <div style={{ 
-                                background: 'rgba(255,255,255,0.2)', 
-                                padding: '1rem 1.5rem', 
-                                borderRadius: '0.75rem',
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ fontSize: '2rem', fontWeight: '700' }}>+{result.score}</div>
-                                <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>XP Earned</div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Instructions */}
-                {exercise.instructions && (
-                    <div className="card glass" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontWeight: '600', marginBottom: '0.5rem', color: '#374151' }}>📋 Instruksi</h3>
-                        <p style={{ color: '#64748b', lineHeight: 1.6 }}>{exercise.instructions}</p>
-                    </div>
-                )}
-
-                {/* Canvas Visualization */}
-                {canvasState && (
-                    <div className="card glass" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontWeight: '700', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            📐 Visualisasi
-                        </h3>
-                        <div style={{ 
-                            border: '2px solid #e2e8f0', 
-                            borderRadius: '0.75rem', 
-                            overflow: 'hidden',
-                            background: '#fafafa'
-                        }}>
-                            <GeometryCanvas
-                                ref={exercise.canvasMode === 'interactive' ? canvasRef : undefined}
-                                width={800}
-                                height={450}
-                                initialState={canvasState}
-                            />
-                        </div>
-                        {exercise.canvasMode === 'interactive' && !result && (
-                            <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.75rem', textAlign: 'center' }}>
-                                💡 Kamu bisa menggambar di canvas untuk menjawab soal
-                            </p>
-                        )}
-                    </div>
-                )}
-
-                {/* Answer Section */}
-                {!result && (
-                    <div className="card glass" style={{ padding: '1.5rem' }}>
-                        <h3 style={{ fontWeight: '700', marginBottom: '1.25rem' }}>✏️ Jawaban</h3>
-
-                        {exercise.answerType === 'multiple_choice' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {options.map((option, idx) => (
-                                    <button
-                                        key={option.id}
-                                        onClick={() => setSelectedAnswer(option.id)}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '1rem',
-                                            padding: '1rem 1.25rem',
-                                            background: selectedAnswer === option.id 
-                                                ? 'linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%)' 
-                                                : 'white',
-                                            color: selectedAnswer === option.id ? 'white' : '#374151',
-                                            border: selectedAnswer === option.id 
-                                                ? 'none' 
-                                                : '2px solid #e2e8f0',
-                                            borderRadius: '0.75rem',
-                                            cursor: 'pointer',
-                                            fontSize: '1rem',
-                                            textAlign: 'left',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        <span style={{
-                                            width: 32,
-                                            height: 32,
-                                            borderRadius: '50%',
-                                            background: selectedAnswer === option.id ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontWeight: '700',
-                                            flexShrink: 0
-                                        }}>
-                                            {String.fromCharCode(65 + idx)}
-                                        </span>
-                                        <span>{option.text}</span>
-                                        {selectedAnswer === option.id && <CheckCircle size={20} style={{ marginLeft: 'auto' }} />}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {exercise.answerType === 'numeric' && (
-                            <div>
-                                <input
-                                    type="number"
-                                    value={numericAnswer}
-                                    onChange={(e) => setNumericAnswer(e.target.value)}
-                                    placeholder="Masukkan jawaban angka..."
-                                    step="0.01"
-                                    style={{
-                                        width: '100%',
-                                        padding: '1rem',
-                                        fontSize: '1.25rem',
-                                        border: '2px solid #e2e8f0',
-                                        borderRadius: '0.75rem',
-                                        textAlign: 'center'
-                                    }}
-                                />
-                            </div>
-                        )}
-
-                        {exercise.answerType === 'canvas' && (
-                            <div style={{ 
-                                padding: '1rem', 
-                                background: '#f8fafc', 
-                                borderRadius: '0.75rem',
-                                textAlign: 'center',
-                                color: '#64748b'
-                            }}>
-                                <p>Gambar jawabanmu di canvas di atas, lalu klik "Kirim Jawaban"</p>
-                            </div>
-                        )}
-
-                        {/* Submit Button */}
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting || alreadyAttempted}
-                            style={{
-                                width: '100%',
-                                marginTop: '1.5rem',
-                                padding: '1rem',
-                                background: submitting || alreadyAttempted 
-                                    ? '#94a3b8' 
-                                    : 'linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '0.75rem',
-                                fontSize: '1.1rem',
-                                fontWeight: '700',
-                                cursor: submitting || alreadyAttempted ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem'
-                            }}
-                        >
-                            <Send size={20} />
-                            {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
-                        </button>
-                    </div>
-                )}
-
-                {/* Back button after result */}
-                {result && (
-                    <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+                        gap: '1rem',
+                        flexWrap: 'wrap'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <button
                             onClick={() => navigate(`/student/class/${classId}/exercises`)}
                             style={{
-                                padding: '1rem 2rem',
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '999px',
+                                border: '1px solid #e2e8f0',
                                 background: 'white',
-                                border: '2px solid var(--primary)',
-                                color: 'var(--primary)',
-                                borderRadius: '0.75rem',
-                                fontSize: '1rem',
-                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 cursor: 'pointer'
                             }}
                         >
-                            ← Kembali ke Daftar Latihan
+                            <ArrowLeft size={18} />
                         </button>
+                        <div>
+                            <h1 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.3rem' }}>
+                                {exercise.title}
+                            </h1>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                                <span
+                                    style={{
+                                        padding: '0.3rem 0.65rem',
+                                        borderRadius: '999px',
+                                        background: difficulty.background,
+                                        color: difficulty.color,
+                                        fontWeight: '700',
+                                        fontSize: '0.78rem'
+                                    }}
+                                >
+                                    {difficulty.label}
+                                </span>
+                                <span style={{ color: '#475569', fontSize: '0.88rem', fontWeight: '600' }}>
+                                    {exercise.points} XP
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {exercise.hasTimer && timeRemaining !== null && !result && (
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.55rem',
+                                padding: '0.75rem 1rem',
+                                borderRadius: '999px',
+                                background: timeRemaining < 60 ? '#fee2e2' : '#eff6ff',
+                                color: timeRemaining < 60 ? '#b91c1c' : '#1d4ed8',
+                                fontWeight: '800'
+                            }}
+                        >
+                            <Timer size={18} />
+                            <span style={{ fontFamily: 'monospace', fontSize: '1rem' }}>{formatTime(timeRemaining)}</span>
+                        </div>
+                    )}
+                </div>
+            </header>
+
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem' }}>
+                {result && resultMeta && (
+                    <div
+                        style={{
+                            marginBottom: '1.5rem',
+                            padding: '1.4rem 1.5rem',
+                            borderRadius: '1.25rem',
+                            color: 'white',
+                            background: resultMeta.background,
+                            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.14)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                {resultMeta.icon}
+                                <div>
+                                    <h2 style={{ fontSize: '1.35rem', fontWeight: '800', marginBottom: '0.35rem' }}>
+                                        {resultMeta.title}
+                                    </h2>
+                                    <p style={{ opacity: 0.92, lineHeight: 1.6 }}>{result.message}</p>
+                                    {result.feedback && (
+                                        <p style={{ marginTop: '0.75rem', opacity: 0.95 }}>
+                                            Feedback guru: {result.feedback}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    minWidth: '180px',
+                                    padding: '1rem 1.1rem',
+                                    borderRadius: '1rem',
+                                    background: 'rgba(255, 255, 255, 0.14)',
+                                    alignSelf: 'flex-start'
+                                }}
+                            >
+                                <p style={{ fontSize: '0.8rem', opacity: 0.85, marginBottom: '0.35rem' }}>
+                                    {result.gradingStatus === 'pending_review' ? 'Status' : 'Skor'}
+                                </p>
+                                <p style={{ fontSize: '1.7rem', fontWeight: '800' }}>
+                                    {result.gradingStatus === 'pending_review' ? 'Pending' : `${result.score}/${exercise.points}`}
+                                </p>
+                                {result.gradedAt && (
+                                    <p style={{ marginTop: '0.45rem', fontSize: '0.75rem', opacity: 0.85 }}>
+                                        Dinilai {new Date(result.gradedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
-            </div>
 
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.7; }
-                }
-            `}</style>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '1.25rem' }}>
+                    {(exercise.instructions || exercise.description) && (
+                        <div className="card glass" style={{ padding: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.75rem' }}>
+                                Petunjuk
+                            </h2>
+                            <p style={{ color: '#475569', lineHeight: 1.7 }}>
+                                {exercise.instructions || exercise.description}
+                            </p>
+                        </div>
+                    )}
+
+                    {promptCanvasState && (
+                        <div className="card glass" style={{ padding: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1rem' }}>
+                                Area Visual Soal
+                            </h2>
+                            <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0', background: 'white' }}>
+                                <GeometryCanvas
+                                    ref={exercise.canvasMode === 'interactive' && !result ? canvasRef : undefined}
+                                    width={900}
+                                    height={460}
+                                    initialState={promptCanvasState}
+                                />
+                            </div>
+                            {exercise.canvasMode === 'interactive' && !result && (
+                                <p style={{ marginTop: '0.85rem', fontSize: '0.88rem', color: '#64748b' }}>
+                                    Kamu bisa menggambar langsung di canvas bila latihan meminta jawaban visual.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {!result && (
+                        <div className="card glass" style={{ padding: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1rem' }}>
+                                Jawaban Kamu
+                            </h2>
+
+                            {exercise.answerType === 'multiple_choice' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {options.map((option, index) => (
+                                        <button
+                                            key={option.id}
+                                            onClick={() => setSelectedAnswer(option.id)}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.85rem',
+                                                padding: '1rem 1.1rem',
+                                                borderRadius: '1rem',
+                                                border: selectedAnswer === option.id ? '2px solid #6366f1' : '1px solid #e2e8f0',
+                                                background: selectedAnswer === option.id ? '#eef2ff' : 'white',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <span
+                                                style={{
+                                                    width: '34px',
+                                                    height: '34px',
+                                                    borderRadius: '999px',
+                                                    background: selectedAnswer === option.id ? '#6366f1' : '#f1f5f9',
+                                                    color: selectedAnswer === option.id ? 'white' : '#475569',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: '800'
+                                                }}
+                                            >
+                                                {String.fromCharCode(65 + index)}
+                                            </span>
+                                            <span style={{ color: '#0f172a', fontWeight: '600' }}>{option.text}</span>
+                                            {selectedAnswer === option.id && <CheckCircle size={18} color="#6366f1" style={{ marginLeft: 'auto' }} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {exercise.answerType === 'numeric' && (
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={numericAnswer}
+                                    onChange={(event) => setNumericAnswer(event.target.value)}
+                                    placeholder="Masukkan jawaban numerik"
+                                    style={{
+                                        width: '100%',
+                                        padding: '1rem 1.1rem',
+                                        borderRadius: '1rem',
+                                        border: '1px solid #cbd5e1',
+                                        background: 'white',
+                                        textAlign: 'center',
+                                        fontSize: '1.15rem',
+                                        fontWeight: '700'
+                                    }}
+                                />
+                            )}
+
+                            {exercise.answerType === 'canvas' && (
+                                <div
+                                    style={{
+                                        padding: '1rem 1.1rem',
+                                        borderRadius: '1rem',
+                                        background: '#eff6ff',
+                                        color: '#1d4ed8',
+                                        border: '1px solid #bfdbfe',
+                                        lineHeight: 1.7
+                                    }}
+                                >
+                                    Gambar jawabanmu di canvas, lalu kirim untuk direview guru.
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => void handleSubmit()}
+                                disabled={submitting || alreadyAttempted}
+                                style={{
+                                    marginTop: '1.25rem',
+                                    width: '100%',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.6rem',
+                                    padding: '1rem 1.2rem',
+                                    border: 'none',
+                                    borderRadius: '1rem',
+                                    background: submitting || alreadyAttempted
+                                        ? '#94a3b8'
+                                        : 'linear-gradient(135deg, #4f46e5, #2563eb)',
+                                    color: 'white',
+                                    fontWeight: '800',
+                                    cursor: submitting || alreadyAttempted ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                                {submitting ? 'Mengirim jawaban...' : 'Kirim Jawaban'}
+                            </button>
+                        </div>
+                    )}
+
+                    {result && (
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <button
+                                onClick={() => navigate(`/student/class/${classId}/exercises`)}
+                                className="btn btn-secondary"
+                            >
+                                Kembali ke daftar latihan
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

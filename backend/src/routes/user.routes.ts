@@ -28,6 +28,10 @@ router.get('/', authMiddleware, requireRole('ADMIN'), async (req, res) => {
 // Get user by ID
 router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
     try {
+        if (req.user?.id !== req.params.id && req.user?.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Cannot view other users' });
+        }
+
         const user = await prisma.user.findUnique({
             where: { id: req.params.id },
             select: {

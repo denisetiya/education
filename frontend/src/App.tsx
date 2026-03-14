@@ -34,6 +34,7 @@ import { TeacherAnalytics } from './pages/teacher/TeacherAnalytics';
 import { TeacherClassDetail } from './pages/teacher/TeacherClassDetail';
 import { BookEditor } from './pages/teacher/BookEditor';
 import { ExerciseEditor } from './pages/teacher/ExerciseEditor';
+import { ExerciseReview } from './pages/teacher/ExerciseReview';
 import { ExerciseSession } from './pages/student/ExerciseSession';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminOverview } from './pages/admin/AdminOverview';
@@ -69,7 +70,6 @@ function App() {
             <Route path="class/:classId/achievements" element={<ClassAchievements />} />
             <Route path="class/:classId/exercise/:exerciseId" element={<ExerciseSession />} />
             <Route path="geometry" element={<GeometryPractice />} />
-            <Route path="geometry" element={<GeometryPractice />} />
             <Route path="materials" element={<StudentMaterials />} />
             <Route path="materials/:id" element={<StudentMaterialView />} />
             <Route path="library" element={<StudentLibrary />} />
@@ -97,6 +97,7 @@ function App() {
             <Route path="classes/:classId/book-editor/:bookId" element={<BookEditor />} />
             <Route path="classes/:classId/exercise-editor" element={<ExerciseEditor />} />
             <Route path="classes/:classId/exercise-editor/:exerciseId" element={<ExerciseEditor />} />
+            <Route path="classes/:classId/exercise-review/:exerciseId" element={<ExerciseReview />} />
           </Route>
 
           {/* Admin Routes - Protected */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, FileText, Play, CheckCircle, Lock, Loader, BookOpen } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { FileText, Loader, BookOpen } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 
 interface MaterialItem {
@@ -19,7 +19,6 @@ interface Module {
 
 export const ClassMaterials: React.FC = () => {
     const { classId } = useParams<{ classId: string }>();
-    const navigate = useNavigate();
     const [modules, setModules] = useState<Module[]>([]);
     const [loading, setLoading] = useState(true);
     const [className, setClassName] = useState('');

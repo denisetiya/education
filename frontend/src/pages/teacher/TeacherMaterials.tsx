@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List } from 'lucide-react';
 import { materialsAPI } from '../../utils/api';
 import { RichTextEditor } from '../../components/RichTextEditor';
@@ -64,6 +65,7 @@ const initialFormData: MaterialFormData = {
 };
 
 export const TeacherMaterials: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [materials, setMaterials] = useState<Material[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export const TeacherMaterials: React.FC = () => {
         fetchQuizzes();
     }, [fetchMaterials, fetchQuizzes]);
 
-    const handleOpenCreate = () => {
+    const handleOpenCreate = React.useCallback(() => {
         setFormData(initialFormData);
         setSpecificData({
             videoUrl: '',
@@ -159,7 +161,18 @@ export const TeacherMaterials: React.FC = () => {
         setEditingId(null);
         setFormError(null);
         setShowModal(true);
-    };
+    }, []);
+
+    useEffect(() => {
+        if (searchParams.get('create') !== '1') {
+            return;
+        }
+
+        handleOpenCreate();
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('create');
+        setSearchParams(nextParams, { replace: true });
+    }, [handleOpenCreate, searchParams, setSearchParams]);
 
     const handleOpenEdit = (material: Material) => {
         const baseData: MaterialFormData = {

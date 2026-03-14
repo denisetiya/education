@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { 
     ArrowLeft, Users, BookOpen, Settings, Copy, Plus,
     Award, BarChart3, Clock, ExternalLink, FileText, X,
     Library, Edit, Trash2, FileUp, Type, PenTool
 } from 'lucide-react';
 import { classesAPI, modulesAPI } from '../../utils/api';
+import { TeacherExercisesTab } from './TeacherExercisesTab';
 
 interface ClassData {
     id: string;
@@ -66,17 +67,30 @@ interface ClassBook {
     createdAt: string;
 }
 
+type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'library' | 'settings';
+
+const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'library', 'settings'];
+
+const getTeacherTab = (value: string | null): TeacherTab => {
+    if (value && teacherTabs.includes(value as TeacherTab)) {
+        return value as TeacherTab;
+    }
+
+    return 'overview';
+};
+
 export const TeacherClassDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [classData, setClassData] = useState<ClassData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'students' | 'exercises' | 'library' | 'settings'>('overview');
     const [success, setSuccess] = useState<string | null>(null);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [unassignedModules, setUnassignedModules] = useState<ModuleItem[]>([]);
     const [classModules, setClassModules] = useState<ModuleItem[]>([]);
     const [loadingModules, setLoadingModules] = useState(false);
+    const activeTab = getTeacherTab(searchParams.get('tab'));
     
     // Achievements state
     const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -270,6 +284,18 @@ export const TeacherClassDetail: React.FC = () => {
         }
     }, [activeTab, id]);
 
+    const handleTabChange = (tab: TeacherTab) => {
+        const nextSearchParams = new URLSearchParams(searchParams);
+
+        if (tab === 'overview') {
+            nextSearchParams.delete('tab');
+        } else {
+            nextSearchParams.set('tab', tab);
+        }
+
+        setSearchParams(nextSearchParams, { replace: true });
+    };
+
     const handleCreateBook = async () => {
         if (!id) return;
         try {
@@ -356,7 +382,7 @@ export const TeacherClassDetail: React.FC = () => {
         );
     }
 
-    const tabs = [
+    const tabs: Array<{ id: TeacherTab; label: string; icon: React.ReactNode }> = [
         { id: 'overview', label: 'Ringkasan', icon: <BarChart3 size={18} /> },
         { id: 'curriculum', label: 'Kurikulum', icon: <BookOpen size={18} /> },
         { id: 'students', label: 'Siswa', icon: <Users size={18} /> },
@@ -480,7 +506,7 @@ export const TeacherClassDetail: React.FC = () => {
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                        onClick={() => handleTabChange(tab.id)}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.5rem',
                             padding: '0.75rem 1.25rem',
@@ -713,7 +739,7 @@ export const TeacherClassDetail: React.FC = () => {
                 )}
 
                 {activeTab === 'exercises' && (
-                    <ExercisesTabContent classId={id!} navigate={navigate} />
+                    <TeacherExercisesTab classId={id!} navigate={navigate} />
                 )}
 
                 {activeTab === 'library' && (
@@ -1349,7 +1375,7 @@ interface ExercisesTabContentProps {
 interface ExerciseItem {
     id: string;
     title: string;
-    description?: string;
+    description?: string | null;
     difficulty: string;
     points: number;
     hasTimer: boolean;
@@ -1359,7 +1385,7 @@ interface ExerciseItem {
     attempts?: Array<{ id: string }>;
 }
 
-const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classId, navigate }) => {
+export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classId, navigate }) => {
     const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
     const [loading, setLoading] = React.useState(true);
 
@@ -1371,7 +1397,7 @@ const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classId, navi
         try {
             setLoading(true);
             const data = await classesAPI.getExercises(classId);
-            setExercises(data);
+            setExercises(data as ExerciseItem[]);
         } catch (error) {
             console.error('Failed to fetch exercises:', error);
         } finally {

@@ -235,6 +235,9 @@ model ExerciseAttempt {
   canvasData  String?  // JSON: submitted canvas state (for canvas answer type)
   isCorrect   Boolean  @default(false)
   score       Int      @default(0)
+  gradingStatus String @default("graded") // graded, pending_review
+  feedback    String?
+  gradedAt    DateTime?
   timeSpent   Int      @default(0) // in seconds
   
   createdAt   DateTime @default(now())

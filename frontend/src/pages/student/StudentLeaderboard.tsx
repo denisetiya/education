@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, TrendingUp, Loader } from 'lucide-react';
 import { leaderboardAPI } from '../../utils/api';
-
-interface LeaderboardEntry {
-    rank: number;
-    id: string;
-    name: string;
-    xp: number;
-    level: number;
-    avatar: string | null;
-}
+import type { LeaderboardEntry } from '../../types/api.types';
 
 const avatars = ['👨‍🎓', '👩‍🎓', '🧑‍💻', '👩‍🔬', '👨‍🚀', '👩‍🎨', '🧑‍🔧'];
 
@@ -44,6 +36,45 @@ export const StudentLeaderboard: React.FC = () => {
         return (
             <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
                 <p style={{ color: 'var(--error)' }}>Gagal memuat leaderboard: {error}</p>
+            </div>
+        );
+    }
+
+    if (leaderboard.length === 0) {
+        return (
+            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+                <p style={{ color: 'var(--text-muted)' }}>Belum ada data leaderboard.</p>
+            </div>
+        );
+    }
+
+    if (leaderboard.length < 3) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                    <h1 className="text-gradient" style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>Papan Peringkat Kelas</h1>
+                    <p style={{ color: 'var(--text-muted)' }}>Top siswa dengan XP tertinggi minggu ini</p>
+                </div>
+                <div className="card glass" style={{ padding: '0', overflow: 'hidden' }}>
+                    {leaderboard.map((student, index) => (
+                        <div key={student.id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '1rem 1.5rem',
+                            borderBottom: index !== leaderboard.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none'
+                        }}>
+                            <div style={{ width: '30px', fontWeight: 'bold', color: 'var(--text-muted)' }}>{student.rank}</div>
+                            <div style={{ marginLeft: '1rem', width: '40px', height: '40px', background: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                                {student.avatar || avatars[index % avatars.length]}
+                            </div>
+                            <div style={{ marginLeft: '1rem', flex: 1 }}>
+                                <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{student.name}</div>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Level {student.level}</div>
+                            </div>
+                            <div style={{ fontWeight: 'bold', marginRight: '1rem', color: 'var(--text-muted)' }}>{student.xp} XP</div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
