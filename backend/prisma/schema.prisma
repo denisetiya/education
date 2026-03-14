@@ -30,6 +30,8 @@ model User {
   enrolledClasses  ClassEnrollment[]
   classAchievements StudentClassAchievement[]
   exerciseAttempts  ExerciseAttempt[]
+  discussionThreads ClassDiscussionThread[]
+  discussionReplies ClassDiscussionReply[]
 }
 
 model Material {
@@ -101,6 +103,7 @@ model Class {
   achievements ClassAchievement[]
   books        ClassBook[]
   exercises    ClassExercise[]
+  discussions  ClassDiscussionThread[]
 }
 
 model ClassEnrollment {
@@ -214,6 +217,7 @@ model ClassExercise {
   answerType    String   @default("multiple_choice") // multiple_choice, numeric, canvas, mixed
   correctAnswer String?  // JSON: untuk numeric bisa {value: 42, tolerance: 0.1}
   options       String?  // JSON array: [{id, text, isCorrect}] untuk multiple choice
+  questionSet   String?  // JSON array: multi-question exercise definition
   
   // Status
   isPublished   Boolean  @default(false)
@@ -233,6 +237,7 @@ model ExerciseAttempt {
   id          String   @id @default(uuid())
   answer      String?  // JSON: submitted answer
   canvasData  String?  // JSON: submitted canvas state (for canvas answer type)
+  questionResults String? // JSON: auto-grading result per question
   isCorrect   Boolean  @default(false)
   score       Int      @default(0)
   gradingStatus String @default("graded") // graded, pending_review
@@ -249,5 +254,33 @@ model ExerciseAttempt {
   exerciseId  String
   
   @@unique([studentId, exerciseId])
+}
+
+model ClassDiscussionThread {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId     String
+  author      User     @relation(fields: [authorId], references: [id])
+  authorId    String
+  replies     ClassDiscussionReply[]
+}
+
+model ClassDiscussionReply {
+  id          String   @id @default(uuid())
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  thread      ClassDiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  authorId    String
 }
 

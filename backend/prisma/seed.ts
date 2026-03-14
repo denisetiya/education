@@ -1,5 +1,11 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../src/utils/prisma';
+import {
+    gradeExerciseSubmission,
+    projectQuestionSetToLegacyFields,
+    serializeQuestionSet,
+    type ExerciseQuestion
+} from '../src/features/exercises/exercise-config';
 
 const PASSWORDS = {
     admin: 'Admin12345',
@@ -8,6 +14,8 @@ const PASSWORDS = {
 } as const;
 
 const resetDatabase = async () => {
+    await prisma.classDiscussionReply.deleteMany();
+    await prisma.classDiscussionThread.deleteMany();
     await prisma.studentClassAchievement.deleteMany();
     await prisma.achievement.deleteMany();
     await prisma.progress.deleteMany();
@@ -501,125 +509,448 @@ async function main() {
         ]
     });
 
-    const exerciseMultipleChoice = await prisma.classExercise.create({
-        data: {
-            classId: geometryClass.id,
-            title: 'Menentukan Sudut Sehadap',
-            description: 'Pilih besar sudut yang benar dari gambar dua garis sejajar.',
-            instructions: '<p>Amati ilustrasi dan pilih jawaban yang sesuai.</p>',
-            exerciseType: 'geometry',
-            difficulty: 'easy',
+    const graphCanvasState = {
+        objects: [],
+        measurements: [],
+        functions: [
+            {
+                id: 'fn_parabola',
+                expression: 'x^2',
+                displayName: 'y = x^2',
+                color: '#e11d48',
+                visible: true
+            }
+        ],
+        selectedObjectId: null,
+        currentTool: 'select',
+        zoom: 1,
+        pan: { x: 0, y: 0 },
+        gridEnabled: true,
+        snapToGrid: true
+    };
+
+    const constructionCanvasState = {
+        objects: [],
+        measurements: [],
+        functions: [],
+        selectedObjectId: null,
+        currentTool: 'select',
+        zoom: 1,
+        pan: { x: 0, y: 0 },
+        gridEnabled: true,
+        snapToGrid: true
+    };
+
+    const createClassExercise = async (config: {
+        classId: string;
+        title: string;
+        description: string;
+        instructions: string;
+        exerciseType: string;
+        difficulty: string;
+        hasTimer?: boolean;
+        timerMinutes?: number | null;
+        isPublished: boolean;
+        order: number;
+        questions: ExerciseQuestion[];
+    }) => {
+        const projected = projectQuestionSetToLegacyFields(config.questions);
+
+        return prisma.classExercise.create({
+            data: {
+                classId: config.classId,
+                title: config.title,
+                description: config.description,
+                instructions: config.instructions,
+                exerciseType: config.exerciseType,
+                difficulty: config.difficulty,
+                hasTimer: Boolean(config.hasTimer),
+                timerMinutes: config.hasTimer ? config.timerMinutes ?? null : null,
+                isPublished: config.isPublished,
+                order: config.order,
+                questionSet: serializeQuestionSet(config.questions),
+                points: projected.points,
+                answerType: projected.answerType,
+                correctAnswer: projected.correctAnswer,
+                options: projected.options,
+                canvasState: projected.canvasState,
+                canvasMode: projected.canvasMode
+            }
+        });
+    };
+
+    const exerciseGraphQuestions: ExerciseQuestion[] = [
+        {
+            id: 'grafik_1',
+            title: 'Baca nilai fungsi',
+            prompt: 'Grafik parabola telah ditampilkan. Berapa nilai y saat x = 3?',
+            type: 'numeric',
             points: 10,
-            answerType: 'multiple_choice',
-            correctAnswer: JSON.stringify({ id: 'opt_b' }),
-            options: JSON.stringify([
-                { id: 'opt_a', text: '60 derajat', isCorrect: false },
-                { id: 'opt_b', text: '80 derajat', isCorrect: true },
-                { id: 'opt_c', text: '100 derajat', isCorrect: false }
-            ]),
-            isPublished: true,
-            order: 1
+            correctValue: 9,
+            tolerance: 0,
+            placeholder: 'Contoh: 9',
+            manualReview: false,
+            visual: {
+                enabled: true,
+                canvasState: graphCanvasState,
+                canvasMode: 'readonly',
+                showFunctionPanel: false,
+                hideFunctionExpressions: true,
+                showCoordinates: false,
+                showToolbar: false,
+                compactToolbar: true
+            }
+        },
+        {
+            id: 'grafik_2',
+            title: 'Sumbu simetri',
+            prompt: 'Berdasarkan grafik yang sama, sumbu simetri parabola adalah...',
+            type: 'multiple_choice',
+            points: 8,
+            options: [
+                { id: 'axis_a', text: 'x = -1' },
+                { id: 'axis_b', text: 'x = 0', isCorrect: true },
+                { id: 'axis_c', text: 'y = 0' }
+            ],
+            correctOptionId: 'axis_b',
+            manualReview: false,
+            visual: {
+                enabled: true,
+                canvasState: graphCanvasState,
+                canvasMode: 'readonly',
+                showFunctionPanel: false,
+                hideFunctionExpressions: true,
+                showCoordinates: false,
+                showToolbar: false,
+                compactToolbar: true
+            }
+        },
+        {
+            id: 'grafik_3',
+            title: 'Luas bangun datar',
+            prompt: 'Sebuah persegi panjang memiliki panjang 8 cm dan lebar 3 cm. Berapa luasnya?',
+            type: 'shape_area',
+            points: 12,
+            correctValue: 24,
+            tolerance: 0,
+            placeholder: 'Masukkan luas tanpa satuan',
+            manualReview: false,
+            shape: {
+                shapeType: 'rectangle',
+                measurements: [
+                    { label: 'Panjang', value: 8, unit: 'cm' },
+                    { label: 'Lebar', value: 3, unit: 'cm' }
+                ],
+                formulaHint: 'Luas = panjang x lebar'
+            }
         }
-    });
+    ];
 
-    const exerciseNumeric = await prisma.classExercise.create({
-        data: {
-            classId: geometryClass.id,
-            title: 'Hitung Luas Persegi',
-            description: 'Sebuah persegi memiliki sisi 7 cm. Hitung luasnya.',
-            instructions: '<p>Masukkan jawaban numerik tanpa satuan.</p>',
-            exerciseType: 'calculation',
-            difficulty: 'easy',
+    const exercisePlaneShapeQuestions: ExerciseQuestion[] = [
+        {
+            id: 'bangun_1',
+            title: 'Keliling persegi',
+            prompt: 'Hitung keliling persegi dengan panjang sisi 7 cm.',
+            type: 'shape_perimeter',
+            points: 10,
+            correctValue: 28,
+            tolerance: 0,
+            placeholder: 'Jawaban tanpa satuan',
+            manualReview: false,
+            shape: {
+                shapeType: 'square',
+                measurements: [
+                    { label: 'Sisi', value: 7, unit: 'cm' }
+                ],
+                formulaHint: 'Keliling = 4 x sisi'
+            }
+        },
+        {
+            id: 'bangun_2',
+            title: 'Luas segitiga',
+            prompt: 'Sebuah segitiga memiliki alas 10 cm dan tinggi 6 cm. Tentukan luasnya.',
+            type: 'numeric',
+            points: 10,
+            correctValue: 30,
+            tolerance: 0,
+            placeholder: 'Jawaban tanpa satuan',
+            manualReview: false
+        },
+        {
+            id: 'bangun_3',
+            title: 'Identifikasi bangun',
+            prompt: 'Bangun datar yang semua sisinya sama panjang dan semua sudutnya siku-siku disebut...',
+            type: 'short_text',
+            points: 5,
+            acceptedText: 'persegi',
+            manualReview: false,
+            placeholder: 'Tulis nama bangun datar'
+        }
+    ];
+
+    const exerciseConstructionQuestions: ExerciseQuestion[] = [
+        {
+            id: 'konstruksi_1',
+            title: 'Gambar segitiga sama kaki',
+            prompt: 'Gunakan canvas untuk menggambar segitiga sama kaki. Tandai dua sisi yang sama panjang.',
+            type: 'canvas',
             points: 15,
-            answerType: 'numeric',
-            correctAnswer: JSON.stringify({ value: 49, tolerance: 0 }),
-            isPublished: true,
-            order: 2
+            manualReview: true,
+            visual: {
+                enabled: true,
+                canvasState: constructionCanvasState,
+                canvasMode: 'interactive',
+                showFunctionPanel: false,
+                hideFunctionExpressions: true,
+                showCoordinates: false,
+                showToolbar: true,
+                compactToolbar: true
+            }
+        },
+        {
+            id: 'konstruksi_2',
+            title: 'Jelaskan alasan',
+            prompt: 'Tuliskan singkat bagaimana kamu memastikan dua sisinya sama panjang.',
+            type: 'short_text',
+            points: 5,
+            manualReview: true,
+            placeholder: 'Jelaskan cara kamu menggambar'
         }
+    ];
+
+    const draftExerciseQuestions: ExerciseQuestion[] = [
+        {
+            id: 'draft_1',
+            title: 'Refleksi titik',
+            prompt: 'Bayangan titik (2, 4) terhadap sumbu-Y adalah...',
+            type: 'multiple_choice',
+            points: 10,
+            options: [
+                { id: 'draft_a', text: '(2, -4)' },
+                { id: 'draft_b', text: '(-2, 4)', isCorrect: true },
+                { id: 'draft_c', text: '(-4, 2)' }
+            ],
+            correctOptionId: 'draft_b',
+            manualReview: false
+        },
+        {
+            id: 'draft_2',
+            title: 'Skala dilatasi',
+            prompt: 'Jika titik (3, 2) didilatasi terhadap titik asal dengan skala 2, koordinat barunya adalah...',
+            type: 'short_text',
+            acceptedText: '(6, 4)',
+            points: 8,
+            manualReview: false,
+            placeholder: 'Contoh: (6, 4)'
+        }
+    ];
+
+    const exerciseGraph = await createClassExercise({
+        classId: geometryClass.id,
+        title: 'Paket Grafik Fungsi dan Luas',
+        description: 'Latihan grafik fungsi dengan rumus disembunyikan dan satu soal luas bangun datar.',
+        instructions: '<p>Kerjakan setiap soal secara berurutan. Beberapa soal memakai visual grafik, tetapi rumus sengaja disembunyikan untuk siswa.</p>',
+        exerciseType: 'algebra_visual',
+        difficulty: 'medium',
+        hasTimer: true,
+        timerMinutes: 12,
+        isPublished: true,
+        order: 1,
+        questions: exerciseGraphQuestions
     });
 
-    const exerciseCanvas = await prisma.classExercise.create({
-        data: {
-            classId: geometryClass.id,
-            title: 'Gambar Segitiga Sama Kaki',
-            description: 'Buat sketsa segitiga sama kaki dengan penjelasan singkat.',
-            instructions: '<p>Gunakan canvas untuk menggambar, lalu kirim hasilnya untuk dinilai guru.</p>',
-            exerciseType: 'geometry',
-            difficulty: 'medium',
-            points: 20,
-            canvasState: JSON.stringify({
-                elements: [],
-                viewport: { zoom: 1, x: 0, y: 0 }
-            }),
-            canvasMode: 'interactive',
-            answerType: 'canvas',
-            isPublished: true,
-            order: 3
-        }
+    const exercisePlaneShapes = await createClassExercise({
+        classId: geometryClass.id,
+        title: 'Bangun Datar Dasar',
+        description: 'Fokus pada luas, keliling, dan identifikasi bangun datar.',
+        instructions: '<p>Gunakan rumus bangun datar yang paling tepat, lalu tuliskan jawabanmu.</p>',
+        exerciseType: 'plane_geometry',
+        difficulty: 'easy',
+        isPublished: true,
+        order: 2,
+        questions: exercisePlaneShapeQuestions
     });
 
-    await prisma.classExercise.create({
-        data: {
-            classId: geometryClass.id,
-            title: 'Draft Soal Transformasi',
-            description: 'Draft internal guru untuk materi transformasi geometri.',
-            exerciseType: 'mixed',
-            difficulty: 'hard',
-            points: 25,
-            answerType: 'mixed',
-            isPublished: false,
-            order: 4
-        }
+    const exerciseConstruction = await createClassExercise({
+        classId: geometryClass.id,
+        title: 'Konstruksi Segitiga Sama Kaki',
+        description: 'Latihan menggambar dan menjelaskan hasil konstruksi.',
+        instructions: '<p>Soal ini membutuhkan canvas interaktif dan akan direview langsung oleh guru.</p>',
+        exerciseType: 'constructive_geometry',
+        difficulty: 'medium',
+        isPublished: true,
+        order: 3,
+        questions: exerciseConstructionQuestions
     });
+
+    await createClassExercise({
+        classId: geometryClass.id,
+        title: 'Draft Transformasi Koordinat',
+        description: 'Draft internal guru untuk materi transformasi dan refleksi.',
+        instructions: '<p>Draft ini belum dipublikasikan.</p>',
+        exerciseType: 'mixed',
+        difficulty: 'hard',
+        isPublished: false,
+        order: 4,
+        questions: draftExerciseQuestions
+    });
+
+    const alyaGraphAttempt = gradeExerciseSubmission(exerciseGraphQuestions, [
+        { questionId: 'grafik_1', value: 9 },
+        { questionId: 'grafik_2', value: 'axis_b' },
+        { questionId: 'grafik_3', value: 24 }
+    ]);
+
+    const rezaGraphAttempt = gradeExerciseSubmission(exerciseGraphQuestions, [
+        { questionId: 'grafik_1', value: 6 },
+        { questionId: 'grafik_2', value: 'axis_b' },
+        { questionId: 'grafik_3', value: 18 }
+    ]);
+
+    const alyaPlaneShapeAttempt = gradeExerciseSubmission(exercisePlaneShapeQuestions, [
+        { questionId: 'bangun_1', value: 28 },
+        { questionId: 'bangun_2', value: 30 },
+        { questionId: 'bangun_3', value: 'persegi' }
+    ]);
+
+    const nisaCanvasAttempt = gradeExerciseSubmission(exerciseConstructionQuestions, [
+        {
+            questionId: 'konstruksi_1',
+            canvasState: {
+                objects: [
+                    {
+                        id: 'triangle_student',
+                        type: 'triangle',
+                        points: [
+                            { x: 200, y: 260 },
+                            { x: 360, y: 260 },
+                            { x: 280, y: 120 }
+                        ],
+                        color: '#ef4444',
+                        strokeWidth: 2
+                    }
+                ],
+                measurements: [],
+                functions: [],
+                selectedObjectId: null,
+                currentTool: 'select',
+                zoom: 1,
+                pan: { x: 0, y: 0 },
+                gridEnabled: true,
+                snapToGrid: true
+            }
+        },
+        {
+            questionId: 'konstruksi_2',
+            value: 'Saya membuat dua sisi miring dengan panjang yang sama lalu memeriksa bentuknya.'
+        }
+    ]);
 
     await prisma.exerciseAttempt.createMany({
         data: [
             {
                 studentId: alya.id,
-                exerciseId: exerciseMultipleChoice.id,
-                answer: JSON.stringify('opt_b'),
-                isCorrect: true,
-                score: 10,
-                gradingStatus: 'graded',
-                feedback: 'Jawaban sudah tepat dan alasanmu jelas.',
+                exerciseId: exerciseGraph.id,
+                answer: JSON.stringify(alyaGraphAttempt.normalizedAnswers),
+                canvasData: alyaGraphAttempt.primaryCanvasData,
+                questionResults: JSON.stringify(alyaGraphAttempt.questionResults),
+                isCorrect: alyaGraphAttempt.isCorrect,
+                score: alyaGraphAttempt.score,
+                gradingStatus: alyaGraphAttempt.gradingStatus,
+                feedback: 'Kamu membaca grafik dengan teliti dan rumus luas dipakai dengan benar.',
                 gradedAt: new Date('2026-03-10T09:00:00.000Z'),
-                timeSpent: 90
+                timeSpent: 210
             },
             {
                 studentId: reza.id,
-                exerciseId: exerciseMultipleChoice.id,
-                answer: JSON.stringify('opt_a'),
-                isCorrect: false,
-                score: 0,
-                gradingStatus: 'graded',
-                feedback: 'Perhatikan lagi konsep sudut sehadap pada dua garis sejajar.',
+                exerciseId: exerciseGraph.id,
+                answer: JSON.stringify(rezaGraphAttempt.normalizedAnswers),
+                canvasData: rezaGraphAttempt.primaryCanvasData,
+                questionResults: JSON.stringify(rezaGraphAttempt.questionResults),
+                isCorrect: rezaGraphAttempt.isCorrect,
+                score: rezaGraphAttempt.score,
+                gradingStatus: rezaGraphAttempt.gradingStatus,
+                feedback: 'Sumbu simetri sudah benar, tetapi baca kembali nilai fungsi saat x = 3.',
                 gradedAt: new Date('2026-03-09T10:05:00.000Z'),
-                timeSpent: 140
+                timeSpent: 260
             },
             {
                 studentId: alya.id,
-                exerciseId: exerciseNumeric.id,
-                answer: JSON.stringify(49),
-                isCorrect: true,
-                score: 15,
-                gradingStatus: 'graded',
-                feedback: 'Perhitungan luas persegi sudah benar.',
+                exerciseId: exercisePlaneShapes.id,
+                answer: JSON.stringify(alyaPlaneShapeAttempt.normalizedAnswers),
+                canvasData: alyaPlaneShapeAttempt.primaryCanvasData,
+                questionResults: JSON.stringify(alyaPlaneShapeAttempt.questionResults),
+                isCorrect: alyaPlaneShapeAttempt.isCorrect,
+                score: alyaPlaneShapeAttempt.score,
+                gradingStatus: alyaPlaneShapeAttempt.gradingStatus,
+                feedback: 'Bangun datar dasar sudah kamu kuasai dengan sangat baik.',
                 gradedAt: new Date('2026-03-10T09:10:00.000Z'),
-                timeSpent: 75
+                timeSpent: 175
             },
             {
                 studentId: nisa.id,
-                exerciseId: exerciseCanvas.id,
-                answer: JSON.stringify(null),
-                canvasData: JSON.stringify({
-                    elements: [{ type: 'triangle', points: [[0, 0], [60, 0], [30, 50]] }],
-                    notes: 'Sisi kiri dan kanan dibuat sama panjang.'
-                }),
-                isCorrect: false,
-                score: 0,
-                gradingStatus: 'pending_review',
+                exerciseId: exerciseConstruction.id,
+                answer: JSON.stringify(nisaCanvasAttempt.normalizedAnswers),
+                canvasData: nisaCanvasAttempt.primaryCanvasData,
+                questionResults: JSON.stringify(nisaCanvasAttempt.questionResults),
+                isCorrect: nisaCanvasAttempt.isCorrect,
+                score: nisaCanvasAttempt.score,
+                gradingStatus: nisaCanvasAttempt.gradingStatus,
                 gradedAt: null,
                 timeSpent: 420
+            }
+        ]
+    });
+
+    const aturanDiskusi = await prisma.classDiscussionThread.create({
+        data: {
+            classId: geometryClass.id,
+            authorId: teacher.id,
+            title: 'Aturan forum kelas geometri',
+            content: 'Gunakan forum ini untuk bertanya, berbagi strategi, dan membantu teman. Guru akan mem-pin diskusi penting.',
+            isPinned: true
+        }
+    });
+
+    const threadAlya = await prisma.classDiscussionThread.create({
+        data: {
+            classId: geometryClass.id,
+            authorId: alya.id,
+            title: 'Cara cepat mengenali sumbu simetri parabola',
+            content: 'Aku masih bingung membedakan titik puncak dan sumbu simetri saat rumus tidak ditampilkan.'
+        }
+    });
+
+    const threadReza = await prisma.classDiscussionThread.create({
+        data: {
+            classId: geometryClass.id,
+            authorId: reza.id,
+            title: 'Tips menghitung keliling bangun gabungan',
+            content: 'Kalau bangunnya gabungan dua persegi panjang, langkah mana yang paling aman lebih dulu?'
+        }
+    });
+
+    await prisma.classDiscussionReply.createMany({
+        data: [
+            {
+                threadId: aturanDiskusi.id,
+                authorId: teacherAssistant.id,
+                content: 'Kalau ada pertanyaan remedial, boleh juga kirim contoh jawabanmu di sini.'
+            },
+            {
+                threadId: threadAlya.id,
+                authorId: teacher.id,
+                content: 'Mulai dari garis vertikal yang membagi parabola menjadi dua bagian simetris. Pada contoh kita, garisnya ada di x = 0.'
+            },
+            {
+                threadId: threadAlya.id,
+                authorId: reza.id,
+                content: 'Aku biasanya lihat titik terendah atau tertinggi dulu, lalu tarik garis lurus ke atas.'
+            },
+            {
+                threadId: threadReza.id,
+                authorId: alya.id,
+                content: 'Aku hitung sisi terluar saja, lalu cek lagi apakah ada sisi yang berhimpit.'
             }
         ]
     });

@@ -128,6 +128,7 @@ export interface ExerciseAttemptSummary {
     gradedAt?: string | null;
     answer?: string | null;
     canvasData?: string | null;
+    questionResults?: string | null;
     timeSpent?: number;
     student?: {
         id: string;
@@ -151,8 +152,70 @@ export interface ClassExerciseSummary {
     answerType: string;
     correctAnswer?: string | null;
     options?: string | null;
+    questionSet?: string | null;
+    questionCount?: number;
+    questionTypes?: string[];
     isPublished: boolean;
     attempts?: ExerciseAttemptSummary[];
+}
+
+export interface ClassLeaderboardBadge {
+    id: string;
+    label: string;
+    icon: string;
+    tone: string;
+}
+
+export interface ClassLeaderboardEntry {
+    rank: number;
+    studentId: string;
+    name: string;
+    email: string;
+    avatar?: string | null;
+    level: number;
+    globalXp: number;
+    classXp: number;
+    materialXp: number;
+    exerciseXp: number;
+    achievementXp: number;
+    completionRate: number;
+    completedMaterials: number;
+    discussionCount: number;
+    pendingReviews: number;
+    solvedQuestions: number;
+    isCurrentUser?: boolean;
+    badges: ClassLeaderboardBadge[];
+}
+
+export interface ClassDiscussionReply {
+    id: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    author: {
+        id: string;
+        name: string;
+        role: string;
+    };
+}
+
+export interface ClassDiscussionThread {
+    id: string;
+    title: string;
+    content: string;
+    isPinned: boolean;
+    isLocked: boolean;
+    createdAt: string;
+    updatedAt: string;
+    author: {
+        id: string;
+        name: string;
+        role: string;
+    };
+    replies: ClassDiscussionReply[];
+    _count?: {
+        replies: number;
+    };
 }
 
 export interface TeacherDashboardData {

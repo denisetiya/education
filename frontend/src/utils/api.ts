@@ -1,6 +1,9 @@
 import type {
     AuthResponse,
+    ClassDiscussionReply,
+    ClassDiscussionThread,
     ClassExerciseSummary,
+    ClassLeaderboardEntry,
     ClassItem,
     ExerciseAttemptSummary,
     LeaderboardEntry,
@@ -198,6 +201,32 @@ export const classesAPI = {
     claimAchievement: (classId: string, achievementId: string) =>
         apiFetch<any>(`/classes/${classId}/achievements/${achievementId}/claim`, { method: 'POST' }),
 
+    // Class leaderboard
+    getLeaderboard: (classId: string) => apiFetch<ClassLeaderboardEntry[]>(`/classes/${classId}/leaderboard`),
+
+    // Class discussions
+    getDiscussions: (classId: string) => apiFetch<ClassDiscussionThread[]>(`/classes/${classId}/discussions`),
+    createDiscussion: (classId: string, data: { title: string; content: string }) =>
+        apiFetch<ClassDiscussionThread>(`/classes/${classId}/discussions`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+    replyDiscussion: (classId: string, threadId: string, data: { content: string }) =>
+        apiFetch<ClassDiscussionReply>(`/classes/${classId}/discussions/${threadId}/replies`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        }),
+    pinDiscussion: (classId: string, threadId: string, value: boolean) =>
+        apiFetch<ClassDiscussionThread>(`/classes/${classId}/discussions/${threadId}/pin`, {
+            method: 'PATCH',
+            body: JSON.stringify({ value })
+        }),
+    lockDiscussion: (classId: string, threadId: string, value: boolean) =>
+        apiFetch<ClassDiscussionThread>(`/classes/${classId}/discussions/${threadId}/lock`, {
+            method: 'PATCH',
+            body: JSON.stringify({ value })
+        }),
+
     // Books (Library)
     getBooks: (classId: string) => apiFetch<any[]>(`/classes/${classId}/books`),
     createBook: (classId: string, data: { title: string; author?: string; description?: string; coverUrl?: string; contentType: string; content?: string; pdfUrl?: string }) =>
@@ -224,6 +253,7 @@ export const classesAPI = {
         answerType?: string;
         correctAnswer?: string | null;
         options?: string | null;
+        questionSet?: unknown[];
         isPublished?: boolean;
         order?: number;
     }) => apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises`, { method: 'POST', body: JSON.stringify(data) }),

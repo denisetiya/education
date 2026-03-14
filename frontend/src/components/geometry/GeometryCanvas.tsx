@@ -11,6 +11,13 @@ interface GeometryCanvasProps {
     height?: number;
     onSave?: (data: CanvasState) => void;
     initialState?: CanvasState;
+    readOnly?: boolean;
+    showToolbar?: boolean;
+    showFunctionPanel?: boolean;
+    hideFunctionExpressions?: boolean;
+    showCoordinates?: boolean;
+    compactMode?: boolean;
+    allowedTools?: ToolType[];
 }
 
 export interface GeometryCanvasHandle {
@@ -34,28 +41,37 @@ const initialState: CanvasState = {
     snapToGrid: true
 };
 
+const mergeCanvasState = (savedState?: CanvasState): CanvasState => {
+    if (!savedState) {
+        return initialState;
+    }
+
+    return {
+        ...initialState,
+        ...savedState,
+        objects: savedState.objects || [],
+        measurements: savedState.measurements || [],
+        functions: savedState.functions || []
+    };
+};
+
 export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCanvasProps>(({
     width = 800,
     height = 600,
     onSave,
-    initialState: savedState
+    initialState: savedState,
+    readOnly = false,
+    showToolbar = true,
+    showFunctionPanel = true,
+    hideFunctionExpressions = false,
+    showCoordinates = true,
+    compactMode = false,
+    allowedTools
 }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const [state, setState] = useState<CanvasState>(() => {
-        if (savedState) {
-            return {
-                ...initialState,
-                ...savedState,
-                // Ensure array properties exist even if missing in savedState
-                objects: savedState.objects || [],
-                measurements: savedState.measurements || [],
-                functions: savedState.functions || []
-            };
-        }
-        return initialState;
-    });
+    const [state, setState] = useState<CanvasState>(() => mergeCanvasState(savedState));
     const [history, setHistory] = useState<{ past: CanvasState[]; future: CanvasState[] }>({ past: [], future: [] });
     const [isDrawing, setIsDrawing] = useState(false);
     const [tempPoints, setTempPoints] = useState<Point2D[]>([]);
@@ -68,10 +84,18 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
     // Formula input state
     const [formulaInput, setFormulaInput] = useState('');
     const [formulaError, setFormulaError] = useState<string | null>(null);
+    const buttonSize = compactMode ? 36 : 44;
+    const iconSize = compactMode ? 18 : 20;
+    const colorSwatchSize = compactMode ? 24 : 28;
 
     useImperativeHandle(ref, () => ({
         getState: () => state
     }), [state]);
+
+    useEffect(() => {
+        setState(mergeCanvasState(savedState));
+        setHistory({ past: [], future: [] });
+    }, [savedState]);
 
     useEffect(() => {
         onSave?.(state);
@@ -191,6 +215,7 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Add a new function to the canvas
     const addFunction = () => {
+        if (readOnly) return;
         if (!formulaInput.trim()) return;
         
         // Parse expression (remove "y =" if present)
@@ -228,6 +253,7 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Toggle function visibility
     const toggleFunctionVisibility = (id: string) => {
+        if (readOnly) return;
         setState(prev => ({
             ...prev,
             functions: prev.functions.map(f => 
@@ -238,6 +264,7 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Remove function
     const removeFunction = (id: string) => {
+        if (readOnly) return;
         saveToHistory();
         setState(prev => ({
             ...prev,
@@ -247,6 +274,10 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Handle mouse/touch down
     const handlePointerDown = (e: React.PointerEvent) => {
+        if (readOnly) {
+            return;
+        }
+
         const point = screenToCanvas(e.clientX, e.clientY);
         setMousePos(point);
 
@@ -278,6 +309,10 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
         const point = screenToCanvas(e.clientX, e.clientY);
         setMousePos(point);
 
+        if (readOnly) {
+            return;
+        }
+
         if (isDrawing && state.currentTool === 'pan') {
             setState(prev => ({
                 ...prev,
@@ -296,6 +331,10 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Handle mouse/touch up
     const handlePointerUp = () => {
+        if (readOnly) {
+            return;
+        }
+
         if (!isDrawing && tempPoints.length === 0) return;
 
         const tool = state.currentTool;
@@ -663,6 +702,7 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
 
     // Clear all
     const clearAll = () => {
+        if (readOnly) return;
         saveToHistory();
         setState(prev => ({
             ...prev,
@@ -685,15 +725,18 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
     const renderToolButton = (tool: ToolType, icon: React.ReactNode, label: string) => (
         <button
             key={tool}
+            disabled={readOnly}
             onClick={() => setState(prev => ({ ...prev, currentTool: tool }))}
             title={label}
             style={{
-                padding: '0.5rem',
+                width: `${buttonSize}px`,
+                height: `${buttonSize}px`,
                 background: state.currentTool === tool ? '#eff6ff' : 'transparent',
                 color: state.currentTool === tool ? '#3b82f6' : '#64748b',
                 border: 'none',
                 borderRadius: '0.375rem',
-                cursor: 'pointer',
+                cursor: readOnly ? 'not-allowed' : 'pointer',
+                opacity: readOnly ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -708,19 +751,20 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
         <div ref={containerRef} style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
-            gap: '1rem',
+            gap: compactMode ? '0.75rem' : '1rem',
             background: '#f8fafc',
             borderRadius: '1rem',
-            padding: '1rem',
+            padding: compactMode ? '0.75rem' : '1rem',
             width: '100%',
             maxWidth: '100%',
             overflow: 'hidden'
         }}>
             {/* Toolbar */}
-            <div style={{
+            {showToolbar && (
+                <div style={{
                 display: 'flex',
                 flexDirection: isMobile ? 'row' : 'column',
-                gap: '0.5rem',
+                gap: compactMode ? '0.375rem' : '0.5rem',
                 flexWrap: 'wrap',
                 justifyContent: isMobile ? 'center' : 'flex-start'
             }}>
@@ -728,42 +772,42 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                    {renderToolButton('select', <MousePointer size={20} />, 'Select')}
-                    {renderToolButton('pan', <Move size={20} />, 'Pan')}
+                    {(!allowedTools || allowedTools.includes('select')) && renderToolButton('select', <MousePointer size={iconSize} />, 'Select')}
+                    {(!allowedTools || allowedTools.includes('pan')) && renderToolButton('pan', <Move size={iconSize} />, 'Pan')}
                 </div>
 
                 <div style={{
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                    {renderToolButton('point', <PenTool size={20} />, 'Point')}
-                    {renderToolButton('segment', <Minus size={20} />, 'Segment')}
-                    {renderToolButton('circle', <Circle size={20} />, 'Circle')}
-                    {renderToolButton('rectangle', <Square size={20} />, 'Rectangle')}
-                    {renderToolButton('triangle', <Triangle size={20} />, 'Triangle')}
+                    {(!allowedTools || allowedTools.includes('point')) && renderToolButton('point', <PenTool size={iconSize} />, 'Point')}
+                    {(!allowedTools || allowedTools.includes('segment')) && renderToolButton('segment', <Minus size={iconSize} />, 'Segment')}
+                    {(!allowedTools || allowedTools.includes('circle')) && renderToolButton('circle', <Circle size={iconSize} />, 'Circle')}
+                    {(!allowedTools || allowedTools.includes('rectangle')) && renderToolButton('rectangle', <Square size={iconSize} />, 'Rectangle')}
+                    {(!allowedTools || allowedTools.includes('triangle')) && renderToolButton('triangle', <Triangle size={iconSize} />, 'Triangle')}
                 </div>
 
                 <div style={{
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                    {renderToolButton('measure_distance', <Ruler size={20} />, 'Measure Distance')}
-                    {renderToolButton('measure_angle', <CornerUpRight size={20} />, 'Measure Angle')}
+                    {(!allowedTools || allowedTools.includes('measure_distance')) && renderToolButton('measure_distance', <Ruler size={iconSize} />, 'Measure Distance')}
+                    {(!allowedTools || allowedTools.includes('measure_angle')) && renderToolButton('measure_angle', <CornerUpRight size={iconSize} />, 'Measure Angle')}
                 </div>
 
                 {/* Colors */}
@@ -771,7 +815,7 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -779,14 +823,16 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     {COLORS.map(color => (
                         <button
                             key={color}
+                            disabled={readOnly}
                             onClick={() => setCurrentColor(color)}
                             style={{
-                                width: '28px',
-                                height: '28px',
+                                width: `${colorSwatchSize}px`,
+                                height: `${colorSwatchSize}px`,
                                 borderRadius: '50%',
                                 border: currentColor === color ? '3px solid #1e293b' : '2px solid #e2e8f0',
                                 background: color,
-                                cursor: 'pointer'
+                                cursor: readOnly ? 'not-allowed' : 'pointer',
+                                opacity: readOnly ? 0.5 : 1
                             }}
                         />
                     ))}
@@ -797,26 +843,26 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
                     <button onClick={undo} disabled={history.past.length === 0} title="Undo"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: history.past.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Undo2 size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: history.past.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Undo2 size={iconSize} />
                     </button>
                     <button onClick={redo} disabled={history.future.length === 0} title="Redo"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: history.future.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Redo2 size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: history.future.length === 0 ? '#cbd5e1' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Redo2 size={iconSize} />
                     </button>
                     <button onClick={clearAll} title="Clear All"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Trash2 size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Trash2 size={iconSize} />
                     </button>
                     <button onClick={exportImage} title="Export"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Download size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Download size={iconSize} />
                     </button>
                 </div>
 
@@ -825,22 +871,22 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     display: 'flex',
                     flexDirection: isMobile ? 'row' : 'column',
                     gap: '0.25rem',
-                    padding: '0.5rem',
+                    padding: compactMode ? '0.375rem' : '0.5rem',
                     background: 'white',
                     borderRadius: '0.75rem',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
                     <button onClick={() => setState(prev => ({ ...prev, zoom: Math.min(prev.zoom * 1.2, 3) }))} title="Zoom In"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ZoomIn size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ZoomIn size={iconSize} />
                     </button>
                     <button onClick={() => setState(prev => ({ ...prev, zoom: Math.max(prev.zoom / 1.2, 0.3) }))} title="Zoom Out"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ZoomOut size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ZoomOut size={iconSize} />
                     </button>
                     <button onClick={() => setState(prev => ({ ...prev, zoom: 1, pan: { x: 0, y: 0 } }))} title="Reset View"
-                        style={{ width: '44px', height: '44px', borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <RotateCcw size={20} />
+                        style={{ width: `${buttonSize}px`, height: `${buttonSize}px`, borderRadius: '0.5rem', border: 'none', background: 'white', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RotateCcw size={iconSize} />
                     </button>
                 </div>
 
@@ -849,8 +895,8 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     onClick={() => setState(prev => ({ ...prev, gridEnabled: !prev.gridEnabled }))}
                     title="Toggle Grid"
                     style={{
-                        width: '44px',
-                        height: '44px',
+                        width: `${buttonSize}px`,
+                        height: `${buttonSize}px`,
                         borderRadius: '0.5rem',
                         border: 'none',
                         background: state.gridEnabled ? 'var(--primary)' : 'white',
@@ -862,9 +908,10 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                     }}
                 >
-                    <Grid size={20} />
+                    <Grid size={iconSize} />
                 </button>
-            </div>
+                </div>
+            )}
 
             {/* Canvas */}
             <div style={{
@@ -888,12 +935,13 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                         width: '100%',
                         height: `${canvasHeight}px`,
                         touchAction: 'none',
-                        cursor: state.currentTool === 'pan' ? 'grab' : 'crosshair'
+                        cursor: readOnly ? 'default' : state.currentTool === 'pan' ? 'grab' : 'crosshair'
                     }}
                 />
 
                 {/* Coordinates display */}
-                <div style={{
+                {showCoordinates && (
+                    <div style={{
                     position: 'absolute',
                     bottom: '0.5rem',
                     right: '0.5rem',
@@ -905,178 +953,194 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
                     fontFamily: 'monospace'
                 }}>
                     ({Math.round(mousePos.x)}, {Math.round(mousePos.y)}) | Zoom: {Math.round(state.zoom * 100)}%
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Formula Input Panel */}
-            <div style={{
-                width: isMobile ? '100%' : '280px',
-                background: 'white',
-                borderRadius: '0.75rem',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                padding: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-                maxHeight: isMobile ? '300px' : 'auto',
-                overflow: 'auto'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <FunctionSquare size={20} color="var(--primary)" />
-                    <h3 style={{ fontWeight: '600', fontSize: '0.9rem', color: '#1e293b' }}>Grafik Fungsi</h3>
-                </div>
-                
-                {/* Input field */}
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input
-                        type="text"
-                        value={formulaInput}
-                        onChange={(e) => setFormulaInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && addFunction()}
-                        placeholder="y = x^2"
-                        style={{
-                            flex: 1,
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '0.5rem',
-                            border: '2px solid #e2e8f0',
-                            fontSize: '0.9rem',
-                            outline: 'none',
-                            fontFamily: 'monospace'
-                        }}
-                    />
-                    <button
-                        onClick={addFunction}
-                        style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '0.5rem',
-                            border: 'none',
-                            background: 'var(--primary)',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
-                    >
-                        <Plus size={18} />
-                    </button>
-                </div>
-                
-                {formulaError && (
-                    <div style={{ 
-                        padding: '0.5rem', 
-                        background: '#fef2f2', 
-                        borderRadius: '0.5rem',
-                        fontSize: '0.8rem',
-                        color: '#dc2626'
-                    }}>
-                        {formulaError}
+            {showFunctionPanel && (
+                <div style={{
+                    width: isMobile ? '100%' : compactMode ? '240px' : '280px',
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    padding: compactMode ? '0.85rem' : '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    maxHeight: isMobile ? '300px' : 'auto',
+                    overflow: 'auto'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FunctionSquare size={compactMode ? 18 : 20} color="var(--primary)" />
+                        <h3 style={{ fontWeight: '600', fontSize: '0.9rem', color: '#1e293b' }}>Grafik Fungsi</h3>
                     </div>
-                )}
-                
-                {/* Function list */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {(state.functions || []).length === 0 ? (
-                        <div style={{ 
-                            textAlign: 'center', 
-                            padding: '1rem', 
-                            color: '#94a3b8',
-                            fontSize: '0.85rem'
-                        }}>
-                            Masukkan rumus di atas<br/>
-                            <span style={{ fontSize: '0.75rem' }}>
-                                Contoh: x^2, sin(x), 2*x+1
-                            </span>
-                        </div>
-                    ) : (
-                        (state.functions || []).map(fn => (
-                            <div 
-                                key={fn.id}
-                                style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '0.5rem',
-                                    padding: '0.5rem',
-                                    background: '#f8fafc',
+
+                    {!readOnly && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input
+                                type="text"
+                                value={formulaInput}
+                                onChange={(e) => setFormulaInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addFunction()}
+                                placeholder="y = x^2"
+                                style={{
+                                    flex: 1,
+                                    padding: '0.5rem 0.75rem',
                                     borderRadius: '0.5rem',
-                                    borderLeft: `4px solid ${fn.color}`
+                                    border: '2px solid #e2e8f0',
+                                    fontSize: '0.9rem',
+                                    outline: 'none',
+                                    fontFamily: 'monospace'
+                                }}
+                            />
+                            <button
+                                onClick={addFunction}
+                                style={{
+                                    width: compactMode ? '32px' : '36px',
+                                    height: compactMode ? '32px' : '36px',
+                                    borderRadius: '0.5rem',
+                                    border: 'none',
+                                    background: 'var(--primary)',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                 }}
                             >
-                                <button
-                                    onClick={() => toggleFunctionVisibility(fn.id)}
+                                <Plus size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {formulaError && (
+                        <div style={{
+                            padding: '0.5rem',
+                            background: '#fef2f2',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#dc2626'
+                        }}>
+                            {formulaError}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {(state.functions || []).length === 0 ? (
+                            <div style={{
+                                textAlign: 'center',
+                                padding: '1rem',
+                                color: '#94a3b8',
+                                fontSize: '0.85rem'
+                            }}>
+                                Masukkan rumus di atas<br />
+                                <span style={{ fontSize: '0.75rem' }}>
+                                    Contoh: x^2, sin(x), 2*x+1
+                                </span>
+                            </div>
+                        ) : hideFunctionExpressions ? (
+                            <div style={{
+                                padding: '0.75rem',
+                                borderRadius: '0.75rem',
+                                background: '#f8fafc',
+                                color: '#475569',
+                                fontSize: '0.82rem',
+                                lineHeight: 1.6
+                            }}>
+                                Grafik aktif sebagai petunjuk visual.
+                                Rumus fungsi disembunyikan sesuai pengaturan guru.
+                            </div>
+                        ) : (
+                            (state.functions || []).map(fn => (
+                                <div
+                                    key={fn.id}
                                     style={{
-                                        width: '28px',
-                                        height: '28px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.5rem',
+                                        background: '#f8fafc',
+                                        borderRadius: '0.5rem',
+                                        borderLeft: `4px solid ${fn.color}`
+                                    }}
+                                >
+                                    <button
+                                        disabled={readOnly}
+                                        onClick={() => toggleFunctionVisibility(fn.id)}
+                                        style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '0.375rem',
+                                            border: 'none',
+                                            background: 'white',
+                                            cursor: readOnly ? 'not-allowed' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: fn.visible ? '#64748b' : '#cbd5e1'
+                                        }}
+                                    >
+                                        {fn.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                    </button>
+                                    <span style={{
+                                        flex: 1,
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.85rem',
+                                        color: fn.visible ? '#1e293b' : '#94a3b8',
+                                        textDecoration: fn.visible ? 'none' : 'line-through'
+                                    }}>
+                                        {fn.displayName}
+                                    </span>
+                                    <button
+                                        disabled={readOnly}
+                                        onClick={() => removeFunction(fn.id)}
+                                        style={{
+                                            width: '24px',
+                                            height: '24px',
+                                            borderRadius: '0.375rem',
+                                            border: 'none',
+                                            background: 'transparent',
+                                            cursor: readOnly ? 'not-allowed' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#ef4444'
+                                        }}
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {!readOnly && state.functions.length === 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Contoh rumus:</p>
+                            {['x^2', '2*x + 1', 'sin(x)', 'sqrt(x)', 'abs(x)'].map(ex => (
+                                <button
+                                    key={ex}
+                                    onClick={() => { setFormulaInput(ex); }}
+                                    style={{
+                                        padding: '0.375rem 0.5rem',
                                         borderRadius: '0.375rem',
-                                        border: 'none',
+                                        border: '1px solid #e2e8f0',
                                         background: 'white',
                                         cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: fn.visible ? '#64748b' : '#cbd5e1'
+                                        textAlign: 'left',
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.8rem',
+                                        color: '#475569'
                                     }}
                                 >
-                                    {fn.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                    y = {ex}
                                 </button>
-                                <span style={{ 
-                                    flex: 1, 
-                                    fontFamily: 'monospace', 
-                                    fontSize: '0.85rem',
-                                    color: fn.visible ? '#1e293b' : '#94a3b8',
-                                    textDecoration: fn.visible ? 'none' : 'line-through'
-                                }}>
-                                    {fn.displayName}
-                                </span>
-                                <button
-                                    onClick={() => removeFunction(fn.id)}
-                                    style={{
-                                        width: '24px',
-                                        height: '24px',
-                                        borderRadius: '0.375rem',
-                                        border: 'none',
-                                        background: 'transparent',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: '#ef4444'
-                                    }}
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
-                
-                {/* Quick formulas */}
-                {state.functions.length === 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.25rem' }}>Contoh rumus:</p>
-                        {['x^2', '2*x + 1', 'sin(x)', 'sqrt(x)', 'abs(x)'].map(ex => (
-                            <button
-                                key={ex}
-                                onClick={() => { setFormulaInput(ex); }}
-                                style={{
-                                    padding: '0.375rem 0.5rem',
-                                    borderRadius: '0.375rem',
-                                    border: '1px solid #e2e8f0',
-                                    background: 'white',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    fontFamily: 'monospace',
-                                    fontSize: '0.8rem',
-                                    color: '#475569'
-                                }}
-                            >
-                                y = {ex}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 });
