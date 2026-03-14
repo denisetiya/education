@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, Edit, ExternalLink, PenTool, Plus, Trash2 } from 'lucide-react';
+import { getQuestionAnswerTypeSummary, parseExerciseQuestions } from '../../features/exercises/exercise-config';
 import { classesAPI } from '../../utils/api';
 
 interface TeacherExercisesTabProps {
@@ -16,6 +17,9 @@ interface ExerciseItem {
     hasTimer: boolean;
     timerMinutes?: number;
     answerType: string;
+    questionSet?: string | null;
+    questionCount?: number;
+    questionTypes?: string[];
     isPublished: boolean;
     attempts?: Array<{
         id: string;
@@ -60,12 +64,6 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
         easy: { text: 'Mudah', color: '#22c55e', bg: '#dcfce7' },
         medium: { text: 'Sedang', color: '#f59e0b', bg: '#fef3c7' },
         hard: { text: 'Sulit', color: '#ef4444', bg: '#fee2e2' }
-    };
-
-    const answerTypeLabels: Record<string, string> = {
-        multiple_choice: 'Pilihan Ganda',
-        numeric: 'Angka',
-        canvas: 'Gambar'
     };
 
     const totalExercises = exercises.length;
@@ -148,6 +146,19 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                         const difficulty = difficultyConfig[exercise.difficulty] || difficultyConfig.medium;
                         const exerciseAttempts = exercise.attempts || [];
                         const totalPendingReview = exerciseAttempts.filter((attempt) => attempt.gradingStatus === 'pending_review').length;
+                        const questions = parseExerciseQuestions({
+                            title: exercise.title,
+                            description: exercise.description || '',
+                            instructions: exercise.description || '',
+                            points: exercise.points,
+                            answerType: exercise.answerType,
+                            correctAnswer: null,
+                            options: null,
+                            canvasState: null,
+                            canvasMode: 'readonly',
+                            questionSet: exercise.questionSet || null
+                        });
+                        const typeSummary = getQuestionAnswerTypeSummary(questions).slice(0, 3);
 
                         return (
                             <div
@@ -241,7 +252,7 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                                                 borderRadius: '0.375rem'
                                             }}
                                         >
-                                            {answerTypeLabels[exercise.answerType] || exercise.answerType}
+                                            {questions.length} soal
                                         </span>
                                         {exercise.hasTimer && exercise.timerMinutes && (
                                             <span
@@ -259,6 +270,24 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                                                 {exercise.timerMinutes}m
                                             </span>
                                         )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                                        {typeSummary.map((typeLabel) => (
+                                            <span
+                                                key={`${exercise.id}-${typeLabel}`}
+                                                style={{
+                                                    padding: '0.3rem 0.55rem',
+                                                    borderRadius: '999px',
+                                                    background: '#eef2ff',
+                                                    color: '#4338ca',
+                                                    fontSize: '0.72rem',
+                                                    fontWeight: '700'
+                                                }}
+                                            >
+                                                {typeLabel}
+                                            </span>
+                                        ))}
                                     </div>
 
                                     <div

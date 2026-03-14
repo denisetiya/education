@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     ArrowLeft, BookOpen, Trophy, Users, TrendingUp, Lock, CheckCircle, 
+    MessageSquare,
     Play, Star, Loader, ChevronRight 
 } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
@@ -302,6 +303,62 @@ export const ClassDashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem',
+                marginBottom: '2rem'
+            }}>
+                {[
+                    {
+                        title: 'Latihan Interaktif',
+                        description: 'Kerjakan paket soal multi-tipe dan pantau hasilnya.',
+                        icon: <Play size={20} color="#2563eb" />,
+                        action: () => navigate(`/student/class/${classId}/exercises`)
+                    },
+                    {
+                        title: 'Leaderboard Kelas',
+                        description: 'Lihat peringkat, badge khusus, dan progres teman sekelas.',
+                        icon: <Trophy size={20} color="#ca8a04" />,
+                        action: () => navigate(`/student/class/${classId}/leaderboard`)
+                    },
+                    {
+                        title: 'Forum Diskusi',
+                        description: 'Tanya jawab materi, strategi, dan pengumuman kelas.',
+                        icon: <MessageSquare size={20} color="#7c3aed" />,
+                        action: () => navigate(`/student/class/${classId}/forum`)
+                    },
+                    {
+                        title: 'Perpustakaan Kelas',
+                        description: 'Akses buku ringkas dan bahan pendamping kelas.',
+                        icon: <BookOpen size={20} color="#0f766e" />,
+                        action: () => navigate(`/student/class/${classId}/library`)
+                    }
+                ].map((item) => (
+                    <button
+                        key={item.title}
+                        onClick={item.action}
+                        className="card glass"
+                        style={{
+                            padding: '1.2rem',
+                            textAlign: 'left',
+                            border: '1px solid #e2e8f0',
+                            background: 'white',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.8rem' }}>
+                            <div style={{ width: '44px', height: '44px', borderRadius: '0.95rem', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {item.icon}
+                            </div>
+                            <ChevronRight size={18} color="#94a3b8" />
+                        </div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>{item.title}</h3>
+                        <p style={{ color: '#64748b', lineHeight: 1.6, fontSize: '0.86rem' }}>{item.description}</p>
+                    </button>
+                ))}
             </div>
 
             {/* Modules & Materials */}

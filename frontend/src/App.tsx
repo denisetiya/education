@@ -23,6 +23,8 @@ import { ClassLibrary } from './pages/student/ClassLibrary';
 import { ClassJourney } from './pages/student/ClassJourney';
 import { ClassCanvas } from './pages/student/ClassCanvas';
 import { ClassAchievements } from './pages/student/ClassAchievements';
+import { ClassForum } from './pages/student/ClassForum';
+import { ClassLeaderboard } from './pages/student/ClassLeaderboard';
 import { BookReader } from './pages/student/BookReader';
 import { GeometryPractice } from './pages/student/GeometryPractice';
 import { TeacherLayout } from './layouts/TeacherLayout';
@@ -68,6 +70,8 @@ function App() {
             <Route path="class/:classId/journey" element={<ClassJourney />} />
             <Route path="class/:classId/canvas" element={<ClassCanvas />} />
             <Route path="class/:classId/achievements" element={<ClassAchievements />} />
+            <Route path="class/:classId/leaderboard" element={<ClassLeaderboard />} />
+            <Route path="class/:classId/forum" element={<ClassForum />} />
             <Route path="class/:classId/exercise/:exerciseId" element={<ExerciseSession />} />
             <Route path="geometry" element={<GeometryPractice />} />
             <Route path="materials" element={<StudentMaterials />} />
