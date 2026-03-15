@@ -2,9 +2,11 @@ import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Loader2, RefreshCcw, ServerCrash, Sparkles } from 'lucide-react';
 import App from '../App';
+import { clearDesktopRuntimeConfig, setDesktopRuntimeConfig } from './runtime-config';
 import { isDesktopMode } from '../utils/runtime';
 
 interface DesktopBackendConfig {
+    apiBaseUrl: string;
     healthUrl: string;
     port: number;
 }
@@ -45,7 +47,8 @@ const waitForBackend = async (
 };
 
 const ensureDesktopBackend = async (
-    setMessage?: (message: string) => void
+    setMessage?: (message: string) => void,
+    commandName: 'ensure_desktop_backend' | 'restart_desktop_backend' = 'ensure_desktop_backend'
 ): Promise<DesktopBackendConfig> => {
     if (!isDesktopMode) {
         throw new Error('Desktop bootstrap called outside desktop mode.');
@@ -57,7 +60,7 @@ const ensureDesktopBackend = async (
 
     backendStartupPromise = (async () => {
         setMessage?.('Menyalakan backend lokal...');
-        const config = await invoke<DesktopBackendConfig>('ensure_desktop_backend');
+        const config = await invoke<DesktopBackendConfig>(commandName);
 
         setMessage?.('Backend sedang dipersiapkan...');
         await waitForBackend(config.healthUrl, setMessage);
@@ -197,13 +200,17 @@ export const DesktopBootstrap: React.FC = () => {
             setError(null);
 
             try {
-                await ensureDesktopBackend((nextMessage) => {
+                const commandName = retryKey === 0
+                    ? 'ensure_desktop_backend'
+                    : 'restart_desktop_backend';
+                const config = await ensureDesktopBackend((nextMessage) => {
                     if (isActive) {
                         setMessage(nextMessage);
                     }
-                });
+                }, commandName);
 
                 if (isActive) {
+                    setDesktopRuntimeConfig(config);
                     setStatus('ready');
                 }
             } catch (startupError) {
@@ -235,6 +242,7 @@ export const DesktopBootstrap: React.FC = () => {
             message={message}
             error={error}
             onRetry={() => {
+                clearDesktopRuntimeConfig();
                 backendStartupPromise = null;
                 setRetryKey((value) => value + 1);
             }}

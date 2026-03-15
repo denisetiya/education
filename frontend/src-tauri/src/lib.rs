@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
+    net::TcpListener,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::Mutex,
@@ -14,25 +15,31 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
-const DESKTOP_BACKEND_PORT: u16 = 3001;
 const DESKTOP_FRONTEND_ORIGINS: &str =
     "http://127.0.0.1:1420,http://localhost:5173,http://tauri.localhost,https://tauri.localhost";
 
-#[derive(Default)]
-struct DesktopBackendState {
-    child: Mutex<Option<Child>>,
+struct DesktopBackendRuntime {
+    child: Child,
+    config: DesktopBackendConfig,
 }
 
-#[derive(Serialize)]
+#[derive(Default)]
+struct DesktopBackendState {
+    runtime: Mutex<Option<DesktopBackendRuntime>>,
+}
+
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DesktopBackendConfig {
     health_url: String,
+    api_base_url: String,
     port: u16,
 }
 
 struct DesktopBackendPaths {
     backend_root: PathBuf,
-    entry_file: PathBuf,
+    source_entry: PathBuf,
+    dist_entry: PathBuf,
     runtime_root: PathBuf,
     database_path: PathBuf,
     jwt_secret_path: PathBuf,
@@ -122,14 +129,27 @@ fn read_or_create_secret(path: &Path) -> Result<String, String> {
     Ok(secret)
 }
 
+fn pick_available_port() -> Result<u16, String> {
+    let listener = TcpListener::bind(("127.0.0.1", 0))
+        .map_err(|error| format!("Failed to reserve desktop backend port: {error}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|error| format!("Failed to inspect reserved desktop backend port: {error}"))?
+        .port();
+    drop(listener);
+    Ok(port)
+}
+
 fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, String> {
     let backend_root = resolve_backend_root(app)?;
-    let entry_file = backend_root.join("dist").join("index.js");
+    let source_entry = backend_root.join("src").join("index.ts");
+    let dist_entry = backend_root.join("dist").join("index.js");
 
-    if !entry_file.exists() {
+    if !source_entry.exists() && !dist_entry.exists() {
         return Err(format!(
-            "Backend entry file was not found at {}",
-            entry_file.display()
+            "Backend entry file was not found at {} or {}",
+            source_entry.display(),
+            dist_entry.display()
         ));
     }
 
@@ -155,7 +175,8 @@ fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, 
 
     Ok(DesktopBackendPaths {
         backend_root,
-        entry_file,
+        source_entry,
+        dist_entry,
         runtime_root: runtime_root.clone(),
         database_path,
         jwt_secret_path: runtime_root.join("jwt-secret.txt"),
@@ -164,57 +185,25 @@ fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, 
     })
 }
 
-fn desktop_backend_config() -> DesktopBackendConfig {
+fn desktop_backend_config(port: u16) -> DesktopBackendConfig {
     DesktopBackendConfig {
-        health_url: format!("http://127.0.0.1:{DESKTOP_BACKEND_PORT}/health"),
-        port: DESKTOP_BACKEND_PORT,
+        health_url: format!("http://127.0.0.1:{port}/health"),
+        api_base_url: format!("http://127.0.0.1:{port}/api"),
+        port,
     }
 }
 
-#[tauri::command]
-fn ensure_desktop_backend(app: tauri::AppHandle) -> Result<DesktopBackendConfig, String> {
-    let backend_state = app.state::<DesktopBackendState>();
-    let mut child_guard = backend_state
-        .child
-        .lock()
-        .map_err(|_| "Desktop backend state lock is poisoned".to_string())?;
-
-    if let Some(child) = child_guard.as_mut() {
-        match child.try_wait() {
-            Ok(None) => return Ok(desktop_backend_config()),
-            Ok(Some(_)) => {
-                *child_guard = None;
-            }
-            Err(error) => {
-                return Err(format!("Failed to inspect backend process state: {error}"));
-            }
-        }
-    }
-
-    let paths = prepare_backend_paths(&app)?;
-    let jwt_secret = read_or_create_secret(&paths.jwt_secret_path)?;
-
-    let mut log_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&paths.log_path)
-        .map_err(|error| format!("Failed to open desktop backend log file: {error}"))?;
-
-    let _ = writeln!(
-        log_file,
-        "\n[{}] Starting desktop backend",
-        chrono_like_timestamp()
-    );
-
-    let stderr_log = log_file
-        .try_clone()
-        .map_err(|error| format!("Failed to prepare backend stderr log file: {error}"))?;
-
-    let mut command = Command::new(&paths.sidecar_path);
+fn configure_backend_command(
+    command: &mut Command,
+    paths: &DesktopBackendPaths,
+    config: &DesktopBackendConfig,
+    jwt_secret: &str,
+    stdout: Stdio,
+    stderr: Stdio,
+) {
     command
-        .arg(&paths.entry_file)
         .current_dir(&paths.backend_root)
-        .env("PORT", DESKTOP_BACKEND_PORT.to_string())
+        .env("PORT", config.port.to_string())
         .env(
             "NODE_ENV",
             if cfg!(debug_assertions) {
@@ -228,11 +217,88 @@ fn ensure_desktop_backend(app: tauri::AppHandle) -> Result<DesktopBackendConfig,
         .env("JWT_SECRET", jwt_secret)
         .env("DESKTOP_RUNTIME_DIR", paths.runtime_root.as_os_str())
         .stdin(Stdio::null())
-        .stdout(Stdio::from(log_file))
-        .stderr(Stdio::from(stderr_log));
+        .stdout(stdout)
+        .stderr(stderr);
+
+    if cfg!(debug_assertions) && paths.source_entry.exists() {
+        command
+            .arg("-r")
+            .arg("ts-node/register/transpile-only")
+            .arg(&paths.source_entry)
+            .env("TS_NODE_PROJECT", paths.backend_root.join("tsconfig.json"))
+            .env("TS_NODE_TRANSPILE_ONLY", "true");
+    } else {
+        command.arg(&paths.dist_entry);
+    }
 
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
+}
+
+fn terminate_child(child: &mut Child) {
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+fn start_desktop_backend(
+    app: &tauri::AppHandle,
+    force_restart: bool,
+) -> Result<DesktopBackendConfig, String> {
+    let backend_state = app.state::<DesktopBackendState>();
+    let mut runtime_guard = backend_state
+        .runtime
+        .lock()
+        .map_err(|_| "Desktop backend state lock is poisoned".to_string())?;
+
+    if force_restart {
+        if let Some(runtime) = runtime_guard.as_mut() {
+            terminate_child(&mut runtime.child);
+        }
+        *runtime_guard = None;
+    }
+
+    if let Some(runtime) = runtime_guard.as_mut() {
+        match runtime.child.try_wait() {
+            Ok(None) => return Ok(runtime.config.clone()),
+            Ok(Some(_)) => {
+                *runtime_guard = None;
+            }
+            Err(error) => {
+                return Err(format!("Failed to inspect backend process state: {error}"));
+            }
+        }
+    }
+
+    let paths = prepare_backend_paths(app)?;
+    let jwt_secret = read_or_create_secret(&paths.jwt_secret_path)?;
+    let config = desktop_backend_config(pick_available_port()?);
+
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&paths.log_path)
+        .map_err(|error| format!("Failed to open desktop backend log file: {error}"))?;
+
+    let _ = writeln!(
+        log_file,
+        "\n[{}] Starting desktop backend on port {}",
+        chrono_like_timestamp(),
+        config.port
+    );
+
+    let stderr_log = log_file
+        .try_clone()
+        .map_err(|error| format!("Failed to prepare backend stderr log file: {error}"))?;
+
+    let mut command = Command::new(&paths.sidecar_path);
+    configure_backend_command(
+        &mut command,
+        &paths,
+        &config,
+        &jwt_secret,
+        Stdio::from(log_file),
+        Stdio::from(stderr_log),
+    );
 
     let child = command.spawn().map_err(|error| {
         format!(
@@ -241,9 +307,22 @@ fn ensure_desktop_backend(app: tauri::AppHandle) -> Result<DesktopBackendConfig,
         )
     })?;
 
-    *child_guard = Some(child);
+    *runtime_guard = Some(DesktopBackendRuntime {
+        child,
+        config: config.clone(),
+    });
 
-    Ok(desktop_backend_config())
+    Ok(config)
+}
+
+#[tauri::command]
+fn ensure_desktop_backend(app: tauri::AppHandle) -> Result<DesktopBackendConfig, String> {
+    start_desktop_backend(&app, false)
+}
+
+#[tauri::command]
+fn restart_desktop_backend(app: tauri::AppHandle) -> Result<DesktopBackendConfig, String> {
+    start_desktop_backend(&app, true)
 }
 
 fn chrono_like_timestamp() -> String {
@@ -256,19 +335,28 @@ fn chrono_like_timestamp() -> String {
     now.to_string()
 }
 
+fn warm_desktop_backend(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = start_desktop_backend(&app, false) {
+            log::error!("Failed to warm desktop backend: {error}");
+        }
+    });
+}
+
 fn stop_desktop_backend(app: &tauri::AppHandle) {
     let Some(backend_state) = app.try_state::<DesktopBackendState>() else {
         return;
     };
 
-    let Ok(mut child_guard) = backend_state.child.lock() else {
+    let Ok(mut runtime_guard) = backend_state.runtime.lock() else {
         return;
     };
 
-    if let Some(mut child) = child_guard.take() {
-        let _ = child.kill();
-        let _ = child.wait();
+    if let Some(runtime) = runtime_guard.as_mut() {
+        terminate_child(&mut runtime.child);
     }
+
+    *runtime_guard = None;
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -283,9 +371,13 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            warm_desktop_backend(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ensure_desktop_backend])
+        .invoke_handler(tauri::generate_handler![
+            ensure_desktop_backend,
+            restart_desktop_backend
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

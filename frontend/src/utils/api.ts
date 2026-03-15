@@ -14,11 +14,8 @@ import type {
     TeacherDashboardData,
     User
 } from '../types/api.types';
+import { getRuntimeApiBaseUrl } from '../desktop/runtime-config';
 import { getStoredAuthToken } from './auth-token';
-
-// In production, VITE_API_URL is empty and we use relative /api path (proxied by nginx)
-// In development, VITE_API_URL defaults to http://localhost:3001/api
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Generic fetch wrapper with credentials (cookies)
 async function apiFetch<T>(
@@ -35,7 +32,7 @@ async function apiFetch<T>(
         headers.set('Authorization', `Bearer ${authToken}`);
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getRuntimeApiBaseUrl()}${endpoint}`, {
         ...options,
         headers,
         credentials: 'include' // Include cookies in requests

@@ -9,8 +9,8 @@
     "build:web": "tsc -b && vite build",
     "build": "pnpm run build:web",
     "build:desktop": "node ./scripts/build-desktop.mjs",
-    "tauri:dev": "node ./scripts/prepare-node-sidecar.mjs && pnpm --dir ../backend build && tauri dev",
-    "tauri:build": "node ./scripts/prepare-node-sidecar.mjs && tauri build",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

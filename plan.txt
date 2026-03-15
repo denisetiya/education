@@ -1,8 +1,0 @@
-aku ingin membuat  fitur kelas di app ini , pastikan berfungsi dari backend ke frontend
-
-jadi teacher dapat membuat kelas, nanti di kelasnya bisa guru tambahkan materi , kurikulum atau flow pembelajaran juga
-sampai latihan yang bisa di ikuti siswa bertahap, bahkan tugas yang bisa di berikan 
-
-nah nanti siswa bisa join kelas gurunya dengan memasukan kode unik yang di berikan guru 
-
-bantu aku membuat fitur ini 
