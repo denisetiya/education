@@ -47,7 +47,7 @@ declare const shapeConfigSchema: z.ZodObject<{
         value: z.ZodNumber;
         unit: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>>;
-    formulaHint: z.ZodOptional<z.ZodString>;
+    formulaHint: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 declare const exerciseQuestionSchema: z.ZodObject<{
     id: z.ZodString;
@@ -70,9 +70,9 @@ declare const exerciseQuestionSchema: z.ZodObject<{
     correctOptionId: z.ZodOptional<z.ZodString>;
     correctValue: z.ZodOptional<z.ZodNumber>;
     tolerance: z.ZodDefault<z.ZodNumber>;
-    acceptedText: z.ZodOptional<z.ZodString>;
+    acceptedText: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodString>>;
     manualReview: z.ZodDefault<z.ZodBoolean>;
-    placeholder: z.ZodOptional<z.ZodString>;
+    placeholder: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodString>>;
     visual: z.ZodOptional<z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         canvasState: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
@@ -99,7 +99,7 @@ declare const exerciseQuestionSchema: z.ZodObject<{
             value: z.ZodNumber;
             unit: z.ZodOptional<z.ZodString>;
         }, z.core.$strip>>>;
-        formulaHint: z.ZodOptional<z.ZodString>;
+        formulaHint: z.ZodPipe<z.ZodTransform<unknown, unknown>, z.ZodOptional<z.ZodString>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export type ExerciseQuestionType = z.infer<typeof questionTypeSchema>;

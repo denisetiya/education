@@ -125,8 +125,16 @@ const normalizeQuestion = (question: ExerciseQuestion, index: number): ExerciseQ
             .filter((option) => option.text);
     }
 
-    if (nextQuestion.type === 'short_text' && !nextQuestion.manualReview) {
-        nextQuestion.acceptedText = nextQuestion.acceptedText?.trim() || '';
+    if (nextQuestion.type === 'short_text') {
+        const acceptedText = nextQuestion.acceptedText?.trim();
+
+        if (!nextQuestion.manualReview && acceptedText) {
+            nextQuestion.acceptedText = acceptedText;
+        } else {
+            delete nextQuestion.acceptedText;
+        }
+    } else {
+        delete nextQuestion.acceptedText;
     }
 
     return nextQuestion;

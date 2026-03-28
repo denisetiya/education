@@ -32,6 +32,18 @@ const questionMeasurementSchema = z.object({
     unit: z.string().trim().min(1).optional()
 });
 
+const optionalTrimmedTextSchema = z.preprocess(
+    (value) => {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        const trimmed = value.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+    },
+    z.string().trim().min(1).optional()
+);
+
 const visualConfigSchema = z.object({
     enabled: z.boolean().default(false),
     canvasState: z.unknown().nullable().optional(),
@@ -46,7 +58,7 @@ const visualConfigSchema = z.object({
 const shapeConfigSchema = z.object({
     shapeType: shapeTypeSchema,
     measurements: z.array(questionMeasurementSchema).default([]),
-    formulaHint: z.string().trim().min(1).optional()
+    formulaHint: optionalTrimmedTextSchema
 });
 
 const exerciseQuestionSchema = z.object({
@@ -59,9 +71,9 @@ const exerciseQuestionSchema = z.object({
     correctOptionId: z.string().trim().min(1).optional(),
     correctValue: z.number().optional(),
     tolerance: z.number().min(0).max(1000).default(0),
-    acceptedText: z.string().trim().min(1).optional(),
+    acceptedText: optionalTrimmedTextSchema,
     manualReview: z.boolean().default(false),
-    placeholder: z.string().trim().min(1).optional(),
+    placeholder: optionalTrimmedTextSchema,
     visual: visualConfigSchema.optional(),
     shape: shapeConfigSchema.optional()
 }).superRefine((question, ctx) => {
