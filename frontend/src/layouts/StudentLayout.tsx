@@ -134,6 +134,8 @@ const StudentLayout: React.FC = () => {
     const streak = user?.streak || 0;
     const targetXp = Math.max(1000, Math.ceil(xp / 500) * 500);
     const progress = Math.min(100, (xp / targetXp) * 100);
+    const asideWidth = 272;
+    const desktopContentOffset = compactShell ? '0' : `calc(${asideWidth}px + 1rem)`;
 
     const headerActions = insideClass && classId
         ? [
@@ -168,9 +170,14 @@ const StudentLayout: React.FC = () => {
                 paddingBottom: compactShell ? '5.75rem' : '1.25rem'
             }}
         >
-            <div style={{ display: 'grid', gridTemplateColumns: compactShell ? '1fr' : '272px minmax(0, 1fr)', gap: '1rem' }}>
+            <div style={{ minHeight: `calc(100vh - ${compactShell ? '6.75rem' : '2.5rem'})` }}>
                 <aside
                     style={{
+                        position: compactShell ? 'static' : 'fixed',
+                        top: compactShell ? 'auto' : '1.25rem',
+                        left: compactShell ? 'auto' : '1.25rem',
+                        width: compactShell ? 'auto' : `${asideWidth}px`,
+                        height: compactShell ? 'auto' : 'calc(100vh - 2.5rem)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '1rem',
@@ -179,7 +186,10 @@ const StudentLayout: React.FC = () => {
                         background: 'rgba(255, 255, 255, 0.84)',
                         border: '1px solid rgba(148, 163, 184, 0.22)',
                         boxShadow: '0 24px 48px rgba(148, 163, 184, 0.12)',
-                        backdropFilter: 'blur(18px)'
+                        backdropFilter: 'blur(18px)',
+                        overflowY: compactShell ? 'visible' : 'auto',
+                        zIndex: compactShell ? 'auto' : 20,
+                        boxSizing: 'border-box'
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
@@ -273,7 +283,15 @@ const StudentLayout: React.FC = () => {
                     </div>
                 </aside>
 
-                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div
+                    style={{
+                        minWidth: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        marginLeft: desktopContentOffset
+                    }}
+                >
                     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', padding: compactShell ? '1rem' : '1.35rem 1.5rem', borderRadius: '1.5rem', background: 'rgba(255, 255, 255, 0.84)', border: '1px solid rgba(148, 163, 184, 0.2)', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(148, 163, 184, 0.12)' }}>
                         <div>
                             <p style={{ color: '#0369a1', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.4rem' }}>{pageMeta.accent}</p>

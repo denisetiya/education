@@ -246,6 +246,7 @@ const TeacherLayout: React.FC = () => {
 
     const shellPadding = compactShell ? '1rem' : '1.25rem';
     const asideWidth = 276;
+    const desktopContentOffset = compactShell ? '0' : `calc(${asideWidth}px + 1rem)`;
 
     return (
         <div
@@ -258,14 +259,16 @@ const TeacherLayout: React.FC = () => {
         >
             <div
                 style={{
-                    display: 'grid',
-                    gridTemplateColumns: compactShell ? '1fr' : `${asideWidth}px minmax(0, 1fr)`,
-                    gap: '1rem',
                     minHeight: `calc(100vh - ${compactShell ? '2rem' : '2.5rem'})`
                 }}
             >
                 <aside
                     style={{
+                        position: compactShell ? 'static' : 'fixed',
+                        top: compactShell ? 'auto' : shellPadding,
+                        left: compactShell ? 'auto' : shellPadding,
+                        width: compactShell ? 'auto' : `${asideWidth}px`,
+                        height: compactShell ? 'auto' : `calc(100vh - ${shellPadding} - ${shellPadding})`,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '1rem',
@@ -274,7 +277,10 @@ const TeacherLayout: React.FC = () => {
                         background: 'rgba(15, 23, 42, 0.96)',
                         border: '1px solid rgba(148, 163, 184, 0.18)',
                         color: '#e2e8f0',
-                        boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)'
+                        boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)',
+                        overflowY: compactShell ? 'visible' : 'auto',
+                        zIndex: compactShell ? 'auto' : 20,
+                        boxSizing: 'border-box'
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
@@ -454,7 +460,15 @@ const TeacherLayout: React.FC = () => {
                     </div>
                 </aside>
 
-                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div
+                    style={{
+                        minWidth: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        marginLeft: desktopContentOffset
+                    }}
+                >
                     <header
                         style={{
                             display: 'flex',

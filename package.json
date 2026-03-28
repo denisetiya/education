@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "scripts": {
+    "dev": "pnpm run desktop:dev",
     "build": "pnpm --filter backend build && pnpm --filter frontend build",
     "lint": "pnpm --filter frontend lint",
     "seed": "pnpm --filter backend seed",
