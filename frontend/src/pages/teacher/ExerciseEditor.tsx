@@ -11,7 +11,7 @@ import {
     Sparkles,
     Trash2
 } from 'lucide-react';
-import GeometryCanvas from '../../components/geometry/GeometryCanvas';
+import GeometryCanvas, { type GeometryCanvasHandle } from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
 import {
     createEmptyCanvasState,
@@ -148,6 +148,9 @@ const controlInputStyle: React.CSSProperties = {
     background: 'white'
 };
 
+const formatNumericValue = (value: number) =>
+    new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value);
+
 export const ExerciseEditor: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId?: string }>();
     const navigate = useNavigate();
@@ -155,6 +158,7 @@ export const ExerciseEditor: React.FC = () => {
     const [form, setForm] = React.useState<ExerciseFormState>(createInitialFormState());
     const [loading, setLoading] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
+    const canvasRefs = React.useRef<Record<string, GeometryCanvasHandle | null>>({});
     const isEditing = Boolean(exerciseId);
 
     React.useEffect(() => {
@@ -200,6 +204,22 @@ export const ExerciseEditor: React.FC = () => {
         }));
     };
 
+    const handleCanvasSave = React.useCallback((questionId: string, nextState: CanvasState) => {
+        updateQuestion(questionId, (current) => ({
+            ...current,
+            visual: {
+                enabled: true,
+                canvasState: nextState,
+                canvasMode: current.type === 'canvas' ? 'interactive' : current.visual?.canvasMode || 'readonly',
+                showFunctionPanel: current.visual?.showFunctionPanel ?? false,
+                hideFunctionExpressions: current.visual?.hideFunctionExpressions ?? true,
+                showCoordinates: current.visual?.showCoordinates ?? false,
+                showToolbar: current.type === 'canvas' ? true : current.visual?.showToolbar ?? false,
+                compactToolbar: true
+            }
+        }));
+    }, []);
+
     const handleQuestionTypeChange = (questionId: string, nextType: ExerciseQuestionType) => {
         updateQuestion(questionId, (question) => {
             const template = createQuestionTemplate(nextType, 0);
@@ -243,7 +263,21 @@ export const ExerciseEditor: React.FC = () => {
             return;
         }
 
-        const normalizedQuestions = form.questions.map((question, index) => normalizeQuestion(question, index));
+        const normalizedQuestions = form.questions.map((question, index) => {
+            const latestCanvasState = question.visual?.enabled
+                ? canvasRefs.current[question.id]?.getState() ?? (question.visual.canvasState as CanvasState | undefined) ?? createEmptyCanvasState()
+                : undefined;
+
+            return normalizeQuestion({
+                ...question,
+                visual: question.visual?.enabled
+                    ? {
+                        ...question.visual,
+                        canvasState: latestCanvasState
+                    }
+                    : question.visual
+            }, index);
+        });
         const invalidQuestion = normalizedQuestions.find((question) => !question.prompt);
         if (invalidQuestion) {
             notifications.warning('Semua soal harus memiliki prompt atau instruksi yang jelas.', 'Soal belum lengkap');
@@ -293,11 +327,11 @@ export const ExerciseEditor: React.FC = () => {
                 await classesAPI.createExercise(classId, payload);
             }
 
+            navigate(`/teacher/classes/${classId}?tab=exercises`);
             notifications.success(
                 isEditing ? 'Perubahan latihan sudah tersimpan.' : 'Latihan baru berhasil disimpan.',
                 'Latihan siap digunakan'
             );
-            navigate(`/teacher/classes/${classId}?tab=exercises`);
         } catch (error) {
             console.error('Failed to save exercise', error);
             notifications.error(
@@ -619,23 +653,71 @@ export const ExerciseEditor: React.FC = () => {
                                 )}
 
                                 {(question.type === 'numeric' || question.type === 'shape_area' || question.type === 'shape_perimeter') && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                                        <input
-                                            type="number"
-                                            value={question.correctValue ?? 0}
-                                            onChange={(event) => updateQuestion(question.id, (current) => ({ ...current, correctValue: Number(event.target.value) }))}
-                                            placeholder="Jawaban benar"
-                                            style={controlInputStyle}
-                                        />
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            step="0.01"
-                                            value={question.tolerance ?? 0}
-                                            onChange={(event) => updateQuestion(question.id, (current) => ({ ...current, tolerance: Number(event.target.value) }))}
-                                            placeholder="Toleransi"
-                                            style={controlInputStyle}
-                                        />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                        <div
+                                            style={{
+                                                padding: '0.9rem 1rem',
+                                                borderRadius: '1rem',
+                                                background: '#f8fafc',
+                                                border: '1px solid #e2e8f0'
+                                            }}
+                                        >
+                                            <p style={{ fontWeight: '800', color: '#0f172a', marginBottom: '0.25rem' }}>
+                                                Penilaian jawaban angka
+                                            </p>
+                                            <p style={{ color: '#64748b', fontSize: '0.82rem', lineHeight: 1.6 }}>
+                                                Kolom pertama adalah jawaban yang dianggap benar. Kolom kedua adalah toleransi
+                                                plus-minus untuk koreksi otomatis.
+                                            </p>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                                            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                                <span style={{ fontWeight: '700', color: '#0f172a' }}>Jawaban benar</span>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                                    Nilai target yang harus dijawab siswa.
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    value={question.correctValue ?? 0}
+                                                    onChange={(event) => updateQuestion(question.id, (current) => ({ ...current, correctValue: Number(event.target.value) }))}
+                                                    placeholder="Contoh: 24"
+                                                    style={controlInputStyle}
+                                                />
+                                            </label>
+
+                                            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                                <span style={{ fontWeight: '700', color: '#0f172a' }}>Toleransi (+/-)</span>
+                                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                                    Isi `0` jika jawaban harus persis sama.
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    value={question.tolerance ?? 0}
+                                                    onChange={(event) => updateQuestion(question.id, (current) => ({ ...current, tolerance: Number(event.target.value) }))}
+                                                    placeholder="Contoh: 0.5"
+                                                    style={controlInputStyle}
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                padding: '0.85rem 0.95rem',
+                                                borderRadius: '0.95rem',
+                                                background: 'rgba(37, 99, 235, 0.06)',
+                                                border: '1px solid rgba(37, 99, 235, 0.12)',
+                                                color: '#334155',
+                                                fontSize: '0.82rem',
+                                                lineHeight: 1.6
+                                            }}
+                                        >
+                                            {(question.tolerance ?? 0) > 0
+                                                ? `Contoh penilaian: jika jawaban benar ${formatNumericValue(question.correctValue ?? 0)} dan toleransi ${formatNumericValue(question.tolerance ?? 0)}, maka sistem menerima jawaban dari ${formatNumericValue((question.correctValue ?? 0) - (question.tolerance ?? 0))} sampai ${formatNumericValue((question.correctValue ?? 0) + (question.tolerance ?? 0))}.`
+                                                : `Contoh penilaian: jika jawaban benar ${formatNumericValue(question.correctValue ?? 0)} dan toleransi 0, maka siswa harus menjawab tepat ${formatNumericValue(question.correctValue ?? 0)}.`}
+                                        </div>
                                     </div>
                                 )}
 
@@ -831,26 +913,18 @@ export const ExerciseEditor: React.FC = () => {
 
                                             <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid #dbe3f1', background: 'white' }}>
                                                 <GeometryCanvas
+                                                    ref={(instance) => {
+                                                        canvasRefs.current[question.id] = instance;
+                                                    }}
                                                     width={920}
                                                     height={420}
                                                     initialState={(question.visual?.canvasState as CanvasState | undefined) || createEmptyCanvasState()}
-                                                    onSave={(nextState) => updateQuestion(question.id, (current) => ({
-                                                        ...current,
-                                                        visual: {
-                                                            enabled: true,
-                                                            canvasState: nextState,
-                                                            canvasMode: current.type === 'canvas' ? 'interactive' : current.visual?.canvasMode || 'readonly',
-                                                            showFunctionPanel: current.visual?.showFunctionPanel ?? false,
-                                                            hideFunctionExpressions: current.visual?.hideFunctionExpressions ?? true,
-                                                            showCoordinates: current.visual?.showCoordinates ?? false,
-                                                            showToolbar: current.type === 'canvas' ? true : current.visual?.showToolbar ?? false,
-                                                            compactToolbar: true
-                                                        }
-                                                    }))}
+                                                    onSave={(nextState) => handleCanvasSave(question.id, nextState)}
                                                     compactMode
-                                                    showToolbar
-                                                    showFunctionPanel
-                                                    showCoordinates
+                                                    showToolbar={Boolean(question.type === 'canvas' || question.visual?.showToolbar)}
+                                                    showFunctionPanel={Boolean(question.visual?.showFunctionPanel)}
+                                                    hideFunctionExpressions={Boolean(question.visual?.hideFunctionExpressions)}
+                                                    showCoordinates={Boolean(question.visual?.showCoordinates)}
                                                 />
                                             </div>
                                         </>

@@ -41,6 +41,21 @@ const getServerSnapshot = () => false;
 const useCompactShell = () =>
     useSyncExternalStore(subscribeMedia, getMediaSnapshot, getServerSnapshot);
 
+const getClassWorkspacePath = (pathname: string) => {
+    const classMatch = pathname.match(/^\/teacher\/classes\/([^/]+)/);
+    if (!classMatch) {
+        return '/teacher/classes';
+    }
+
+    const classId = classMatch[1];
+
+    if (pathname.includes('/book-editor')) {
+        return `/teacher/classes/${classId}?tab=library`;
+    }
+
+    return `/teacher/classes/${classId}?tab=exercises`;
+};
+
 const TeacherLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -102,7 +117,7 @@ const TeacherLayout: React.FC = () => {
                     {
                         label: 'Kembali ke kelas',
                         variant: 'secondary' as const,
-                        onClick: () => navigate(pathname.replace(/\/exercise-review\/[^/]+$/, ''))
+                        onClick: () => navigate(getClassWorkspacePath(pathname))
                     }
                 ]
             };
@@ -117,7 +132,7 @@ const TeacherLayout: React.FC = () => {
                     {
                         label: 'Kembali ke kelas',
                         variant: 'secondary' as const,
-                        onClick: () => navigate(pathname.replace(/\/exercise-editor(\/[^/]+)?$/, ''))
+                        onClick: () => navigate(getClassWorkspacePath(pathname))
                     }
                 ]
             };
@@ -132,7 +147,7 @@ const TeacherLayout: React.FC = () => {
                     {
                         label: 'Kembali ke kelas',
                         variant: 'secondary' as const,
-                        onClick: () => navigate(pathname.replace(/\/book-editor(\/[^/]+)?$/, ''))
+                        onClick: () => navigate(getClassWorkspacePath(pathname))
                     }
                 ]
             };

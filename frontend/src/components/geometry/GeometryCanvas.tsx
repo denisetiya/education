@@ -55,6 +55,9 @@ const mergeCanvasState = (savedState?: CanvasState): CanvasState => {
     };
 };
 
+const getCanvasStateSignature = (canvasState?: CanvasState) =>
+    JSON.stringify(mergeCanvasState(canvasState));
+
 export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCanvasProps>(({
     width = 800,
     height = 600,
@@ -87,19 +90,43 @@ export const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, GeometryCan
     const buttonSize = compactMode ? 36 : 44;
     const iconSize = compactMode ? 18 : 20;
     const colorSwatchSize = compactMode ? 24 : 28;
+    const onSaveRef = useRef<typeof onSave>(onSave);
+    const lastExternalStateSignatureRef = useRef(getCanvasStateSignature(savedState));
+    const stateSignature = getCanvasStateSignature(state);
 
     useImperativeHandle(ref, () => ({
         getState: () => state
     }), [state]);
 
     useEffect(() => {
-        setState(mergeCanvasState(savedState));
-        setHistory({ past: [], future: [] });
-    }, [savedState]);
+        onSaveRef.current = onSave;
+    }, [onSave]);
 
     useEffect(() => {
-        onSave?.(state);
-    }, [onSave, state]);
+        const nextSignature = getCanvasStateSignature(savedState);
+        if (nextSignature === lastExternalStateSignatureRef.current || nextSignature === stateSignature) {
+            lastExternalStateSignatureRef.current = nextSignature;
+            return;
+        }
+
+        lastExternalStateSignatureRef.current = nextSignature;
+        setState(mergeCanvasState(savedState));
+        setHistory({ past: [], future: [] });
+    }, [savedState, stateSignature]);
+
+    useEffect(() => {
+        lastExternalStateSignatureRef.current = stateSignature;
+
+        if (!onSaveRef.current) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            onSaveRef.current?.(state);
+        }, 120);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [state, stateSignature]);
 
     // Check for mobile and sync canvas dimensions with props
     useEffect(() => {
