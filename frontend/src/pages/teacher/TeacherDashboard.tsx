@@ -262,7 +262,7 @@ export const TeacherDashboard: React.FC = () => {
                                         <div>
                                             <p style={{ fontWeight: '800', color: '#0f172a', marginBottom: '0.2rem' }}>{item.exercise.title}</p>
                                             <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                                                {item.exercise.class.name} · {item.student.name}
+                                                {item.exercise.class.name} | {item.student.name}
                                             </p>
                                         </div>
                                         <ArrowRight size={18} color="#94a3b8" />
@@ -345,7 +345,7 @@ export const TeacherDashboard: React.FC = () => {
                                 >
                                     <p style={{ fontWeight: '800', color: '#0f172a', marginBottom: '0.2rem' }}>{item.title}</p>
                                     <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '0.35rem' }}>
-                                        {item.category} · Kelas {item.grade} semester {item.semester}
+                                        {item.category} | Kelas {item.grade} semester {item.semester}
                                     </p>
                                     <p style={{ color: '#475569', fontSize: '0.8rem' }}>Dibuat {formatDate(item.createdAt)}</p>
                                 </button>

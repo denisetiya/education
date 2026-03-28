@@ -10,6 +10,7 @@ import {
     Timer,
     Trophy
 } from 'lucide-react';
+import { getQuestionAnswerTypeSummary, parseExerciseQuestions } from '../../features/exercises/exercise-config';
 import type { ClassExerciseSummary, ExerciseAttemptSummary } from '../../types/api.types';
 import { classesAPI } from '../../utils/api';
 
@@ -178,6 +179,8 @@ export const ClassExercises: React.FC = () => {
                         const attempt = getLatestAttempt(exercise);
                         const status = getStatusMeta(attempt);
                         const difficulty = difficultyConfig[exercise.difficulty] || difficultyConfig.medium;
+                        const questions = parseExerciseQuestions(exercise);
+                        const typeSummary = getQuestionAnswerTypeSummary(questions);
 
                         return (
                             <button
@@ -256,6 +259,18 @@ export const ClassExercises: React.FC = () => {
                                         >
                                             {exercise.points} XP
                                         </span>
+                                        <span
+                                            style={{
+                                                padding: '0.35rem 0.6rem',
+                                                borderRadius: '999px',
+                                                background: '#f8fafc',
+                                                color: '#475569',
+                                                fontWeight: '700',
+                                                fontSize: '0.75rem'
+                                            }}
+                                        >
+                                            {questions.length} soal
+                                        </span>
                                         {exercise.hasTimer && exercise.timerMinutes && (
                                             <span
                                                 style={{
@@ -275,6 +290,26 @@ export const ClassExercises: React.FC = () => {
                                             </span>
                                         )}
                                     </div>
+
+                                    {typeSummary.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+                                            {typeSummary.map((label) => (
+                                                <span
+                                                    key={`${exercise.id}-${label}`}
+                                                    style={{
+                                                        padding: '0.3rem 0.55rem',
+                                                        borderRadius: '999px',
+                                                        background: '#f8fafc',
+                                                        color: '#475569',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: '700'
+                                                    }}
+                                                >
+                                                    {label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {attempt && (
                                         <div

@@ -1,258 +1,315 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useMemo, useSyncExternalStore } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard,
+    ArrowLeft,
     BookOpen,
-    Trophy,
-    Star,
-    Zap,
-    LogOut,
-    Bell,
-    Medal,
-    FileText,
-    PenTool,
+    Compass,
+    Flame,
+    GraduationCap,
+    LayoutDashboard,
     Library,
-    Map,
-    Hexagon,
-    ArrowLeft
+    LogOut,
+    Medal,
+    MessageSquare,
+    PenTool,
+    Sparkles,
+    Trophy
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-// Hook to detect screen size
-const useMediaQuery = (query: string) => {
-    const [matches, setMatches] = useState(window.matchMedia(query).matches);
-
-    useEffect(() => {
-        const media = window.matchMedia(query);
-        if (media.matches !== matches) {
-            setMatches(media.matches);
-        }
-        const listener = () => setMatches(media.matches);
-        window.addEventListener('resize', listener);
-        return () => window.removeEventListener('resize', listener);
-    }, [matches, query]);
-
-    return matches;
+type NavItem = {
+    to: string;
+    label: string;
+    icon: React.ReactNode;
+    active: (pathname: string) => boolean;
 };
 
-export const StudentLayout: React.FC = () => {
+const subscribeMedia = (callback: () => void) => {
+    const media = window.matchMedia('(max-width: 1080px)');
+    const listener = () => callback();
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+};
+
+const useCompactShell = () =>
+    useSyncExternalStore(
+        subscribeMedia,
+        () => window.matchMedia('(max-width: 1080px)').matches,
+        () => false
+    );
+
+const buttonStyle = (primary: boolean): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.45rem',
+    padding: '0.85rem 1.05rem',
+    borderRadius: '0.95rem',
+    border: primary ? '1px solid rgba(14, 165, 233, 0.18)' : '1px solid rgba(148, 163, 184, 0.22)',
+    background: primary ? 'linear-gradient(135deg, #0ea5e9, #2563eb)' : 'white',
+    color: primary ? 'white' : '#0f172a',
+    fontWeight: 700,
+    cursor: 'pointer'
+});
+
+const StudentLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const isActive = (path: string) => location.pathname === path;
-    const isMobile = useMediaQuery('(max-width: 768px)');
-    
-    // Extract classId from URL if inside a class
-    const classIdMatch = location.pathname.match(/\/student\/class\/([^/]+)/);
-    const classId = classIdMatch ? classIdMatch[1] : null;
-    const isInsideClass = !!classId;
-    
-    // Hide sidebar on class selection page
-    const isClassSelectionPage = location.pathname === '/student' || location.pathname === '/student/classes' || location.pathname === '/student/discover';
+    const compactShell = useCompactShell();
 
-    // Use actual user data or defaults
-    const studentStats = {
-        level: user?.level || 1,
-        xp: user?.xp || 0,
-        maxXp: 3000,
-        streak: user?.streak || 0,
-        coins: 450
-    };
+    const classMatch = location.pathname.match(/\/student\/class\/([^/]+)/);
+    const classId = classMatch?.[1] ?? null;
+    const insideClass = Boolean(classId);
 
-    const xpPercentage = (studentStats.xp / studentStats.maxXp) * 100;
+    const generalNav = useMemo<NavItem[]>(
+        () => [
+            { to: '/student/classes', label: 'Kelas Saya', icon: <LayoutDashboard size={18} />, active: (pathname) => pathname === '/student' || pathname === '/student/classes' || pathname.startsWith('/student/class/') },
+            { to: '/student/discover', label: 'Jelajah', icon: <Compass size={18} />, active: (pathname) => pathname.startsWith('/student/discover') },
+            { to: '/student/leaderboard', label: 'Leaderboard', icon: <Trophy size={18} />, active: (pathname) => pathname === '/student/leaderboard' },
+            { to: '/student/achievements', label: 'Prestasi', icon: <Medal size={18} />, active: (pathname) => pathname === '/student/achievements' }
+        ],
+        []
+    );
+
+    const classNav = useMemo<NavItem[]>(
+        () =>
+            classId
+                ? [
+                    { to: '/student/classes', label: 'Kembali', icon: <ArrowLeft size={18} />, active: () => false },
+                    { to: `/student/class/${classId}`, label: 'Ringkasan', icon: <LayoutDashboard size={18} />, active: (pathname) => pathname === `/student/class/${classId}` },
+                    { to: `/student/class/${classId}/materials`, label: 'Materi', icon: <BookOpen size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/materials`) },
+                    { to: `/student/class/${classId}/exercises`, label: 'Latihan', icon: <PenTool size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/exercise`) || pathname.includes(`/student/class/${classId}/exercises`) },
+                    { to: `/student/class/${classId}/library`, label: 'Library', icon: <Library size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/library`) },
+                    { to: `/student/class/${classId}/forum`, label: 'Forum', icon: <MessageSquare size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/forum`) },
+                    { to: `/student/class/${classId}/leaderboard`, label: 'Peringkat', icon: <Trophy size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/leaderboard`) }
+                ]
+                : [],
+        [classId]
+    );
+
+    const navItems = insideClass ? classNav : generalNav;
+
+    const pageMeta = useMemo(() => {
+        if (insideClass && classId) {
+            if (location.pathname.includes(`/student/class/${classId}/materials`)) {
+                return { title: 'Materi Kelas', description: 'Ikuti modul, pahami konsep inti, lalu lanjut ke latihan saat sudah siap.', accent: 'Belajar terarah' };
+            }
+            if (location.pathname.includes(`/student/class/${classId}/exercises`)) {
+                return { title: 'Latihan Interaktif', description: 'Kerjakan soal multi-tipe dan cek hasil terbaru dari guru.', accent: 'Ruang latihan' };
+            }
+            if (location.pathname.includes(`/student/class/${classId}/forum`)) {
+                return { title: 'Forum Diskusi', description: 'Tanya materi, berbagi strategi, dan ikuti pengumuman kelas.', accent: 'Diskusi kelas' };
+            }
+            if (location.pathname.includes(`/student/class/${classId}/leaderboard`)) {
+                return { title: 'Leaderboard Kelas', description: 'Pantau ranking, badge, dan progres teman sekelas.', accent: 'Motivasi belajar' };
+            }
+            if (location.pathname.includes(`/student/class/${classId}/library`)) {
+                return { title: 'Library Kelas', description: 'Buka buku ringkas dan bahan pendamping dari guru.', accent: 'Bahan belajar' };
+            }
+
+            return { title: 'Dashboard Kelas', description: 'Lihat progres, langkah berikutnya, dan akses cepat ke materi penting.', accent: 'Ruang kelas' };
+        }
+
+        if (location.pathname.startsWith('/student/discover')) {
+            return { title: 'Jelajah Kelas', description: 'Temukan kelas publik yang relevan untuk kamu ikuti.', accent: 'Eksplorasi' };
+        }
+        if (location.pathname.startsWith('/student/leaderboard')) {
+            return { title: 'Leaderboard Global', description: 'Bandingkan progres belajarmu dengan siswa lain.', accent: 'Peringkat' };
+        }
+        if (location.pathname.startsWith('/student/achievements')) {
+            return { title: 'Prestasi Saya', description: 'Lihat badge dan target yang bisa dikejar berikutnya.', accent: 'Achievement' };
+        }
+
+        return { title: 'Kelas Saya', description: 'Masuk ke kelas, lanjutkan materi, dan pilih fokus belajar hari ini.', accent: 'Belajar harian' };
+    }, [classId, insideClass, location.pathname]);
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
 
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-gradient)', paddingBottom: (isMobile && !isClassSelectionPage) ? '80px' : '0' }}>
+    const xp = user?.xp || 0;
+    const level = user?.level || 1;
+    const streak = user?.streak || 0;
+    const targetXp = Math.max(1000, Math.ceil(xp / 500) * 500);
+    const progress = Math.min(100, (xp / targetXp) * 100);
 
-            {/* Sidebar - Desktop Only, Hidden on Class Selection */}
-            {!isMobile && !isClassSelectionPage && (
-                <aside className="glass-panel" style={{
-                    width: '280px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'fixed',
-                    height: 'calc(100vh - 2rem)',
-                    top: '1rem',
-                    left: '1rem',
-                    borderRadius: 'var(--radius-lg)',
-                    zIndex: 50,
-                    boxShadow: 'var(--shadow-xl)'
-                }}>
-                    {/* Logo Area */}
-                    <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem' }}>🎓</div>
-                        <h1 className="text-gradient" style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Geo Education</h1>
+    const headerActions = insideClass && classId
+        ? [
+            { label: 'Materi', primary: true, onClick: () => navigate(`/student/class/${classId}/materials`) },
+            { label: 'Latihan', primary: false, onClick: () => navigate(`/student/class/${classId}/exercises`) }
+        ]
+        : [
+            { label: 'Kelas Saya', primary: true, onClick: () => navigate('/student/classes') },
+            { label: 'Jelajah', primary: false, onClick: () => navigate('/student/discover') }
+        ];
+
+    const bottomNav = insideClass && classId
+        ? [
+            { to: `/student/class/${classId}`, icon: <LayoutDashboard size={20} />, active: (pathname: string) => pathname === `/student/class/${classId}` },
+            { to: `/student/class/${classId}/materials`, icon: <BookOpen size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/materials`) },
+            { to: `/student/class/${classId}/exercises`, icon: <PenTool size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/exercise`) || pathname.includes(`/student/class/${classId}/exercises`) },
+            { to: `/student/class/${classId}/forum`, icon: <MessageSquare size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/forum`) }
+        ]
+        : [
+            { to: '/student/classes', icon: <LayoutDashboard size={20} />, active: (pathname: string) => pathname === '/student' || pathname === '/student/classes' || pathname.startsWith('/student/class/') },
+            { to: '/student/discover', icon: <Compass size={20} />, active: (pathname: string) => pathname.startsWith('/student/discover') },
+            { to: '/student/leaderboard', icon: <Trophy size={20} />, active: (pathname: string) => pathname === '/student/leaderboard' },
+            { to: '/student/achievements', icon: <Medal size={20} />, active: (pathname: string) => pathname === '/student/achievements' }
+        ];
+
+    return (
+        <div
+            style={{
+                minHeight: '100vh',
+                background: 'radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 24%), linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%)',
+                padding: compactShell ? '1rem' : '1.25rem',
+                paddingBottom: compactShell ? '5.75rem' : '1.25rem'
+            }}
+        >
+            <div style={{ display: 'grid', gridTemplateColumns: compactShell ? '1fr' : '272px minmax(0, 1fr)', gap: '1rem' }}>
+                <aside
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        padding: compactShell ? '1rem' : '1.2rem',
+                        borderRadius: '1.5rem',
+                        background: 'rgba(255, 255, 255, 0.84)',
+                        border: '1px solid rgba(148, 163, 184, 0.22)',
+                        boxShadow: '0 24px 48px rgba(148, 163, 184, 0.12)',
+                        backdropFilter: 'blur(18px)'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'linear-gradient(135deg, #0ea5e9, #2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <GraduationCap size={22} color="white" />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>Geo Education</p>
+                            <p style={{ fontSize: '0.78rem', color: '#64748b' }}>Ruang belajar siswa</p>
+                        </div>
                     </div>
 
-                    {/* Navigation */}
-                    <nav style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {isInsideClass ? (
-                            /* Class-specific Navigation */
-                            <>
-                                <NavItem to="/student/classes" icon={<ArrowLeft size={20} />} label="Pilih Kelas Lain" active={false} />
-                                <div style={{ height: '1px', background: 'rgba(0,0,0,0.1)', margin: '0.5rem 0' }} />
-                                <NavItem to={`/student/class/${classId}`} icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === `/student/class/${classId}`} />
-                                <NavItem to={`/student/class/${classId}/materials`} icon={<FileText size={20} />} label="Materi" active={location.pathname.includes('/materials')} />
-                                <NavItem to={`/student/class/${classId}/exercises`} icon={<PenTool size={20} />} label="Latihan" active={location.pathname.includes('/exercises')} />
-                                <NavItem to={`/student/class/${classId}/library`} icon={<Library size={20} />} label="Perpustakaan" active={location.pathname.includes('/library')} />
-                                <NavItem to={`/student/class/${classId}/journey`} icon={<Map size={20} />} label="Perjalanan" active={location.pathname.includes('/journey')} />
-                                <NavItem to={`/student/class/${classId}/canvas`} icon={<Hexagon size={20} />} label="Canvas Geometri" active={location.pathname.includes('/canvas')} />
-                                <NavItem to={`/student/class/${classId}/achievements`} icon={<Trophy size={20} />} label="Achievements" active={location.pathname.includes('/achievements') && location.pathname.includes('/class/')} />
-                            </>
-                        ) : (
-                            /* General Navigation */
-                            <>
-                                <NavItem to="/student/classes" icon={<LayoutDashboard size={20} />} label="Kelas Saya" active={location.pathname.startsWith('/student/class')} />
-                                <NavItem to="/student/leaderboard" icon={<Trophy size={20} />} label="Leaderboard" active={isActive('/student/leaderboard')} />
-                                <NavItem to="/student/achievements" icon={<Medal size={20} />} label="Prestasi Saya" active={isActive('/student/achievements')} />
-                            </>
-                        )}
+                    <div style={{ padding: '1rem', borderRadius: '1.2rem', background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(37, 99, 235, 0.08))', border: '1px solid rgba(37, 99, 235, 0.12)' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#0369a1', fontSize: '0.76rem', fontWeight: 700, marginBottom: '0.45rem' }}>
+                            <Sparkles size={14} />
+                            {pageMeta.accent}
+                        </div>
+                        <p style={{ fontWeight: 800, color: '#0f172a', marginBottom: '0.25rem' }}>{pageMeta.title}</p>
+                        <p style={{ color: '#475569', fontSize: '0.82rem', lineHeight: 1.55 }}>{pageMeta.description}</p>
+                    </div>
+
+                    <nav style={{ display: 'flex', flexDirection: compactShell ? 'row' : 'column', gap: '0.65rem', overflowX: compactShell ? 'auto' : 'visible' }}>
+                        {navItems.map((item) => {
+                            const active = item.active(location.pathname);
+                            return (
+                                <Link
+                                    key={`${item.to}-${item.label}`}
+                                    to={item.to}
+                                    style={{
+                                        minWidth: compactShell ? '188px' : 'auto',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.75rem',
+                                        padding: '0.9rem 1rem',
+                                        borderRadius: '1rem',
+                                        textDecoration: 'none',
+                                        color: '#0f172a',
+                                        background: active ? 'linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(37, 99, 235, 0.1))' : '#f8fafc',
+                                        border: active ? '1px solid rgba(56, 189, 248, 0.2)' : '1px solid #e2e8f0',
+                                        fontWeight: active ? 700 : 600
+                                    }}
+                                >
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '11px', background: active ? 'white' : '#e2e8f0', color: active ? '#0ea5e9' : '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        {item.icon}
+                                    </div>
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
                     </nav>
 
-                    {/* User Mini Profile */}
-                    <div style={{ padding: '1.5rem', borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.4)' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
-                            {user?.name?.charAt(0).toUpperCase() || 'S'}
+                    <div style={{ marginTop: 'auto', padding: '1rem', borderRadius: '1.2rem', background: '#0f172a', color: '#e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.9rem' }}>
+                            <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: 'linear-gradient(135deg, #22c55e, #14b8a6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800 }}>
+                                {(user?.name || 'S').slice(0, 1).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <p style={{ color: 'white', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Siswa'}</p>
+                                <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>Level {level}</p>
+                            </div>
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <p style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-main)' }}>{user?.name || 'Siswa'}</p>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Level {studentStats.level} • {studentStats.xp} XP</p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.75rem', marginBottom: '0.9rem' }}>
+                            <div style={{ padding: '0.75rem', borderRadius: '0.95rem', background: 'rgba(148, 163, 184, 0.12)' }}>
+                                <p style={{ color: '#94a3b8', fontSize: '0.74rem', marginBottom: '0.18rem' }}>XP</p>
+                                <p style={{ color: 'white', fontWeight: 800 }}>{xp}</p>
+                            </div>
+                            <div style={{ padding: '0.75rem', borderRadius: '0.95rem', background: 'rgba(148, 163, 184, 0.12)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#fde68a', marginBottom: '0.18rem' }}>
+                                    <Flame size={14} />
+                                    <span style={{ fontSize: '0.74rem' }}>Streak</span>
+                                </div>
+                                <p style={{ color: 'white', fontWeight: 800 }}>{streak} hari</p>
+                            </div>
                         </div>
-                        <button onClick={handleLogout} style={{ color: 'var(--text-muted)', padding: '0.5rem', borderRadius: '50%', transition: 'background 0.2s', cursor: 'pointer', background: 'transparent', border: 'none' }} title="Logout">
-                            <LogOut size={18} />
+
+                        <div style={{ marginBottom: '0.95rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.4rem', color: '#94a3b8', fontSize: '0.74rem', marginBottom: '0.35rem' }}>
+                                <span>Progress level</span>
+                                <span>{Math.round(progress)}%</span>
+                            </div>
+                            <div style={{ height: '8px', background: 'rgba(148, 163, 184, 0.18)', borderRadius: '999px', overflow: 'hidden' }}>
+                                <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #22c55e, #38bdf8)', borderRadius: '999px' }} />
+                            </div>
+                        </div>
+
+                        <button type="button" onClick={() => void handleLogout()} style={{ width: '100%', ...buttonStyle(false), background: 'rgba(127, 29, 29, 0.18)', border: '1px solid rgba(248, 113, 113, 0.18)', color: '#fecaca' }}>
+                            <LogOut size={16} />
+                            Keluar
                         </button>
                     </div>
                 </aside>
-            )}
 
-            {/* Main Content Wrapper */}
-            <div style={{
-                marginLeft: (isMobile || isClassSelectionPage) ? '0' : '300px',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '1rem',
-                minWidth: 0 // Prevent overflow on grid items
-            }}>
-
-                {/* Top Header Floating */}
-                <header className="glass" style={{
-                    height: '70px',
-                    borderRadius: 'var(--radius-lg)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: isMobile ? 'space-between' : 'flex-end',
-                    padding: '0 1.5rem',
-                    marginBottom: '2rem',
-                    position: 'sticky',
-                    top: '1rem',
-                    zIndex: 40
-                }}>
-                    {isMobile && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ width: '28px', height: '28px', background: 'var(--primary)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1rem' }}>🎓</div>
-                            <span style={{ fontWeight: '800', color: 'var(--primary)' }}>Geo Education</span>
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap', padding: compactShell ? '1rem' : '1.35rem 1.5rem', borderRadius: '1.5rem', background: 'rgba(255, 255, 255, 0.84)', border: '1px solid rgba(148, 163, 184, 0.2)', backdropFilter: 'blur(18px)', boxShadow: '0 24px 48px rgba(148, 163, 184, 0.12)' }}>
+                        <div>
+                            <p style={{ color: '#0369a1', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.4rem' }}>{pageMeta.accent}</p>
+                            <h1 style={{ fontSize: compactShell ? '1.5rem' : '1.9rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem' }}>{pageMeta.title}</h1>
+                            <p style={{ color: '#475569', lineHeight: 1.65, maxWidth: '760px' }}>{pageMeta.description}</p>
                         </div>
-                    )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '1rem' : '2rem' }}>
-                        {/* Notifications */}
-                        <button style={{ position: 'relative' }}>
-                            <Bell size={22} color="var(--text-muted)" />
-                            <span style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: 'var(--error)', borderRadius: '50%' }}></span>
-                        </button>
-
-                        {/* XP Bar Component */}
-                        {!isMobile && (
-                            <div className="card" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', border: '1px solid rgba(0,0,0,0.05)', boxShadow: 'none', background: 'rgba(255,255,255,0.5)' }}>
-                                <Star fill="var(--warning)" color="var(--warning)" size={20} />
-                                <div style={{ display: 'flex', flexDirection: 'column', width: '120px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)' }}>
-                                        <span>LVL {studentStats.level}</span>
-                                        <span>{Math.round(xpPercentage)}%</span>
-                                    </div>
-                                    <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginTop: '2px' }}>
-                                        <div style={{ width: `${xpPercentage}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), var(--accent))', borderRadius: '3px' }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Streak */}
-                        <div className="animate-pulse" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)', fontWeight: 'bold', background: '#fffbeb', padding: '0.5rem 1rem', borderRadius: '2rem' }}>
-                            {isMobile ? <Zap fill="currentColor" size={18} /> : <Zap fill="currentColor" size={20} />}
-                            <span>{studentStats.streak} {isMobile ? '' : 'Hari'}</span>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            {headerActions.map((action) => (
+                                <button key={action.label} type="button" onClick={action.onClick} style={buttonStyle(action.primary)}>
+                                    {action.primary ? <BookOpen size={16} /> : <Sparkles size={16} />}
+                                    {action.label}
+                                </button>
+                            ))}
                         </div>
-                    </div>
-                </header>
+                    </header>
 
-                {/* Content Area */}
-                <main style={{ flex: 1, animation: 'fadeIn 0.5s ease-out' }}>
-                    <Outlet />
-                </main>
+                    <main style={{ minWidth: 0 }}>
+                        <Outlet />
+                    </main>
+                </div>
             </div>
 
-            {/* Bottom Nav - Mobile Only, Hidden on Class Selection */}
-            {isMobile && !isClassSelectionPage && (
-                <div className="glass-panel" style={{
-                    position: 'fixed',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '70px',
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    alignItems: 'center',
-                    zIndex: 100,
-                    borderTopLeftRadius: '1rem',
-                    borderTopRightRadius: '1rem',
-                    boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
-                }}>
-                    <MobileNavItem to="/student/classes" icon={<LayoutDashboard size={24} />} active={location.pathname.startsWith('/student/class')} />
-                    <MobileNavItem to="/student/discover" icon={<BookOpen size={24} />} active={isActive('/student/discover')} />
-                    <MobileNavItem to="/student/leaderboard" icon={<Trophy size={24} />} active={isActive('/student/leaderboard')} />
-                    <MobileNavItem to="/student/achievements" icon={<Medal size={24} />} active={isActive('/student/achievements')} />
+            {compactShell && (
+                <div style={{ position: 'fixed', left: '1rem', right: '1rem', bottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '0.75rem', padding: '0.8rem', borderRadius: '1.4rem', background: 'rgba(15, 23, 42, 0.94)', border: '1px solid rgba(148, 163, 184, 0.16)', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.18)', zIndex: 100 }}>
+                    {bottomNav.map((item) => {
+                        const active = item.active(location.pathname);
+                        return (
+                            <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.8rem 0.5rem', borderRadius: '1rem', color: active ? 'white' : '#94a3b8', background: active ? 'linear-gradient(135deg, #0ea5e9, #2563eb)' : 'transparent', textDecoration: 'none' }}>
+                                {item.icon}
+                            </Link>
+                        );
+                    })}
                 </div>
             )}
         </div>
     );
 };
 
-const NavItem: React.FC<{ to: string, icon: React.ReactNode, label: string, active: boolean }> = ({ to, icon, label, active }) => (
-    <Link to={to} style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '0.8rem 1rem',
-        borderRadius: 'var(--radius-md)',
-        color: active ? 'white' : 'var(--text-muted)',
-        background: active ? 'linear-gradient(135deg, var(--primary), var(--accent))' : 'transparent',
-        fontWeight: active ? '600' : '500',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        boxShadow: active ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none',
-        transform: active ? 'scale(1.02)' : 'scale(1)'
-    }}>
-        {icon}
-        <span>{label}</span>
-    </Link>
-);
-
-const MobileNavItem: React.FC<{ to: string, icon: React.ReactNode, active: boolean }> = ({ to, icon, active }) => (
-    <Link to={to} style={{
-        padding: '0.8rem',
-        borderRadius: '50%',
-        color: active ? 'var(--primary)' : 'var(--text-muted)',
-        background: active ? 'var(--primary-light)' : 'transparent',
-        transition: 'all 0.2s',
-        position: 'relative'
-    }}>
-        {icon}
-        {active && <span style={{ position: 'absolute', bottom: '4px', left: '50%', transform: 'translateX(-50%)', width: '4px', height: '4px', background: 'var(--primary)', borderRadius: '50%' }}></span>}
-    </Link>
-);
-
+export { StudentLayout };

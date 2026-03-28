@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "site.denisetiya.geoeducation.desktop",
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../frontend/dist",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeDevCommand": "pnpm run dev:desktop",
-    "beforeBuildCommand": "pnpm run build:desktop"
+    "beforeDevCommand": "pnpm run desktop:dev-server",
+    "beforeBuildCommand": "pnpm run desktop:assets"
   },
   "app": {
     "windows": [

@@ -49,10 +49,7 @@ struct DesktopBackendPaths {
 
 fn resolve_backend_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let backend_root = if cfg!(debug_assertions) {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("backend")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("backend")
     } else {
         app.path()
             .resource_dir()

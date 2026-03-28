@@ -1,0 +1,42 @@
+Demo Accounts
+============
+
+Admin: Super Admin Geo
+Email   : admin@geo.edu
+Password: Admin12345
+
+Teacher: Pak Budi Santosa
+Email   : guru@geo.edu
+Password: Guru12345
+
+Teacher: Bu Rina Kartika
+Email   : wali@geo.edu
+Password: Guru12345
+
+Student: Alya Ramadhani
+Email   : alya@siswa.edu
+Password: Siswa12345
+
+Student: Reza Pratama
+Email   : reza@siswa.edu
+Password: Siswa12345
+
+Student: Nisa Maharani
+Email   : nisa@siswa.edu
+Password: Siswa12345
+
+Student: Farhan Maulana
+Email   : farhan@siswa.edu
+Password: Siswa12345
+
+Class Codes
+===========
+
+Geometri Kelas X-A: GEOXA1
+Eksplorasi Peta Nusantara: PETA11
+Kelas Privat Olimpiade: OLIMP1
+
+Catatan
+=======
+- File ini dibuat ulang oleh seed SQLite demo.
+- Jalankan `pnpm seed` dari root workspace untuk menyinkronkan data demo.

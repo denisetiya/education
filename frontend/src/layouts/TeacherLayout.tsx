@@ -1,184 +1,528 @@
-import React from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useMemo, useSyncExternalStore } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard,
-    Users,
+    BarChart3,
     BookOpen,
-    BarChart2,
-    Settings,
+    ClipboardCheck,
+    FileStack,
+    GraduationCap,
+    LayoutDashboard,
     LogOut,
-    Bell,
-    Search,
-    FileText
+    Plus,
+    Sparkles,
+    Users
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export const TeacherLayout: React.FC = () => {
+type TeacherNavItem = {
+    to: string;
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+    match: (pathname: string) => boolean;
+};
+
+type HeaderAction = {
+    label: string;
+    variant: 'primary' | 'secondary';
+    onClick: () => void;
+};
+
+const subscribeMedia = (callback: () => void) => {
+    const media = window.matchMedia('(max-width: 1080px)');
+    const listener = () => callback();
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+};
+
+const getMediaSnapshot = () => window.matchMedia('(max-width: 1080px)').matches;
+const getServerSnapshot = () => false;
+
+const useCompactShell = () =>
+    useSyncExternalStore(subscribeMedia, getMediaSnapshot, getServerSnapshot);
+
+const TeacherLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const isActive = (path: string) => location.pathname === path;
+    const compactShell = useCompactShell();
+
+    const navItems = useMemo<TeacherNavItem[]>(
+        () => [
+            {
+                to: '/teacher',
+                label: 'Dashboard',
+                description: 'Ringkasan kelas, materi, dan review hari ini.',
+                icon: <LayoutDashboard size={18} />,
+                match: (pathname) => pathname === '/teacher'
+            },
+            {
+                to: '/teacher/classes',
+                label: 'Kelas',
+                description: 'Kelola kelas, siswa, leaderboard, dan forum.',
+                icon: <Users size={18} />,
+                match: (pathname) => pathname.startsWith('/teacher/classes')
+            },
+            {
+                to: '/teacher/materials',
+                label: 'Materi',
+                description: 'Buat konten belajar dan hubungkan ke latihan.',
+                icon: <BookOpen size={18} />,
+                match: (pathname) => pathname.startsWith('/teacher/materials')
+            },
+            {
+                to: '/teacher/curriculum',
+                label: 'Kurikulum',
+                description: 'Susun modul dan urutan belajar per kelas.',
+                icon: <FileStack size={18} />,
+                match: (pathname) => pathname.startsWith('/teacher/curriculum')
+            },
+            {
+                to: '/teacher/analytics',
+                label: 'Analitik',
+                description: 'Pantau progres kelas dan hasil penilaian.',
+                icon: <BarChart3 size={18} />,
+                match: (pathname) => pathname.startsWith('/teacher/analytics')
+            }
+        ],
+        []
+    );
+
+    const activeItem = navItems.find((item) => item.match(location.pathname)) ?? navItems[0];
+
+    const pageMeta = useMemo(() => {
+        const pathname = location.pathname;
+
+        if (/\/teacher\/classes\/[^/]+\/exercise-review\/[^/]+/.test(pathname)) {
+            return {
+                title: 'Review Penilaian',
+                description: 'Nilai jawaban siswa, beri umpan balik, lalu lanjut ke submission berikutnya.',
+                accent: 'Antrean review',
+                actions: [
+                    {
+                        label: 'Kembali ke kelas',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate(pathname.replace(/\/exercise-review\/[^/]+$/, ''))
+                    }
+                ]
+            };
+        }
+
+        if (/\/teacher\/classes\/[^/]+\/exercise-editor/.test(pathname)) {
+            return {
+                title: 'Editor Latihan',
+                description: 'Susun paket soal multi-tipe, visual interaktif, dan aturan pengerjaan dari satu halaman.',
+                accent: 'Latihan interaktif',
+                actions: [
+                    {
+                        label: 'Kembali ke kelas',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate(pathname.replace(/\/exercise-editor(\/[^/]+)?$/, ''))
+                    }
+                ]
+            };
+        }
+
+        if (/\/teacher\/classes\/[^/]+\/book-editor/.test(pathname)) {
+            return {
+                title: 'Editor Buku Kelas',
+                description: 'Rapikan bahan bacaan kelas agar siswa bisa membaca dan mengulang materi dengan nyaman.',
+                accent: 'Library kelas',
+                actions: [
+                    {
+                        label: 'Kembali ke kelas',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate(pathname.replace(/\/book-editor(\/[^/]+)?$/, ''))
+                    }
+                ]
+            };
+        }
+
+        if (/\/teacher\/classes\/[^/]+$/.test(pathname)) {
+            return {
+                title: 'Ruang Kelas',
+                description: 'Akses siswa, materi, latihan, leaderboard, dan forum kelas dari satu workspace.',
+                accent: 'Kontrol kelas',
+                actions: [
+                    {
+                        label: 'Tambah latihan',
+                        variant: 'primary' as const,
+                        onClick: () => navigate(`${pathname}/exercise-editor`)
+                    },
+                    {
+                        label: 'Tambah buku',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate(`${pathname}/book-editor`)
+                    }
+                ]
+            };
+        }
+
+        if (pathname.startsWith('/teacher/materials')) {
+            return {
+                title: 'Materi dan Konten',
+                description: 'Buat artikel, video, e-book, dan kuis dengan struktur yang mudah dipahami guru.',
+                accent: 'Konten pembelajaran',
+                actions: [
+                    {
+                        label: 'Buat materi',
+                        variant: 'primary' as const,
+                        onClick: () => navigate('/teacher/materials?create=1')
+                    }
+                ]
+            };
+        }
+
+        if (pathname.startsWith('/teacher/classes')) {
+            return {
+                title: 'Manajemen Kelas',
+                description: 'Buat kelas baru, bagikan kode join, dan pantau aktivitas siswa dengan lebih cepat.',
+                accent: 'Operasional kelas',
+                actions: [
+                    {
+                        label: 'Buat kelas',
+                        variant: 'primary' as const,
+                        onClick: () => navigate('/teacher/classes?create=1')
+                    }
+                ]
+            };
+        }
+
+        if (pathname.startsWith('/teacher/curriculum')) {
+            return {
+                title: 'Perencanaan Kurikulum',
+                description: 'Susun modul, materi, dan urutan belajar tanpa harus berpindah-pindah konteks.',
+                accent: 'Struktur belajar',
+                actions: [
+                    {
+                        label: 'Kelola modul',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate('/teacher/curriculum')
+                    }
+                ]
+            };
+        }
+
+        if (pathname.startsWith('/teacher/analytics')) {
+            return {
+                title: 'Analitik Pembelajaran',
+                description: 'Lihat progres siswa, penyelesaian materi, dan kebutuhan intervensi secara cepat.',
+                accent: 'Insight kelas',
+                actions: [
+                    {
+                        label: 'Buka kelas',
+                        variant: 'secondary' as const,
+                        onClick: () => navigate('/teacher/classes')
+                    }
+                ]
+            };
+        }
+
+        return {
+            title: 'Dashboard Guru',
+            description: 'Pantau seluruh kelas, materi terbaru, dan antrean review dari satu tempat.',
+            accent: 'Workspace guru',
+            actions: [
+                {
+                    label: 'Buat materi',
+                    variant: 'primary' as const,
+                    onClick: () => navigate('/teacher/materials?create=1')
+                },
+                {
+                    label: 'Kelola kelas',
+                    variant: 'secondary' as const,
+                    onClick: () => navigate('/teacher/classes')
+                }
+            ]
+        };
+    }, [location.pathname, navigate]);
+
+    const headerActions = pageMeta.actions.filter(Boolean) as HeaderAction[];
+
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
+    };
+
+    const shellPadding = compactShell ? '1rem' : '1.25rem';
+    const asideWidth = 276;
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', backgroundImage: 'radial-gradient(at 100% 0%, rgba(99,102,241,0.05) 0, transparent 50%)' }}>
-            {/* Sidebar - Modern Glass Dark */}
-            <aside style={{
-                width: '280px',
-                background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-                color: '#f1f5f9',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'fixed',
-                height: 'calc(100vh - 2rem)',
-                top: '1rem',
-                left: '1rem',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                zIndex: 50,
-                border: '1px solid rgba(255,255,255,0.05)'
-            }}>
-                <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <div style={{ width: '36px', height: '36px', background: 'var(--primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 15px rgba(99,102,241,0.5)' }}>
-                        <span style={{ fontSize: '1.2rem' }}>🎓</span>
-                    </div>
-                    <div>
-                        <h1 style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Geo Education</h1>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '2px', fontWeight: '600' }}>Teacher</span>
-                    </div>
-                </div>
-
-                <nav style={{ flex: 1, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <NavItem
-                        to="/teacher"
-                        icon={<LayoutDashboard size={20} />}
-                        label="Dashboard"
-                        active={isActive('/teacher')}
-                    />
-                    <NavItem
-                        to="/teacher/classes"
-                        icon={<Users size={20} />}
-                        label="Manajemen Kelas"
-                        active={isActive('/teacher/classes')}
-                    />
-                    <NavItem
-                        to="/teacher/materials"
-                        icon={<FileText size={20} />}
-                        label="Kelola Materi"
-                        active={isActive('/teacher/materials')}
-                    />
-                    <NavItem
-                        to="/teacher/curriculum"
-                        icon={<BookOpen size={20} />}
-                        label="Kurikulum"
-                        active={isActive('/teacher/curriculum')}
-                    />
-                    <NavItem
-                        to="/teacher/analytics"
-                        icon={<BarChart2 size={20} />}
-                        label="Analitik"
-                        active={isActive('/teacher/analytics')}
-                    />
-                </nav>
-
-                <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.2)', margin: '1rem', borderRadius: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--secondary), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                            {user?.name?.charAt(0).toUpperCase() || 'G'}
-                        </div>
-                        <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <p style={{ fontWeight: '600', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Guru'}</p>
-                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Guru</span>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <Link to="/teacher/settings" style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.1)', textAlign: 'center', fontSize: '0.8rem', color: '#cbd5e1' }}>
-                            <Settings size={16} />
-                        </Link>
-                        <button onClick={async () => { await logout(); navigate('/login'); }} style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', background: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', textAlign: 'center', fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}>
-                            <LogOut size={16} />
-                        </button>
-                    </div>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <div style={{ marginLeft: '320px', flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem', paddingLeft: '1rem' }}>
-                <header style={{
-                    height: '70px',
-                    borderRadius: 'var(--radius-lg)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0 2rem',
-                    marginBottom: '2rem',
-                    position: 'sticky',
-                    top: '1rem',
-                    zIndex: 40,
-                    background: 'rgba(255, 255, 255, 0.8)',
-                    backdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255,255,255,0.5)',
-                    boxShadow: 'var(--shadow-sm)'
-                }}>
-                    {/* Search Bar */}
-                    <div style={{ position: 'relative', width: '300px' }}>
-                        <Search size={18} color="#94a3b8" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
-                        <input
-                            type="text"
-                            placeholder="Cari siswa, kelas, atau materi..."
-                            style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.8rem', borderRadius: '2rem', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.9rem' }}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                        <button style={{ position: 'relative' }}>
-                            <Bell size={20} color="#64748b" />
-                            <span style={{ position: 'absolute', top: -2, right: -1, width: '8px', height: '8px', background: 'var(--secondary)', borderRadius: '50%' }}></span>
-                        </button>
-                        <button
-                            className="btn btn-primary"
-                            style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}
-                            onClick={() => navigate('/teacher/materials?create=1')}
+        <div
+            style={{
+                minHeight: '100vh',
+                background:
+                    'radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 26%), linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)',
+                padding: shellPadding
+            }}
+        >
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: compactShell ? '1fr' : `${asideWidth}px minmax(0, 1fr)`,
+                    gap: '1rem',
+                    minHeight: `calc(100vh - ${compactShell ? '2rem' : '2.5rem'})`
+                }}
+            >
+                <aside
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        padding: compactShell ? '1rem' : '1.2rem',
+                        borderRadius: '1.5rem',
+                        background: 'rgba(15, 23, 42, 0.96)',
+                        border: '1px solid rgba(148, 163, 184, 0.18)',
+                        color: '#e2e8f0',
+                        boxShadow: '0 24px 48px rgba(15, 23, 42, 0.18)'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                        <div
+                            style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '14px',
+                                background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 12px 24px rgba(59, 130, 246, 0.35)'
+                            }}
                         >
-                            + Buat Materi
-                        </button>
+                            <GraduationCap size={22} color="white" />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: '1rem', fontWeight: 800, color: 'white' }}>Geo Education</p>
+                            <p style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Workspace untuk guru</p>
+                        </div>
                     </div>
-                </header>
 
-                <main style={{ paddingRight: '2rem', flex: 1, animation: 'fadeIn 0.5s ease-out' }}>
-                    <Outlet />
-                </main>
+                    <div
+                        style={{
+                            padding: '1rem',
+                            borderRadius: '1.2rem',
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(99, 102, 241, 0.18))',
+                            border: '1px solid rgba(96, 165, 250, 0.18)'
+                        }}
+                    >
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#bfdbfe', fontSize: '0.76rem', fontWeight: 700, marginBottom: '0.55rem' }}>
+                            <Sparkles size={14} />
+                            {pageMeta.accent}
+                        </div>
+                        <p style={{ color: 'white', fontWeight: 800, marginBottom: '0.3rem', lineHeight: 1.4 }}>
+                            {pageMeta.title}
+                        </p>
+                        <p style={{ color: '#cbd5e1', fontSize: '0.82rem', lineHeight: 1.55 }}>
+                            {pageMeta.description}
+                        </p>
+                    </div>
+
+                    <nav
+                        style={{
+                            display: 'flex',
+                            flexDirection: compactShell ? 'row' : 'column',
+                            gap: '0.65rem',
+                            overflowX: compactShell ? 'auto' : 'visible',
+                            paddingBottom: compactShell ? '0.25rem' : 0
+                        }}
+                    >
+                        {navItems.map((item) => {
+                            const active = item.match(location.pathname);
+                            return (
+                                <Link
+                                    key={item.to}
+                                    to={item.to}
+                                    style={{
+                                        minWidth: compactShell ? '220px' : 'auto',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: '0.85rem',
+                                        padding: '0.9rem 1rem',
+                                        borderRadius: '1rem',
+                                        textDecoration: 'none',
+                                        color: active ? 'white' : '#cbd5e1',
+                                        background: active
+                                            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.28), rgba(99, 102, 241, 0.18))'
+                                            : 'rgba(15, 23, 42, 0.4)',
+                                        border: active ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(148, 163, 184, 0.08)'
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            width: '38px',
+                                            height: '38px',
+                                            borderRadius: '12px',
+                                            background: active ? 'rgba(255, 255, 255, 0.16)' : 'rgba(148, 163, 184, 0.12)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0
+                                        }}
+                                    >
+                                        {item.icon}
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                        <p style={{ fontSize: '0.92rem', fontWeight: 700, marginBottom: '0.2rem' }}>{item.label}</p>
+                                        <p style={{ fontSize: '0.78rem', color: active ? '#dbeafe' : '#94a3b8', lineHeight: 1.5 }}>
+                                            {item.description}
+                                        </p>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    <div
+                        style={{
+                            marginTop: 'auto',
+                            padding: '1rem',
+                            borderRadius: '1.2rem',
+                            background: 'rgba(15, 23, 42, 0.6)',
+                            border: '1px solid rgba(148, 163, 184, 0.12)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.9rem' }}>
+                            <div
+                                style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '14px',
+                                    background: 'linear-gradient(135deg, #22c55e, #14b8a6)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontWeight: 800
+                                }}
+                            >
+                                {(user?.name || 'G').slice(0, 1).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <p style={{ color: 'white', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {user?.name || 'Guru'}
+                                </p>
+                                <p style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
+                                    {activeItem.label} aktif
+                                </p>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.7rem' }}>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/teacher/materials?create=1')}
+                                style={{
+                                    flex: 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.45rem',
+                                    padding: '0.8rem 0.9rem',
+                                    borderRadius: '0.95rem',
+                                    border: '1px solid rgba(96, 165, 250, 0.18)',
+                                    background: 'rgba(37, 99, 235, 0.12)',
+                                    color: '#dbeafe',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <Plus size={16} />
+                                Buat
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void handleLogout()}
+                                style={{
+                                    flex: 1,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.45rem',
+                                    padding: '0.8rem 0.9rem',
+                                    borderRadius: '0.95rem',
+                                    border: '1px solid rgba(248, 113, 113, 0.16)',
+                                    background: 'rgba(127, 29, 29, 0.18)',
+                                    color: '#fecaca',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <LogOut size={16} />
+                                Keluar
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <header
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            gap: '1rem',
+                            flexWrap: 'wrap',
+                            padding: compactShell ? '1rem' : '1.35rem 1.5rem',
+                            borderRadius: '1.5rem',
+                            background: 'rgba(255, 255, 255, 0.82)',
+                            border: '1px solid rgba(148, 163, 184, 0.2)',
+                            backdropFilter: 'blur(18px)',
+                            boxShadow: '0 24px 48px rgba(148, 163, 184, 0.12)'
+                        }}
+                    >
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ color: '#2563eb', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                                {pageMeta.accent}
+                            </p>
+                            <h1 style={{ fontSize: compactShell ? '1.5rem' : '1.9rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem' }}>
+                                {pageMeta.title}
+                            </h1>
+                            <p style={{ color: '#475569', lineHeight: 1.65, maxWidth: '720px' }}>{pageMeta.description}</p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            {headerActions.map((action) => (
+                                <button
+                                    key={action.label}
+                                    type="button"
+                                    onClick={action.onClick}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.85rem 1.1rem',
+                                        borderRadius: '0.95rem',
+                                        border:
+                                            action.variant === 'primary'
+                                                ? '1px solid rgba(59, 130, 246, 0.2)'
+                                                : '1px solid rgba(148, 163, 184, 0.24)',
+                                        background:
+                                            action.variant === 'primary'
+                                                ? 'linear-gradient(135deg, #2563eb, #4f46e5)'
+                                                : 'white',
+                                        color: action.variant === 'primary' ? 'white' : '#0f172a',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        boxShadow:
+                                            action.variant === 'primary'
+                                                ? '0 18px 36px rgba(37, 99, 235, 0.2)'
+                                                : 'none'
+                                    }}
+                                >
+                                    {action.variant === 'primary' ? <Plus size={16} /> : <ClipboardCheck size={16} />}
+                                    {action.label}
+                                </button>
+                            ))}
+                        </div>
+                    </header>
+
+                    <main style={{ minWidth: 0 }}>
+                        <Outlet />
+                    </main>
+                </div>
             </div>
         </div>
     );
 };
 
-const NavItem: React.FC<{ to: string, icon: React.ReactNode, label: string, active: boolean }> = ({ to, icon, label, active }) => (
-    <Link to={to} style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '0.8rem 1rem',
-        borderRadius: 'var(--radius-md)',
-        color: active ? 'white' : '#94a3b8',
-        background: active ? 'linear-gradient(90deg, var(--primary), transparent)' : 'transparent',
-        borderLeft: active ? '4px solid var(--primary)' : '4px solid transparent',
-        fontWeight: active ? '600' : '500',
-        transition: 'all 0.2s',
-    }}
-        onMouseEnter={(e) => {
-            if (!active) {
-                e.currentTarget.style.color = '#e2e8f0';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-            }
-        }}
-        onMouseLeave={(e) => {
-            if (!active) {
-                e.currentTarget.style.color = '#94a3b8';
-                e.currentTarget.style.background = 'transparent';
-            }
-        }}
-    >
-        {icon}
-        <span>{label}</span>
-    </Link>
-);
+export { TeacherLayout };

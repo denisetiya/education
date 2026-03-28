@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List } from 'lucide-react';
+import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List, Layers3, Library, Sparkles, Workflow } from 'lucide-react';
 import { materialsAPI } from '../../utils/api';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import type { QuizContent as SharedQuizContent, QuizQuestion, QuizSettings, QuestionType } from '../../types/quiz';
@@ -104,10 +104,38 @@ export const TeacherMaterials: React.FC = () => {
     ];
 
     const types = [
-        { id: 'article', label: 'Artikel / Teks', icon: FileText },
-        { id: 'video', label: 'Video Pembelajaran', icon: Video },
-        { id: 'quiz', label: 'Kuis Latihan', icon: HelpCircle },
-        { id: 'book', label: 'E-Book / PDF', icon: BookOpen }
+        {
+            id: 'article',
+            label: 'Artikel / Teks',
+            icon: FileText,
+            description: 'Cocok untuk materi inti, ringkasan konsep, atau petunjuk langkah demi langkah.',
+            background: '#eff6ff',
+            color: '#1d4ed8'
+        },
+        {
+            id: 'video',
+            label: 'Video Pembelajaran',
+            icon: Video,
+            description: 'Tempel tautan video agar siswa bisa belajar lewat penjelasan visual yang singkat.',
+            background: '#eef2ff',
+            color: '#4338ca'
+        },
+        {
+            id: 'quiz',
+            label: 'Kuis Latihan',
+            icon: HelpCircle,
+            description: 'Bangun evaluasi cepat dengan pilihan ganda, benar salah, atau jawaban singkat.',
+            background: '#fef3c7',
+            color: '#92400e'
+        },
+        {
+            id: 'book',
+            label: 'E-Book / PDF',
+            icon: BookOpen,
+            description: 'Sediakan bahan baca lengkap atau lampiran PDF untuk pendalaman mandiri.',
+            background: '#ecfeff',
+            color: '#155e75'
+        }
     ];
     
     const levels = ['Mudah', 'Menengah', 'Sulit'];
@@ -457,30 +485,112 @@ export const TeacherMaterials: React.FC = () => {
         return category.replace('_', ' ');
     };
 
+    const materialSummary = React.useMemo(() => {
+        const quizLinked = materials.filter((material) => Boolean(material.linkedQuizId)).length;
+        const publishedTypes = new Set(materials.map((material) => material.type));
+        const recent = [...materials]
+            .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+            .slice(0, 3);
+
+        return {
+            total: materials.length,
+            quizLinked,
+            typeCoverage: publishedTypes.size,
+            recent
+        };
+    }, [materials]);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Header */}
-            <div className="animate-slide-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1e293b' }}>Kelola Materi</h1>
-                    <p style={{ color: '#64748b' }}>Buat, edit, dan hapus materi pembelajaran.</p>
+            <section
+                className="card glass animate-slide-up"
+                style={{
+                    padding: '1.5rem',
+                    background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(14, 165, 233, 0.08))',
+                    border: '1px solid rgba(37, 99, 235, 0.14)'
+                }}
+            >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ maxWidth: '760px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', color: '#1d4ed8', fontSize: '0.84rem', fontWeight: '700', marginBottom: '0.55rem' }}>
+                            <Sparkles size={16} />
+                            Builder materi guru
+                        </div>
+                        <h1 style={{ fontSize: '1.9rem', fontWeight: '800', color: '#0f172a', marginBottom: '0.35rem' }}>Kelola materi dengan alur yang lebih jelas</h1>
+                        <p style={{ color: '#475569', lineHeight: 1.65 }}>
+                            Semua konten pembelajaran dikumpulkan di satu tempat, jadi guru lebih mudah membuat materi, menautkan kuis, dan melihat apa yang sudah siap dipakai siswa.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                        <button className="btn btn-primary" onClick={handleOpenCreate}>
+                            <Plus size={18} /> Buat materi baru
+                        </button>
+                    </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid #e2e8f0' }}>
-                        <Search size={20} color="var(--text-muted)" />
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', marginTop: '1.25rem' }}>
+                    {[
+                        {
+                            label: 'Total materi',
+                            value: materialSummary.total,
+                            helper: 'Semua konten belajar yang sudah dibuat',
+                            icon: <Layers3 size={18} color="#1d4ed8" />,
+                            background: '#eff6ff'
+                        },
+                        {
+                            label: 'Tipe aktif',
+                            value: materialSummary.typeCoverage,
+                            helper: 'Varian konten yang siap dipakai',
+                            icon: <Workflow size={18} color="#0f766e" />,
+                            background: '#ecfdf5'
+                        },
+                        {
+                            label: 'Materi bertaut kuis',
+                            value: materialSummary.quizLinked,
+                            helper: 'Konten yang sudah terhubung evaluasi',
+                            icon: <HelpCircle size={18} color="#92400e" />,
+                            background: '#fffbeb'
+                        },
+                        {
+                            label: 'Materi terbaru',
+                            value: materialSummary.recent.length,
+                            helper: 'Konten paling baru yang bisa ditinjau ulang',
+                            icon: <Library size={18} color="#7c3aed" />,
+                            background: '#faf5ff'
+                        }
+                    ].map((card) => (
+                        <div key={card.label} className="card" style={{ padding: '1rem', boxShadow: 'none', border: '1px solid rgba(148, 163, 184, 0.16)', background: 'white' }}>
+                            <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: card.background, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                                {card.icon}
+                            </div>
+                            <p style={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '0.25rem' }}>{card.label}</p>
+                            <p style={{ color: '#0f172a', fontSize: '1.6rem', fontWeight: '800', marginBottom: '0.3rem' }}>{card.value}</p>
+                            <p style={{ color: '#475569', fontSize: '0.8rem', lineHeight: 1.5 }}>{card.helper}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) minmax(260px, 360px)', gap: '1rem', marginTop: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', padding: '0.75rem 1rem', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
+                        <Search size={18} color="#64748b" />
                         <input
                             type="text"
-                            placeholder="Cari materi..."
+                            placeholder="Cari judul materi, kategori, atau tipe..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{ border: 'none', outline: 'none', fontSize: '0.95rem', minWidth: '180px' }}
+                            style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.95rem', background: 'transparent' }}
                         />
                     </div>
-                    <button className="btn btn-primary" onClick={handleOpenCreate}>
-                        <Plus size={20} /> Tambah Materi
-                    </button>
+
+                    <div className="card" style={{ padding: '1rem', boxShadow: 'none', border: '1px solid rgba(148, 163, 184, 0.16)', background: 'rgba(255, 255, 255, 0.82)' }}>
+                        <p style={{ color: '#0f172a', fontWeight: '700', marginBottom: '0.35rem' }}>Tips cepat</p>
+                        <p style={{ color: '#64748b', fontSize: '0.84rem', lineHeight: 1.55 }}>
+                            Mulai dari artikel untuk konsep inti, lalu tambahkan kuis atau video pendukung agar alur belajar siswa lebih runtut.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </section>
 
             {/* Loading State */}
             {loading && (
@@ -536,7 +646,7 @@ export const TeacherMaterials: React.FC = () => {
                                             </div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                                 Dibuat: {new Date(material.createdAt).toLocaleDateString('id-ID')}
-                                                {material.order && <> • Urutan: {material.order}</>}
+                                                {material.order && <> | Urutan: {material.order}</>}
                                             </div>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
@@ -598,7 +708,7 @@ export const TeacherMaterials: React.FC = () => {
                     {materials.length === 0 && (
                         <div style={{ padding: '4rem', textAlign: 'center' }}>
                             <BookOpen size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem', opacity: 0.5 }} />
-                            <p style={{ color: 'var(--text-muted)' }}>Belum ada materi. Klik "Tambah Materi" untuk membuat yang pertama.</p>
+                            <p style={{ color: 'var(--text-muted)' }}>Belum ada materi. Mulai dari artikel pertama lalu sambungkan kuis bila perlu.</p>
                         </div>
                     )}
                 </div>
@@ -707,7 +817,7 @@ export const TeacherMaterials: React.FC = () => {
                                 {/* Material Type Selection */}
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', fontSize: '0.9rem' }}>Tipe Materi</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                                         {types.map((t) => (
                                             <div
                                                 key={t.id}
@@ -716,18 +826,23 @@ export const TeacherMaterials: React.FC = () => {
                                                     cursor: 'pointer',
                                                     padding: '1rem',
                                                     border: formData.type === t.id ? '2px solid var(--primary)' : '1px solid #e2e8f0',
-                                                    background: formData.type === t.id ? '#f0f9ff' : 'white',
-                                                    borderRadius: '0.5rem',
+                                                    background: formData.type === t.id ? '#f8fbff' : 'white',
+                                                    borderRadius: '0.9rem',
                                                     display: 'flex',
                                                     flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    gap: '0.5rem',
+                                                    alignItems: 'flex-start',
+                                                    gap: '0.75rem',
                                                     transition: 'all 0.2s'
                                                 }}
                                             >
-                                                <t.icon size={24} color={formData.type === t.id ? 'var(--primary)' : 'var(--text-muted)'} />
-                                                <span style={{ fontSize: '0.9rem', fontWeight: formData.type === t.id ? '600' : '400', color: formData.type === t.id ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                                <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: t.background, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <t.icon size={22} color={t.color} />
+                                                </div>
+                                                <span style={{ fontSize: '0.95rem', fontWeight: formData.type === t.id ? '700' : '600', color: formData.type === t.id ? 'var(--primary)' : 'var(--text-main)' }}>
                                                     {t.label}
+                                                </span>
+                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                                    {t.description}
                                                 </span>
                                             </div>
                                         ))}

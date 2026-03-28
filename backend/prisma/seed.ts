@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import prisma from '../src/utils/prisma';
 import {
@@ -12,6 +14,36 @@ const PASSWORDS = {
     teacher: 'Guru12345',
     student: 'Siswa12345'
 } as const;
+
+const ACCOUNT_FILE_PATH = path.resolve(__dirname, '..', '..', 'account.txt');
+
+const writeDemoAccountFile = async (payload: {
+    accounts: Array<{ role: string; name: string; email: string; password: string }>;
+    classes: Array<{ name: string; code: string }>;
+}) => {
+    const lines = [
+        'Demo Accounts',
+        '============',
+        '',
+        ...payload.accounts.flatMap((account) => [
+            `${account.role}: ${account.name}`,
+            `Email   : ${account.email}`,
+            `Password: ${account.password}`,
+            ''
+        ]),
+        'Class Codes',
+        '===========',
+        '',
+        ...payload.classes.map((item) => `${item.name}: ${item.code}`),
+        '',
+        'Catatan',
+        '=======',
+        '- File ini dibuat ulang oleh seed SQLite demo.',
+        '- Jalankan `pnpm seed` dari root workspace untuk menyinkronkan data demo.'
+    ];
+
+    await writeFile(ACCOUNT_FILE_PATH, `${lines.join('\n')}\n`, 'utf-8');
+};
 
 const resetDatabase = async () => {
     await prisma.classDiscussionReply.deleteMany();
@@ -976,6 +1008,23 @@ async function main() {
     console.log(`- ${geometryClass.name}: ${geometryClass.code}`);
     console.log(`- ${mapsClass.name}: ${mapsClass.code}`);
     console.log(`- ${olympiadClass.name}: ${olympiadClass.code}`);
+
+    await writeDemoAccountFile({
+        accounts: [
+            { role: 'Admin', name: admin.name, email: admin.email, password: PASSWORDS.admin },
+            { role: 'Teacher', name: teacher.name, email: teacher.email, password: PASSWORDS.teacher },
+            { role: 'Teacher', name: teacherAssistant.name, email: teacherAssistant.email, password: PASSWORDS.teacher },
+            { role: 'Student', name: alya.name, email: alya.email, password: PASSWORDS.student },
+            { role: 'Student', name: reza.name, email: reza.email, password: PASSWORDS.student },
+            { role: 'Student', name: nisa.name, email: nisa.email, password: PASSWORDS.student },
+            { role: 'Student', name: farhan.name, email: farhan.email, password: PASSWORDS.student }
+        ],
+        classes: [
+            { name: geometryClass.name, code: geometryClass.code },
+            { name: mapsClass.name, code: mapsClass.code },
+            { name: olympiadClass.name, code: olympiadClass.code }
+        ]
+    });
 }
 
 main()

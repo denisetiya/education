@@ -9,7 +9,8 @@ const __dirname = path.dirname(__filename);
 const frontendRoot = path.resolve(__dirname, '..');
 const projectRoot = path.resolve(frontendRoot, '..');
 const backendRoot = path.join(projectRoot, 'backend');
-const desktopBackendRoot = path.join(frontendRoot, 'src-tauri', 'resources', 'backend');
+const desktopRoot = path.join(projectRoot, 'desktop');
+const desktopBackendRoot = path.join(desktopRoot, 'resources', 'backend');
 
 const buildDesktopBackendBundle = async () => {
     const backendPackage = JSON.parse(
@@ -29,8 +30,8 @@ const buildDesktopBackendBundle = async () => {
     };
 
     await Promise.all([
-        rm(path.join(frontendRoot, '.desktop-backend'), { recursive: true, force: true }),
-        rm(path.join(frontendRoot, 'src-tauri', 'resources', 'backend'), {
+        rm(path.join(projectRoot, '.desktop-backend'), { recursive: true, force: true }),
+        rm(path.join(desktopRoot, 'resources', 'backend'), {
             recursive: true,
             force: true
         })

@@ -1,0 +1,12 @@
+{
+  "name": "desktop",
+  "private": true,
+  "scripts": {
+    "desktop:assets": "pnpm --dir .. --filter frontend build:desktop",
+    "desktop:dev-server": "pnpm --dir .. --filter frontend dev:desktop",
+    "dev": "node ../frontend/scripts/run-tauri-desktop.mjs dev",
+    "build": "node ../frontend/scripts/run-tauri-desktop.mjs build",
+    "info": "node ../frontend/scripts/run-tauri-desktop.mjs info",
+    "check": "cargo check"
+  }
+}

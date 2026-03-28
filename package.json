@@ -1,0 +1,16 @@
+{
+  "name": "education-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "build": "pnpm --filter backend build && pnpm --filter frontend build",
+    "lint": "pnpm --filter frontend lint",
+    "seed": "pnpm --filter backend seed",
+    "desktop:assets": "pnpm --filter frontend build:desktop",
+    "desktop:dev-server": "pnpm --filter frontend dev:desktop",
+    "desktop:dev": "pnpm --filter desktop dev",
+    "desktop:build": "pnpm --filter desktop build",
+    "desktop:check": "pnpm --filter desktop check",
+    "desktop:info": "pnpm --filter desktop info"
+  }
+}
