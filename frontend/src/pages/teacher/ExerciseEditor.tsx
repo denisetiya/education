@@ -23,7 +23,8 @@ import {
     type ExerciseQuestionShapeConfig,
     type ExerciseQuestionType
 } from '../../features/exercises/exercise-config';
-import { classesAPI } from '../../utils/api';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 
 interface ExerciseFormState {
     title: string;
@@ -80,6 +81,9 @@ const defaultShapeMeasurements: Record<ExerciseShapeType, ExerciseQuestionMeasur
 };
 
 const normalizeQuestion = (question: ExerciseQuestion, index: number): ExerciseQuestion => {
+    const clonedCanvasState = question.visual?.canvasState
+        ? JSON.parse(JSON.stringify(question.visual.canvasState)) as CanvasState
+        : createEmptyCanvasState();
     const nextQuestion: ExerciseQuestion = {
         ...question,
         id: question.id || `question_${index + 1}`,
@@ -92,7 +96,7 @@ const normalizeQuestion = (question: ExerciseQuestion, index: number): ExerciseQ
         nextQuestion.manualReview = true;
         nextQuestion.visual = {
             enabled: true,
-            canvasState: nextQuestion.visual?.canvasState || createEmptyCanvasState(),
+            canvasState: clonedCanvasState,
             canvasMode: 'interactive',
             showFunctionPanel: nextQuestion.visual?.showFunctionPanel ?? false,
             hideFunctionExpressions: nextQuestion.visual?.hideFunctionExpressions ?? true,
@@ -103,7 +107,7 @@ const normalizeQuestion = (question: ExerciseQuestion, index: number): ExerciseQ
     } else if (nextQuestion.visual?.enabled) {
         nextQuestion.visual = {
             enabled: true,
-            canvasState: nextQuestion.visual.canvasState || createEmptyCanvasState(),
+            canvasState: clonedCanvasState,
             canvasMode: nextQuestion.visual.canvasMode || 'readonly',
             showFunctionPanel: nextQuestion.visual.showFunctionPanel ?? false,
             hideFunctionExpressions: nextQuestion.visual.hideFunctionExpressions ?? true,
@@ -139,6 +143,7 @@ const controlInputStyle: React.CSSProperties = {
 export const ExerciseEditor: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId?: string }>();
     const navigate = useNavigate();
+    const notifications = useNotifications();
     const [form, setForm] = React.useState<ExerciseFormState>(createInitialFormState());
     const [loading, setLoading] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
@@ -209,7 +214,7 @@ export const ExerciseEditor: React.FC = () => {
 
     const removeQuestion = (questionId: string) => {
         if (form.questions.length === 1) {
-            alert('Latihan minimal memiliki satu soal.');
+            notifications.warning('Latihan minimal memiliki satu soal.', 'Jumlah soal belum cukup');
             return;
         }
 
@@ -226,14 +231,14 @@ export const ExerciseEditor: React.FC = () => {
 
         const title = form.title.trim();
         if (!title) {
-            alert('Judul latihan wajib diisi.');
+            notifications.warning('Judul latihan wajib diisi.', 'Lengkapi meta latihan');
             return;
         }
 
         const normalizedQuestions = form.questions.map((question, index) => normalizeQuestion(question, index));
         const invalidQuestion = normalizedQuestions.find((question) => !question.prompt);
         if (invalidQuestion) {
-            alert('Semua soal harus memiliki prompt atau instruksi yang jelas.');
+            notifications.warning('Semua soal harus memiliki prompt atau instruksi yang jelas.', 'Soal belum lengkap');
             return;
         }
 
@@ -241,7 +246,10 @@ export const ExerciseEditor: React.FC = () => {
             (question) => question.type === 'short_text' && !question.manualReview && !question.acceptedText?.trim()
         );
         if (invalidShortText) {
-            alert('Jawaban singkat otomatis perlu jawaban referensi atau aktifkan review manual.');
+            notifications.warning(
+                'Jawaban singkat otomatis perlu jawaban referensi atau aktifkan review manual.',
+                'Atur kunci jawaban singkat'
+            );
             return;
         }
 
@@ -249,7 +257,10 @@ export const ExerciseEditor: React.FC = () => {
             (question) => question.type === 'multiple_choice' && (!question.options || question.options.length < 2 || !question.correctOptionId)
         );
         if (invalidMultipleChoice) {
-            alert('Soal pilihan ganda butuh minimal dua opsi dan satu jawaban benar.');
+            notifications.warning(
+                'Soal pilihan ganda butuh minimal dua opsi dan satu jawaban benar.',
+                'Periksa opsi jawaban'
+            );
             return;
         }
 
@@ -274,10 +285,17 @@ export const ExerciseEditor: React.FC = () => {
                 await classesAPI.createExercise(classId, payload);
             }
 
+            notifications.success(
+                isEditing ? 'Perubahan latihan sudah tersimpan.' : 'Latihan baru berhasil disimpan.',
+                'Latihan siap digunakan'
+            );
             navigate(`/teacher/classes/${classId}?tab=exercises`);
         } catch (error) {
             console.error('Failed to save exercise', error);
-            alert('Gagal menyimpan latihan.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal menyimpan latihan.'),
+                'Latihan belum tersimpan'
+            );
         } finally {
             setSaving(false);
         }

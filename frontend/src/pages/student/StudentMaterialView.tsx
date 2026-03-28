@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, BookOpen, Video, FileText, Clock, User, Loader, AlertCircle, Award, HelpCircle, Zap, Timer, ChevronRight } from 'lucide-react';
-import { materialsAPI, progressAPI } from '../../utils/api';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { materialsAPI, progressAPI, getApiErrorMessage } from '../../utils/api';
 import type { QuizContent as SharedQuizContent } from '../../types/quiz';
 
 interface Material {
@@ -40,6 +41,7 @@ interface BookContent {
 export const StudentMaterialView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const notifications = useNotifications();
 
     const [material, setMaterial] = useState<Material | null>(null);
     const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -256,7 +258,10 @@ export const StudentMaterialView: React.FC = () => {
 
         } catch (e) {
             console.error("Error submitting quiz", e);
-            alert("Terjadi kesalahan saat memproses kuis.");
+            notifications.error(
+                getApiErrorMessage(e, 'Terjadi kesalahan saat memproses kuis.'),
+                'Kuis belum diproses'
+            );
         }
     };
 
@@ -287,7 +292,10 @@ export const StudentMaterialView: React.FC = () => {
             }
         } catch (err) {
             console.error('Failed to complete:', err);
-            alert('Gagal menandai selesai');
+            notifications.error(
+                getApiErrorMessage(err, 'Gagal menandai selesai.'),
+                'Progress belum diperbarui'
+            );
         } finally {
             setCompleting(false);
         }

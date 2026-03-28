@@ -7,8 +7,9 @@ import {
     Shield,
     Unlock
 } from 'lucide-react';
+import { useNotifications } from '../../contexts/NotificationContext';
 import type { ClassDiscussionReply, ClassDiscussionThread } from '../../types/api.types';
-import { classesAPI } from '../../utils/api';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 
 interface ClassDiscussionPanelProps {
     classId: string;
@@ -16,6 +17,7 @@ interface ClassDiscussionPanelProps {
 }
 
 export const ClassDiscussionPanel: React.FC<ClassDiscussionPanelProps> = ({ classId, viewer }) => {
+    const notifications = useNotifications();
     const [threads, setThreads] = React.useState<ClassDiscussionThread[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedThreadId, setSelectedThreadId] = React.useState<string>('');
@@ -66,7 +68,7 @@ export const ClassDiscussionPanel: React.FC<ClassDiscussionPanelProps> = ({ clas
 
     const handleCreateThread = async () => {
         if (!newThreadTitle.trim() || !newThreadContent.trim()) {
-            alert('Isi judul dan isi diskusi terlebih dahulu.');
+            notifications.warning('Isi judul dan isi diskusi terlebih dahulu.', 'Thread belum lengkap');
             return;
         }
 
@@ -82,7 +84,10 @@ export const ClassDiscussionPanel: React.FC<ClassDiscussionPanelProps> = ({ clas
             setNewThreadContent('');
         } catch (error) {
             console.error('Failed to create discussion thread', error);
-            alert('Gagal membuat thread diskusi.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal membuat thread diskusi.'),
+                'Thread belum dibuat'
+            );
         } finally {
             setSaving(false);
         }
@@ -117,7 +122,10 @@ export const ClassDiscussionPanel: React.FC<ClassDiscussionPanelProps> = ({ clas
             setReplyContent('');
         } catch (error) {
             console.error('Failed to create reply', error);
-            alert('Gagal mengirim balasan.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal mengirim balasan.'),
+                'Balasan belum terkirim'
+            );
         } finally {
             setSaving(false);
         }
@@ -139,7 +147,10 @@ export const ClassDiscussionPanel: React.FC<ClassDiscussionPanelProps> = ({ clas
             });
         } catch (error) {
             console.error(`Failed to ${mode} thread`, error);
-            alert('Gagal memperbarui status thread.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal memperbarui status thread.'),
+                'Status forum belum berubah'
+            );
         }
     };
 

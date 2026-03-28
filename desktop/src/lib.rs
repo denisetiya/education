@@ -91,6 +91,66 @@ fn database_url(path: &Path) -> String {
     format!("file:{}", path.to_string_lossy().replace('\\', "/"))
 }
 
+fn sqlite_sidecar_paths(database_path: &Path) -> Vec<PathBuf> {
+    ["-wal", "-shm", "-journal"]
+        .iter()
+        .map(|suffix| PathBuf::from(format!("{}{}", database_path.to_string_lossy(), suffix)))
+        .collect()
+}
+
+fn should_refresh_runtime_database(
+    seed_database: &Path,
+    runtime_database: &Path,
+) -> Result<bool, String> {
+    if !runtime_database.exists() {
+        return Ok(true);
+    }
+
+    if !cfg!(debug_assertions) {
+        return Ok(false);
+    }
+
+    let seed_modified = fs::metadata(seed_database)
+        .and_then(|metadata| metadata.modified())
+        .map_err(|error| format!("Failed to inspect seed database timestamp: {error}"))?;
+    let runtime_modified = fs::metadata(runtime_database)
+        .and_then(|metadata| metadata.modified())
+        .map_err(|error| format!("Failed to inspect desktop runtime database timestamp: {error}"))?;
+
+    Ok(seed_modified > runtime_modified)
+}
+
+fn replace_runtime_database(seed_database: &Path, runtime_database: &Path) -> Result<(), String> {
+    if runtime_database.exists() {
+        fs::remove_file(runtime_database).map_err(|error| {
+            format!(
+                "Failed to clear outdated desktop database at {}: {error}",
+                runtime_database.display()
+            )
+        })?;
+    }
+
+    for sidecar_path in sqlite_sidecar_paths(runtime_database) {
+        if sidecar_path.exists() {
+            fs::remove_file(&sidecar_path).map_err(|error| {
+                format!(
+                    "Failed to clear stale SQLite sidecar file {}: {error}",
+                    sidecar_path.display()
+                )
+            })?;
+        }
+    }
+
+    fs::copy(seed_database, runtime_database).map_err(|error| {
+        format!(
+            "Failed to prepare writable desktop database from {}: {error}",
+            seed_database.display()
+        )
+    })?;
+
+    Ok(())
+}
+
 fn resolve_seed_database(backend_root: &Path) -> Result<PathBuf, String> {
     let candidates = [
         backend_root.join("prisma").join("dev.db"),
@@ -159,15 +219,9 @@ fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, 
         .map_err(|error| format!("Failed to create desktop backend runtime directory: {error}"))?;
 
     let database_path = runtime_root.join("app.db");
-    if !database_path.exists() {
-        let seed_database = resolve_seed_database(&backend_root)?;
-
-        fs::copy(&seed_database, &database_path).map_err(|error| {
-            format!(
-                "Failed to prepare writable desktop database from {}: {error}",
-                seed_database.display()
-            )
-        })?;
+    let seed_database = resolve_seed_database(&backend_root)?;
+    if should_refresh_runtime_database(&seed_database, &database_path)? {
+        replace_runtime_database(&seed_database, &database_path)?;
     }
 
     Ok(DesktopBackendPaths {

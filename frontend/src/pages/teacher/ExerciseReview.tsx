@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import GeometryCanvas from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
+import { useNotifications } from '../../contexts/NotificationContext';
 import {
     getQuestionTypeLabel,
     parseExerciseQuestions,
@@ -23,7 +24,7 @@ import {
     type ExerciseQuestionResult
 } from '../../features/exercises/exercise-config';
 import type { ClassExerciseSummary, ExerciseAttemptSummary } from '../../types/api.types';
-import { classesAPI } from '../../utils/api';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 
 interface ClassInfo {
     id: string;
@@ -97,6 +98,7 @@ const getQuestionStatusMeta = (result?: ExerciseQuestionResult) => {
 export const ExerciseReview: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId: string }>();
     const navigate = useNavigate();
+    const notifications = useNotifications();
     const [classInfo, setClassInfo] = React.useState<ClassInfo | null>(null);
     const [exercise, setExercise] = React.useState<ClassExerciseSummary | null>(null);
     const [questions, setQuestions] = React.useState<ExerciseQuestion[]>([]);
@@ -180,7 +182,7 @@ export const ExerciseReview: React.FC = () => {
 
         const parsedScore = Number(scoreInput);
         if (!Number.isFinite(parsedScore)) {
-            alert('Masukkan nilai yang valid.');
+            notifications.warning('Masukkan nilai yang valid.', 'Nilai belum bisa disimpan');
             return;
         }
 
@@ -209,7 +211,10 @@ export const ExerciseReview: React.FC = () => {
             });
         } catch (error) {
             console.error('Failed to save grade', error);
-            alert('Gagal menyimpan penilaian.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal menyimpan penilaian.'),
+                'Penilaian belum tersimpan'
+            );
         } finally {
             setSaving(false);
         }

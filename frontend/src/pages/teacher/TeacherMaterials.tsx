@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List, Layers3, Library, Sparkles, Workflow } from 'lucide-react';
-import { materialsAPI } from '../../utils/api';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { materialsAPI, getApiErrorMessage } from '../../utils/api';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import type { QuizContent as SharedQuizContent, QuizQuestion, QuizSettings, QuestionType } from '../../types/quiz';
 
@@ -65,6 +66,7 @@ const initialFormData: MaterialFormData = {
 };
 
 export const TeacherMaterials: React.FC = () => {
+    const notifications = useNotifications();
     const [searchParams, setSearchParams] = useSearchParams();
     const [materials, setMaterials] = useState<Material[]>([]);
     const [loading, setLoading] = useState(true);
@@ -374,7 +376,10 @@ export const TeacherMaterials: React.FC = () => {
             fetchMaterials();
         } catch (err) {
             console.error('Delete error:', err);
-            alert('Gagal menghapus materi: ' + ((err as Error).message || 'Unknown error'));
+            notifications.error(
+                getApiErrorMessage(err, 'Gagal menghapus materi.'),
+                'Materi belum dihapus'
+            );
         } finally {
             setDeleting(false);
         }

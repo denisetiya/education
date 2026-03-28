@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Lock, Star, Play, Map, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { modulesAPI, progressAPI } from '../../utils/api';
 
 interface LevelNode {
@@ -20,6 +21,7 @@ interface LevelNode {
 
 export const LearningJourney: React.FC = () => {
     const navigate = useNavigate();
+    const notifications = useNotifications();
     const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
     const [mapNodes, setMapNodes] = useState<LevelNode[]>([]);
     const [loading, setLoading] = useState(false);
@@ -93,7 +95,7 @@ export const LearningJourney: React.FC = () => {
         if (node.materialId) {
             navigate(`/student/materials/${node.materialId}`); // Direct link for simplicity
         } else {
-            alert("Modul ini belum memiliki materi.");
+            notifications.info('Modul ini belum memiliki materi.', 'Konten belum tersedia');
         }
     };
 

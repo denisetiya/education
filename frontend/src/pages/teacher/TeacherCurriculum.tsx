@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, FileText, Video, HelpCircle, Trash, BookOpen, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
-import { modulesAPI, materialsAPI } from '../../utils/api';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { modulesAPI, materialsAPI, getApiErrorMessage } from '../../utils/api';
 
 // Interface definitions
 interface ModuleItem {
@@ -21,6 +22,7 @@ interface MaterialItem {
 }
 
 export const TeacherCurriculum: React.FC = () => {
+    const notifications = useNotifications();
     const [modules, setModules] = useState<ModuleItem[]>([]);
     const [libraryMaterials, setLibraryMaterials] = useState<MaterialItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -70,7 +72,10 @@ export const TeacherCurriculum: React.FC = () => {
             setNewModule({ title: '', description: '', grade: 10, semester: 1, subject: 'MATEMATIKA' });
         } catch (error) {
             console.error("Failed to create module", error);
-            alert("Gagal membuat modul");
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal membuat modul.'),
+                'Modul belum dibuat'
+            );
         }
     };
 
@@ -93,7 +98,7 @@ export const TeacherCurriculum: React.FC = () => {
             const currentMaterialIds = module.materials.map(m => m.id);
             // Check if already exists
             if (currentMaterialIds.includes(materialId)) {
-                alert("Materi ini sudah ada di modul tersebut.");
+                notifications.info('Materi ini sudah ada di modul tersebut.', 'Materi sudah terpasang');
                 return;
             }
 

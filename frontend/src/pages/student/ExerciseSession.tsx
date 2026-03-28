@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import GeometryCanvas, { type GeometryCanvasHandle } from '../../components/geometry/GeometryCanvas';
 import type { CanvasState } from '../../components/geometry/types';
+import { useNotifications } from '../../contexts/NotificationContext';
 import {
     createEmptyCanvasState,
     findAnswerForQuestion,
@@ -29,7 +30,7 @@ import type {
     ExerciseAttemptSummary,
     ExerciseGradingStatus
 } from '../../types/api.types';
-import { classesAPI } from '../../utils/api';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 
 interface ExerciseResult {
     gradingStatus: ExerciseGradingStatus;
@@ -124,6 +125,7 @@ const controlInputStyle: React.CSSProperties = {
 export const ExerciseSession: React.FC = () => {
     const { classId, exerciseId } = useParams<{ classId: string; exerciseId: string }>();
     const navigate = useNavigate();
+    const notifications = useNotifications();
     const [exercise, setExercise] = React.useState<ClassExerciseSummary | null>(null);
     const [questions, setQuestions] = React.useState<ExerciseQuestion[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -234,7 +236,10 @@ export const ExerciseSession: React.FC = () => {
         });
 
         if (emptyRequiredQuestion) {
-            alert(`Jawaban untuk "${emptyRequiredQuestion.title}" belum diisi.`);
+            notifications.warning(
+                `Jawaban untuk "${emptyRequiredQuestion.title}" belum diisi.`,
+                'Masih ada soal kosong'
+            );
             return;
         }
 
@@ -260,11 +265,14 @@ export const ExerciseSession: React.FC = () => {
             console.error('Failed to submit attempt', error);
             if (error instanceof Error && error.message.includes('Already attempted')) {
                 setAlreadyAttempted(true);
-                alert('Latihan ini sudah pernah kamu kirim.');
+                notifications.info('Latihan ini sudah pernah kamu kirim.', 'Pengiriman sudah tercatat');
                 return;
             }
 
-            alert('Gagal mengirim jawaban.');
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal mengirim jawaban.'),
+                'Jawaban belum terkirim'
+            );
         } finally {
             setSubmitting(false);
         }

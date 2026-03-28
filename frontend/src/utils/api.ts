@@ -17,6 +17,86 @@ import type {
 import { getRuntimeApiBaseUrl } from '../desktop/runtime-config';
 import { getStoredAuthToken } from './auth-token';
 
+export interface ApiErrorDetail {
+    path?: string;
+    message: string;
+}
+
+export class ApiError extends Error {
+    status: number;
+    details?: ApiErrorDetail[];
+    rawBody?: unknown;
+
+    constructor(message: string, options: { status: number; details?: ApiErrorDetail[]; rawBody?: unknown }) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = options.status;
+        this.details = options.details;
+        this.rawBody = options.rawBody;
+    }
+}
+
+const parseResponseBody = async (response: Response) => {
+    const payload = await response.text();
+
+    if (!payload) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(payload) as unknown;
+    } catch {
+        return payload;
+    }
+};
+
+const normalizeApiErrorDetails = (value: unknown): ApiErrorDetail[] | undefined => {
+    if (!Array.isArray(value)) {
+        return undefined;
+    }
+
+    const details = value.reduce<ApiErrorDetail[]>((accumulator, detail) => {
+            if (!detail || typeof detail !== 'object') {
+                return accumulator;
+            }
+
+            const record = detail as Record<string, unknown>;
+            const message = typeof record.message === 'string' ? record.message.trim() : '';
+            if (!message) {
+                return accumulator;
+            }
+
+            accumulator.push({
+                path: typeof record.path === 'string' ? record.path : undefined,
+                message
+            });
+
+            return accumulator;
+        }, []);
+
+    return details.length > 0 ? details : undefined;
+};
+
+export const getApiErrorMessage = (error: unknown, fallback = 'Terjadi kesalahan.') => {
+    if (error instanceof ApiError) {
+        const detailMessages = error.details
+            ?.map((detail) => detail.path ? `${detail.path}: ${detail.message}` : detail.message)
+            .filter(Boolean);
+
+        if (detailMessages && detailMessages.length > 0) {
+            return `${error.message}. ${detailMessages.join(' ')}`;
+        }
+
+        return error.message || fallback;
+    }
+
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return fallback;
+};
+
 // Generic fetch wrapper with credentials (cookies)
 async function apiFetch<T>(
     endpoint: string,
@@ -39,11 +119,32 @@ async function apiFetch<T>(
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || 'Request failed');
+        const payload = await parseResponseBody(response);
+        const errorBody = payload && typeof payload === 'object'
+            ? payload as Record<string, unknown>
+            : null;
+        const message = typeof errorBody?.error === 'string'
+            ? errorBody.error
+            : typeof errorBody?.message === 'string'
+                ? errorBody.message
+                : typeof payload === 'string' && payload.trim()
+                    ? payload
+                    : `Request failed (${response.status})`;
+
+        throw new ApiError(message, {
+            status: response.status,
+            details: normalizeApiErrorDetails(errorBody?.details),
+            rawBody: payload
+        });
     }
 
-    return response.json();
+    const payload = await parseResponseBody(response);
+
+    if (payload === null) {
+        return undefined as T;
+    }
+
+    return payload as T;
 }
 
 // Auth API

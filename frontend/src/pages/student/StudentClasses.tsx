@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, BookOpen, Users } from 'lucide-react';
-import { classesAPI } from '../../utils/api';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 
 export const StudentClasses: React.FC = () => {
+    const notifications = useNotifications();
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [joinCode, setJoinCode] = useState('');
@@ -31,11 +33,14 @@ export const StudentClasses: React.FC = () => {
         setJoining(true);
         try {
             await classesAPI.join(joinCode);
-            alert('Berhasil bergabung ke kelas!');
+            notifications.success('Berhasil bergabung ke kelas!', 'Kelas ditambahkan');
             setJoinCode('');
             fetchEnrollments();
-        } catch (error: any) {
-            alert(error.message || 'Gagal bergabung ke kelas');
+        } catch (error: unknown) {
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal bergabung ke kelas.'),
+                'Kelas belum ditambahkan'
+            );
         } finally {
             setJoining(false);
         }
