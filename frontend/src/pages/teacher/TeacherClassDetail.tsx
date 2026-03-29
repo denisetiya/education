@@ -5,6 +5,7 @@ import {
     Award, BarChart3, Clock, ExternalLink, FileText, X,
     Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy
 } from 'lucide-react';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { classesAPI, modulesAPI } from '../../utils/api';
 import ClassDiscussionPanel from '../../components/classes/ClassDiscussionPanel';
 import ClassLeaderboardPanel from '../../components/classes/ClassLeaderboardPanel';
@@ -84,6 +85,7 @@ const getTeacherTab = (value: string | null): TeacherTab => {
 export const TeacherClassDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const notifications = useNotifications();
     const [searchParams, setSearchParams] = useSearchParams();
     const [classData, setClassData] = useState<ClassData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -340,13 +342,25 @@ export const TeacherClassDetail: React.FC = () => {
     };
 
     const handleDeleteBook = async (bookId: string) => {
-        if (!id || !confirm('Yakin ingin menghapus buku ini?')) return;
+        if (!id) return;
+
+        const confirmed = await notifications.confirm({
+            title: 'Hapus buku kelas?',
+            message: 'Buku akan dihapus dari pustaka kelas ini. Tindakan ini tidak bisa dibatalkan.',
+            confirmLabel: 'Hapus buku',
+            cancelLabel: 'Batal',
+            tone: 'danger'
+        });
+
+        if (!confirmed) return;
+
         try {
             await classesAPI.deleteBook(id, bookId);
             setSuccess('Buku berhasil dihapus!');
             fetchBooks();
         } catch (error) {
             console.error('Failed to delete book', error);
+            notifications.error('Gagal menghapus buku.', 'Aksi belum selesai');
         }
     };
 
@@ -1415,6 +1429,7 @@ interface ExerciseItem {
 }
 
 export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classId, navigate }) => {
+    const notifications = useNotifications();
     const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
     const [loading, setLoading] = React.useState(true);
 
@@ -1435,12 +1450,22 @@ export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classI
     };
 
     const handleDelete = async (exerciseId: string) => {
-        if (!confirm('Hapus latihan ini?')) return;
+        const confirmed = await notifications.confirm({
+            title: 'Hapus latihan?',
+            message: 'Latihan dan riwayat jawabannya akan dihapus dari kelas ini.',
+            confirmLabel: 'Hapus latihan',
+            cancelLabel: 'Batal',
+            tone: 'danger'
+        });
+
+        if (!confirmed) return;
+
         try {
             await classesAPI.deleteExercise(classId, exerciseId);
             setExercises(prev => prev.filter(e => e.id !== exerciseId));
         } catch (error) {
             console.error('Failed to delete exercise:', error);
+            notifications.error('Gagal menghapus latihan.', 'Aksi belum selesai');
         }
     };
 

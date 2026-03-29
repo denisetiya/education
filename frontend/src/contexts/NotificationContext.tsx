@@ -1,6 +1,7 @@
 import React from 'react';
 import {
     AlertTriangle,
+    CircleAlert,
     CheckCircle2,
     Info,
     X,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 
 type NotificationTone = 'success' | 'error' | 'warning' | 'info';
+type ConfirmationTone = 'danger' | 'warning' | 'info';
 
 interface NotificationInput {
     title?: string;
@@ -24,6 +26,16 @@ interface NotificationItem {
     durationMs: number;
 }
 
+interface ConfirmationInput {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    tone?: ConfirmationTone;
+}
+
+type ConfirmationState = Required<ConfirmationInput>;
+
 interface NotificationContextValue {
     notify: (input: NotificationInput) => string;
     dismiss: (id: string) => void;
@@ -31,6 +43,7 @@ interface NotificationContextValue {
     error: (message: string, title?: string) => string;
     warning: (message: string, title?: string) => string;
     info: (message: string, title?: string) => string;
+    confirm: (input: ConfirmationInput) => Promise<boolean>;
 }
 
 const NotificationContext = React.createContext<NotificationContextValue | null>(null);
@@ -72,6 +85,36 @@ const toneConfig: Record<NotificationTone, {
     }
 };
 
+const confirmationToneConfig: Record<ConfirmationTone, {
+    icon: React.ReactNode;
+    accent: string;
+    surface: string;
+    text: string;
+    buttonBackground: string;
+}> = {
+    danger: {
+        icon: <XCircle size={20} />,
+        accent: '#dc2626',
+        surface: 'linear-gradient(135deg, rgba(254, 242, 242, 0.98), rgba(254, 226, 226, 0.98))',
+        text: '#7f1d1d',
+        buttonBackground: 'linear-gradient(135deg, #dc2626, #ef4444)'
+    },
+    warning: {
+        icon: <AlertTriangle size={20} />,
+        accent: '#d97706',
+        surface: 'linear-gradient(135deg, rgba(255, 251, 235, 0.98), rgba(254, 243, 199, 0.98))',
+        text: '#92400e',
+        buttonBackground: 'linear-gradient(135deg, #d97706, #f59e0b)'
+    },
+    info: {
+        icon: <CircleAlert size={20} />,
+        accent: '#2563eb',
+        surface: 'linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.98))',
+        text: '#1d4ed8',
+        buttonBackground: 'linear-gradient(135deg, #2563eb, #3b82f6)'
+    }
+};
+
 const createNotificationId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -82,7 +125,9 @@ const createNotificationId = () => {
 
 export const NotificationProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
     const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
+    const [confirmation, setConfirmation] = React.useState<ConfirmationState | null>(null);
     const timeoutMapRef = React.useRef<Record<string, number>>({});
+    const confirmationResolverRef = React.useRef<((value: boolean) => void) | null>(null);
 
     const dismiss = React.useCallback((id: string) => {
         const activeTimeout = timeoutMapRef.current[id];
@@ -117,9 +162,37 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({ childr
         return id;
     }, [dismiss]);
 
+    const resolveConfirmation = React.useCallback((value: boolean) => {
+        confirmationResolverRef.current?.(value);
+        confirmationResolverRef.current = null;
+        setConfirmation(null);
+    }, []);
+
+    const confirm = React.useCallback((input: ConfirmationInput) => {
+        if (confirmationResolverRef.current) {
+            confirmationResolverRef.current(false);
+            confirmationResolverRef.current = null;
+        }
+
+        return new Promise<boolean>((resolve) => {
+            confirmationResolverRef.current = resolve;
+            setConfirmation({
+                title: input.title ?? 'Konfirmasi tindakan',
+                message: input.message,
+                confirmLabel: input.confirmLabel ?? 'Lanjutkan',
+                cancelLabel: input.cancelLabel ?? 'Batal',
+                tone: input.tone ?? 'warning'
+            });
+        });
+    }, []);
+
     React.useEffect(() => () => {
         Object.values(timeoutMapRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
         timeoutMapRef.current = {};
+        if (confirmationResolverRef.current) {
+            confirmationResolverRef.current(false);
+            confirmationResolverRef.current = null;
+        }
     }, []);
 
     const contextValue = React.useMemo<NotificationContextValue>(() => ({
@@ -128,12 +201,109 @@ export const NotificationProvider: React.FC<React.PropsWithChildren> = ({ childr
         success: (message, title) => notify({ tone: 'success', message, title }),
         error: (message, title) => notify({ tone: 'error', message, title }),
         warning: (message, title) => notify({ tone: 'warning', message, title }),
-        info: (message, title) => notify({ tone: 'info', message, title })
-    }), [dismiss, notify]);
+        info: (message, title) => notify({ tone: 'info', message, title }),
+        confirm
+    }), [dismiss, notify, confirm]);
 
     return (
         <NotificationContext.Provider value={contextValue}>
             {children}
+
+            {confirmation && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 3300,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.5rem',
+                        background: 'rgba(15, 23, 42, 0.45)',
+                        backdropFilter: 'blur(8px)'
+                    }}
+                    onClick={() => resolveConfirmation(false)}
+                >
+                    <div
+                        onClick={(event) => event.stopPropagation()}
+                        style={{
+                            width: 'min(480px, 100%)',
+                            borderRadius: '1.4rem',
+                            border: '1px solid rgba(148, 163, 184, 0.22)',
+                            background: confirmationToneConfig[confirmation.tone].surface,
+                            boxShadow: '0 30px 60px rgba(15, 23, 42, 0.24)',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        <div style={{ padding: '1.35rem 1.4rem 1rem', display: 'flex', alignItems: 'flex-start', gap: '0.9rem' }}>
+                            <div
+                                style={{
+                                    width: '2.5rem',
+                                    height: '2.5rem',
+                                    borderRadius: '999px',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: 'rgba(255, 255, 255, 0.72)',
+                                    color: confirmationToneConfig[confirmation.tone].accent
+                                }}
+                            >
+                                {confirmationToneConfig[confirmation.tone].icon}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                                <p style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.35rem' }}>
+                                    {confirmation.title}
+                                </p>
+                                <p style={{ fontSize: '0.9rem', lineHeight: 1.65, color: confirmationToneConfig[confirmation.tone].text }}>
+                                    {confirmation.message}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: '0.75rem',
+                                padding: '0 1.4rem 1.35rem'
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => resolveConfirmation(false)}
+                                style={{
+                                    padding: '0.8rem 1rem',
+                                    borderRadius: '0.95rem',
+                                    border: '1px solid rgba(148, 163, 184, 0.24)',
+                                    background: 'rgba(255, 255, 255, 0.82)',
+                                    color: '#334155',
+                                    fontWeight: 700
+                                }}
+                            >
+                                {confirmation.cancelLabel}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => resolveConfirmation(true)}
+                                style={{
+                                    padding: '0.8rem 1rem',
+                                    borderRadius: '0.95rem',
+                                    border: 'none',
+                                    background: confirmationToneConfig[confirmation.tone].buttonBackground,
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    boxShadow: '0 16px 30px rgba(15, 23, 42, 0.16)'
+                                }}
+                            >
+                                {confirmation.confirmLabel}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div
                 aria-live="polite"

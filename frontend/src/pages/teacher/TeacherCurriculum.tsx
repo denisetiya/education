@@ -80,12 +80,25 @@ export const TeacherCurriculum: React.FC = () => {
     };
 
     const handleDeleteModule = async (id: string) => {
-        if (!confirm("Hapus modul ini? Materi di dalamnya tidak akan terhapus dari sistem, hanya dilepas dari modul.")) return;
+        const confirmed = await notifications.confirm({
+            title: 'Hapus modul?',
+            message: 'Materi di dalamnya tidak akan terhapus dari sistem, tetapi akan dilepas dari modul ini.',
+            confirmLabel: 'Hapus modul',
+            cancelLabel: 'Batal',
+            tone: 'danger'
+        });
+
+        if (!confirmed) return;
+
         try {
             await modulesAPI.delete(id);
             refreshData();
         } catch (error) {
             console.error("Failed to delete module", error);
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal menghapus modul.'),
+                'Modul belum dihapus'
+            );
         }
     };
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Clock, Edit, ExternalLink, PenTool, Plus, Trash2 } from 'lucide-react';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { getQuestionAnswerTypeSummary, parseExerciseQuestions } from '../../features/exercises/exercise-config';
-import { classesAPI } from '../../utils/api';
+import { classesAPI, getApiErrorMessage } from '../../utils/api';
 
 interface TeacherExercisesTabProps {
     classId: string;
@@ -30,6 +31,7 @@ interface ExerciseItem {
 }
 
 export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classId, navigate }) => {
+    const notifications = useNotifications();
     const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
     const [loading, setLoading] = React.useState(true);
 
@@ -50,13 +52,25 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
     };
 
     const handleDelete = async (exerciseId: string) => {
-        if (!confirm('Hapus latihan ini?')) return;
+        const confirmed = await notifications.confirm({
+            title: 'Hapus latihan?',
+            message: 'Latihan akan dihapus dari kelas ini. Pastikan memang sudah tidak diperlukan.',
+            confirmLabel: 'Hapus latihan',
+            cancelLabel: 'Batal',
+            tone: 'danger'
+        });
+
+        if (!confirmed) return;
 
         try {
             await classesAPI.deleteExercise(classId, exerciseId);
             setExercises((prev) => prev.filter((exercise) => exercise.id !== exerciseId));
         } catch (error) {
             console.error('Failed to delete exercise:', error);
+            notifications.error(
+                getApiErrorMessage(error, 'Gagal menghapus latihan.'),
+                'Latihan belum dihapus'
+            );
         }
     };
 
