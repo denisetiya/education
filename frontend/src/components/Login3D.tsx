@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, PerspectiveCamera, Float, Icosahedron, Octahedron, Dodecahedron, Trail, Sparkles } from '@react-three/drei';
+import { PerspectiveCamera, Float, Icosahedron, Octahedron, Dodecahedron, Trail } from '@react-three/drei';
 import * as THREE from 'three';
 
 // -----------------------------------------------------------------------------
@@ -25,9 +25,9 @@ const FloatingGeometry = ({ position, shape, color, scale, speed }: { position: 
     return (
         <Float speed={speed} rotationIntensity={speed} floatIntensity={speed / 2} position={position}>
             <group ref={meshRef}>
-                {shape === 'icosa' && <Icosahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.3} /></Icosahedron>}
-                {shape === 'octa' && <Octahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.3} /></Octahedron>}
-                {shape === 'dodeca' && <Dodecahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.3} /></Dodecahedron>}
+                {shape === 'icosa' && <Icosahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.7} /></Icosahedron>}
+                {shape === 'octa' && <Octahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.7} /></Octahedron>}
+                {shape === 'dodeca' && <Dodecahedron args={[scale, 0]}><meshStandardMaterial color={color} wireframe transparent opacity={0.7} /></Dodecahedron>}
 
             </group>
         </Float>
@@ -104,23 +104,6 @@ const ShootingStar = () => {
     );
 };
 
-// -----------------------------------------------------------------------------
-// Component: TwinkleStars (New)
-// -----------------------------------------------------------------------------
-const TwinkleStars = () => {
-    return (
-        <group>
-            {/* Slow, distant twinkling stars */}
-            <Sparkles count={200} scale={40} size={1.5} speed={0.4} opacity={0.7} color="#cbd5e1" />
-            
-            {/* Faster, bright stars for "living" feel */}
-            <Sparkles count={50} scale={30} size={2.5} speed={0.8} opacity={1} color="#ffffff" />
-            
-            {/* Subtle blue ambient dust */}
-            <Sparkles count={100} scale={50} size={5} speed={0.2} opacity={0.3} color="#6366f1" />
-        </group>
-    );
-};
 
 // -----------------------------------------------------------------------------
 // Component: DriftingCrystal (Replaces DriftingPlanet)
@@ -193,14 +176,14 @@ const DriftingCrystal = () => {
                         roughness={0.1} 
                         metalness={0.1} 
                         transparent 
-                        opacity={0.6}
+                        opacity={0.8}
                         flatShading
                     />
                 </Octahedron>
                 
                 {/* Inner Core */}
                 <Octahedron args={[0.8, 0]}>
-                     <meshBasicMaterial color="#6366f1" wireframe transparent opacity={0.5} />
+                     <meshBasicMaterial color="#6366f1" wireframe transparent opacity={0.7} />
                 </Octahedron>
 
                 {/* Orbiting Shards */}
@@ -257,12 +240,6 @@ const Scene = ({ isMobile }: { isMobile: boolean }) => {
             <pointLight position={[-15, -10, -5]} intensity={1} color="#4f46e5" />
             <pointLight position={[0, 5, 0]} intensity={0.5} color="#ec4899" />
 
-            {/* Deep Background Stars (Static/Standard) */}
-            <Stars radius={100} depth={60} count={3000} factor={4} saturation={1} fade speed={1} />
-            
-            {/* Alive Twinkling Stars Layer */}
-            <TwinkleStars />
-
             {/* Scattered Floating Geometries */}
             {geometryData.map((data) => (
                 <FloatingGeometry 
@@ -292,8 +269,8 @@ const Scene = ({ isMobile }: { isMobile: boolean }) => {
 // -----------------------------------------------------------------------------
 export const Login3D = ({ isMobile }: { isMobile: boolean }) => {
     return (
-        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 0, background: 'linear-gradient(to bottom, #0f172a, #1e1b4b)' }}>
-            <Canvas dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }}>
+        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
+            <Canvas dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
                 <Scene isMobile={isMobile} />
             </Canvas>
         </div>
