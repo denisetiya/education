@@ -285,8 +285,8 @@ fn replace_runtime_database(seed_database: &Path, runtime_database: &Path) -> Re
 
 fn resolve_seed_database(backend_root: &Path) -> Result<PathBuf, String> {
     let candidates = [
-        backend_root.join("dev.db"),
         backend_root.join("prisma").join("dev.db"),
+        backend_root.join("dev.db"),
     ];
 
     candidates

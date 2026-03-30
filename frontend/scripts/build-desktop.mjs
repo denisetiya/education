@@ -12,6 +12,7 @@ const projectRoot = path.resolve(frontendRoot, '..');
 const backendRoot = path.join(projectRoot, 'backend');
 const desktopRoot = path.join(projectRoot, 'desktop');
 const desktopBackendRoot = path.join(desktopRoot, 'resources', 'backend');
+const prismaSeedDatabasePath = path.join(backendRoot, 'prisma', 'dev.db');
 
 const syncDesktopDatabase = async () => {
     await runCommand(getNodePackageManagerCommand('pnpm'), ['exec', 'prisma', 'db', 'push', '--skip-generate'], {
@@ -62,8 +63,8 @@ const buildDesktopBackendBundle = async () => {
     ]);
 
     await Promise.all([
-        cp(path.join(backendRoot, 'dev.db'), path.join(desktopBackendRoot, 'dev.db')),
-        cp(path.join(backendRoot, 'dev.db'), path.join(desktopBackendRoot, 'prisma', 'dev.db'))
+        cp(prismaSeedDatabasePath, path.join(desktopBackendRoot, 'dev.db')),
+        cp(prismaSeedDatabasePath, path.join(desktopBackendRoot, 'prisma', 'dev.db'))
     ]);
 
     const bundledDatabaseBuffer = await readFile(path.join(desktopBackendRoot, 'dev.db'));
