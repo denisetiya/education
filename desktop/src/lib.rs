@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -47,48 +47,127 @@ struct DesktopBackendPaths {
     sidecar_path: PathBuf,
 }
 
-fn resolve_backend_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let backend_root = if cfg!(debug_assertions) {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("backend")
-    } else {
-        app.path()
-            .resource_dir()
-            .map_err(|error| format!("Failed to resolve resource directory: {error}"))?
-            .join("backend")
-    };
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopSeedManifest {
+    seed_version: String,
+}
 
-    if backend_root.exists() {
-        Ok(backend_root)
+#[cfg(windows)]
+fn normalize_windows_path(path: PathBuf) -> PathBuf {
+    let raw = path.to_string_lossy();
+    if let Some(stripped) = raw.strip_prefix(r"\\?\") {
+        PathBuf::from(stripped)
     } else {
-        Err(format!(
-            "Backend bundle directory was not found at {}",
-            backend_root.display()
-        ))
+        path
     }
+}
+
+#[cfg(not(windows))]
+fn normalize_windows_path(path: PathBuf) -> PathBuf {
+    path
+}
+
+fn resolve_backend_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let mut candidates = Vec::new();
+
+    if cfg!(debug_assertions) {
+        candidates.push(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("backend"));
+    } else {
+        let resource_dir = app
+            .path()
+            .resource_dir()
+            .map_err(|error| format!("Failed to resolve resource directory: {error}"))?;
+        let current_exe =
+            std::env::current_exe().map_err(|error| format!("Failed to resolve app executable: {error}"))?;
+        let exe_dir = current_exe.parent().ok_or_else(|| {
+            format!(
+                "Failed to resolve executable directory for {}",
+                current_exe.display()
+            )
+        })?;
+
+        candidates.push(normalize_windows_path(resource_dir.join("backend")));
+        candidates.push(normalize_windows_path(resource_dir.join("resources").join("backend")));
+        candidates.push(normalize_windows_path(exe_dir.join("resources").join("backend")));
+        candidates.push(normalize_windows_path(exe_dir.join("backend")));
+    }
+
+    let inspected_candidates = candidates
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    candidates.into_iter().find(|path| path.exists()).ok_or_else(|| {
+        format!(
+            "Backend bundle directory was not found in any known desktop location. Checked: {inspected_candidates}"
+        )
+    })
 }
 
 fn resolve_sidecar_path() -> Result<PathBuf, String> {
     let current_exe =
         std::env::current_exe().map_err(|error| format!("Failed to resolve app executable: {error}"))?;
+    let exe_dir = current_exe.parent().ok_or_else(|| {
+        format!(
+            "Failed to resolve executable directory for {}",
+            current_exe.display()
+        )
+    })?;
     let sidecar_name = if cfg!(windows) {
         "backend-node.exe"
     } else {
         "backend-node"
     };
-    let sidecar_path = current_exe.with_file_name(sidecar_name);
+    let exact_candidates = [
+        current_exe.with_file_name(sidecar_name),
+        exe_dir.join(sidecar_name),
+    ];
 
-    if sidecar_path.exists() {
-        Ok(sidecar_path)
-    } else {
-        Err(format!(
-            "Backend sidecar was not found at {}",
-            sidecar_path.display()
-        ))
+    if let Some(sidecar_path) = exact_candidates.into_iter().find(|path| path.exists()) {
+        return Ok(sidecar_path);
     }
+
+    let mut fallback_candidates = fs::read_dir(exe_dir)
+        .map_err(|error| format!("Failed to inspect executable directory for sidecars: {error}"))?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|value| value.to_str())
+                .map(|value| value.starts_with("backend-node"))
+                .unwrap_or(false)
+        });
+
+    fallback_candidates.next().ok_or_else(|| {
+        format!(
+            "Backend sidecar was not found next to the installed app in {}",
+            exe_dir.display()
+        )
+    })
 }
 
 fn database_url(path: &Path) -> String {
     format!("file:{}", path.to_string_lossy().replace('\\', "/"))
+}
+
+fn startup_log_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let runtime_root = app.path().app_local_data_dir().ok()?.join("backend");
+    fs::create_dir_all(&runtime_root).ok()?;
+    Some(runtime_root.join("startup.log"))
+}
+
+fn append_startup_log(app: &tauri::AppHandle, message: impl AsRef<str>) {
+    let Some(path) = startup_log_path(app) else {
+        return;
+    };
+
+    let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) else {
+        return;
+    };
+
+    let _ = writeln!(file, "[{}] {}", chrono_like_timestamp(), message.as_ref());
 }
 
 fn sqlite_sidecar_paths(database_path: &Path) -> Vec<PathBuf> {
@@ -98,16 +177,69 @@ fn sqlite_sidecar_paths(database_path: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+fn read_seed_manifest(path: &Path) -> Result<Option<DesktopSeedManifest>, String> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let raw = fs::read_to_string(path).map_err(|error| {
+        format!(
+            "Failed to read bundled desktop seed manifest at {}: {error}",
+            path.display()
+        )
+    })?;
+
+    let manifest = serde_json::from_str::<DesktopSeedManifest>(&raw).map_err(|error| {
+        format!(
+            "Failed to parse bundled desktop seed manifest at {}: {error}",
+            path.display()
+        )
+    })?;
+
+    Ok(Some(manifest))
+}
+
+fn read_runtime_seed_version(path: &Path) -> Result<Option<String>, String> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let value = fs::read_to_string(path).map_err(|error| {
+        format!(
+            "Failed to read desktop runtime seed marker at {}: {error}",
+            path.display()
+        )
+    })?;
+
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(value.to_string()))
+}
+
+fn write_runtime_seed_version(path: &Path, seed_version: &str) -> Result<(), String> {
+    fs::write(path, format!("{seed_version}\n")).map_err(|error| {
+        format!(
+            "Failed to persist desktop runtime seed marker at {}: {error}",
+            path.display()
+        )
+    })
+}
+
 fn should_refresh_runtime_database(
     seed_database: &Path,
     runtime_database: &Path,
+    bundled_seed_version: Option<&str>,
+    runtime_seed_version: Option<&str>,
 ) -> Result<bool, String> {
     if !runtime_database.exists() {
         return Ok(true);
     }
 
-    if !cfg!(debug_assertions) {
-        return Ok(false);
+    if let Some(bundled_seed_version) = bundled_seed_version {
+        return Ok(runtime_seed_version != Some(bundled_seed_version));
     }
 
     let seed_modified = fs::metadata(seed_database)
@@ -153,8 +285,8 @@ fn replace_runtime_database(seed_database: &Path, runtime_database: &Path) -> Re
 
 fn resolve_seed_database(backend_root: &Path) -> Result<PathBuf, String> {
     let candidates = [
-        backend_root.join("prisma").join("dev.db"),
         backend_root.join("dev.db"),
+        backend_root.join("prisma").join("dev.db"),
     ];
 
     candidates
@@ -219,9 +351,41 @@ fn prepare_backend_paths(app: &tauri::AppHandle) -> Result<DesktopBackendPaths, 
         .map_err(|error| format!("Failed to create desktop backend runtime directory: {error}"))?;
 
     let database_path = runtime_root.join("app.db");
+    let runtime_seed_version_path = runtime_root.join("seed-version.txt");
     let seed_database = resolve_seed_database(&backend_root)?;
-    if should_refresh_runtime_database(&seed_database, &database_path)? {
+    let bundled_seed_manifest =
+        read_seed_manifest(&backend_root.join("seed-manifest.json"))?;
+    let bundled_seed_version = bundled_seed_manifest
+        .as_ref()
+        .map(|manifest| manifest.seed_version.as_str());
+    let runtime_seed_version = read_runtime_seed_version(&runtime_seed_version_path)?;
+
+    if should_refresh_runtime_database(
+        &seed_database,
+        &database_path,
+        bundled_seed_version,
+        runtime_seed_version.as_deref(),
+    )? {
+        append_startup_log(
+            app,
+            format!(
+                "Refreshing runtime database from {} to {}",
+                seed_database.display(),
+                database_path.display()
+            ),
+        );
         replace_runtime_database(&seed_database, &database_path)?;
+        if let Some(seed_version) = bundled_seed_version {
+            write_runtime_seed_version(&runtime_seed_version_path, seed_version)?;
+        }
+    } else {
+        append_startup_log(
+            app,
+            format!(
+                "Keeping existing runtime database at {}",
+                database_path.display()
+            ),
+        );
     }
 
     Ok(DesktopBackendPaths {
@@ -295,6 +459,7 @@ fn start_desktop_backend(
     app: &tauri::AppHandle,
     force_restart: bool,
 ) -> Result<DesktopBackendConfig, String> {
+    append_startup_log(app, format!("start_desktop_backend(force_restart={force_restart})"));
     let backend_state = app.state::<DesktopBackendState>();
     let mut runtime_guard = backend_state
         .runtime
@@ -312,23 +477,49 @@ fn start_desktop_backend(
         match runtime.child.try_wait() {
             Ok(None) => return Ok(runtime.config.clone()),
             Ok(Some(_)) => {
+                append_startup_log(app, "Existing desktop backend process is no longer running");
                 *runtime_guard = None;
             }
             Err(error) => {
-                return Err(format!("Failed to inspect backend process state: {error}"));
+                let message = format!("Failed to inspect backend process state: {error}");
+                append_startup_log(app, &message);
+                return Err(message);
             }
         }
     }
 
-    let paths = prepare_backend_paths(app)?;
-    let jwt_secret = read_or_create_secret(&paths.jwt_secret_path)?;
-    let config = desktop_backend_config(pick_available_port()?);
+    let paths = prepare_backend_paths(app).map_err(|error| {
+        append_startup_log(app, format!("Failed to prepare backend paths: {error}"));
+        error
+    })?;
+    append_startup_log(
+        app,
+        format!(
+            "Using backend_root={}, sidecar={}, database={}",
+            paths.backend_root.display(),
+            paths.sidecar_path.display(),
+            paths.database_path.display()
+        ),
+    );
+
+    let jwt_secret = read_or_create_secret(&paths.jwt_secret_path).map_err(|error| {
+        append_startup_log(app, format!("Failed to prepare JWT secret: {error}"));
+        error
+    })?;
+    let config = desktop_backend_config(pick_available_port().map_err(|error| {
+        append_startup_log(app, format!("Failed to reserve backend port: {error}"));
+        error
+    })?);
 
     let mut log_file = OpenOptions::new()
         .create(true)
         .append(true)
         .open(&paths.log_path)
-        .map_err(|error| format!("Failed to open desktop backend log file: {error}"))?;
+        .map_err(|error| {
+            let message = format!("Failed to open desktop backend log file: {error}");
+            append_startup_log(app, &message);
+            message
+        })?;
 
     let _ = writeln!(
         log_file,
@@ -352,11 +543,17 @@ fn start_desktop_backend(
     );
 
     let child = command.spawn().map_err(|error| {
-        format!(
+        let message = format!(
             "Failed to start desktop backend using {}: {error}",
             paths.sidecar_path.display()
-        )
+        );
+        append_startup_log(app, &message);
+        message
     })?;
+    append_startup_log(
+        app,
+        format!("Spawned desktop backend sidecar on port {}", config.port),
+    );
 
     *runtime_guard = Some(DesktopBackendRuntime {
         child,
@@ -389,6 +586,7 @@ fn chrono_like_timestamp() -> String {
 fn warm_desktop_backend(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Err(error) = start_desktop_backend(&app, false) {
+            append_startup_log(&app, format!("Failed to warm desktop backend: {error}"));
             log::error!("Failed to warm desktop backend: {error}");
         }
     });

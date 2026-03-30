@@ -76,6 +76,27 @@ const ensureDesktopBackend = async (
     }
 };
 
+const getDesktopStartupErrorMessage = (startupError: unknown) => {
+    if (typeof startupError === 'string' && startupError.trim()) {
+        return startupError;
+    }
+
+    if (
+        startupError &&
+        typeof startupError === 'object' &&
+        'message' in startupError &&
+        typeof (startupError as { message?: unknown }).message === 'string'
+    ) {
+        return (startupError as { message: string }).message;
+    }
+
+    if (startupError instanceof Error && startupError.message) {
+        return startupError.message;
+    }
+
+    return 'Terjadi kesalahan saat menjalankan backend desktop.';
+};
+
 const DesktopLoadingScreen: React.FC<{ message: string; error: string | null; onRetry: () => void }> = ({
     message,
     error,
@@ -216,11 +237,7 @@ export const DesktopBootstrap: React.FC = () => {
             } catch (startupError) {
                 console.error(startupError);
                 if (isActive) {
-                    setError(
-                        startupError instanceof Error
-                            ? startupError.message
-                            : 'Terjadi kesalahan saat menjalankan backend desktop.'
-                    );
+                    setError(getDesktopStartupErrorMessage(startupError));
                     setStatus('error');
                 }
             }
