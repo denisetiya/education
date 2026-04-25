@@ -1,0 +1,28 @@
+Error: Cannot find module '@prisma/client/runtime/library.js'
+Require stack:
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\node_modules\.prisma\client\index.js
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\node_modules\.prisma\client\default.js
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\default.js
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\backend\src\utils\prisma.ts
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\backend\src\routes\auth.routes.ts
+- C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\backend\src\index.ts
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1448:15)
+    at Module._resolveFilename.sharedData.moduleResolveFilenameHook.installedValue [as _resolveFilename] (C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\node_modules\.pnpm\@cspotcode+source-map-support@0.8.1\node_modules\@cspotcode\source-map-support\source-map-support.js:811:30)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+    at Module._load (node:internal/modules/cjs/loader:1234:25)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1548:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (C:\Users\Deni Setiya\Documents\devlopment\devlopment\education\node_modules\.prisma\client\index.js:26:5) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\node_modules\\.prisma\\client\\index.js',
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\node_modules\\.prisma\\client\\default.js',
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\node_modules\\.pnpm\\@prisma+client@5.22.0_prisma@5.22.0\\node_modules\\@prisma\\client\\default.js',
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\backend\\src\\utils\\prisma.ts',
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\backend\\src\\routes\\auth.routes.ts',
+    'C:\\Users\\Deni Setiya\\Documents\\devlopment\\devlopment\\education\\backend\\src\\index.ts'
+  ]
+}

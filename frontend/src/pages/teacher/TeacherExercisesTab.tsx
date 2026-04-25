@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Edit, ExternalLink, PenTool, Plus, Trash2 } from 'lucide-react';
+import { Clock, Edit, ExternalLink, Eye, PenTool, Plus, Trash2, X } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { getQuestionAnswerTypeSummary, parseExerciseQuestions } from '../../features/exercises/exercise-config';
 import { classesAPI, getApiErrorMessage } from '../../utils/api';
@@ -33,13 +33,10 @@ interface ExerciseItem {
 export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classId, navigate }) => {
     const notifications = useNotifications();
     const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
+    const [selectedExercise, setSelectedExercise] = React.useState<ExerciseItem | null>(null);
     const [loading, setLoading] = React.useState(true);
 
-    React.useEffect(() => {
-        void fetchExercises();
-    }, [classId]);
-
-    const fetchExercises = async () => {
+    const fetchExercises = React.useCallback(async () => {
         try {
             setLoading(true);
             const data = await classesAPI.getExercises(classId);
@@ -49,7 +46,11 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
         } finally {
             setLoading(false);
         }
-    };
+    }, [classId]);
+
+    React.useEffect(() => {
+        void fetchExercises();
+    }, [fetchExercises]);
 
     const handleDelete = async (exerciseId: string) => {
         const confirmed = await notifications.confirm({
@@ -178,10 +179,12 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                             <div
                                 key={exercise.id}
                                 className="card glass"
+                                onClick={() => setSelectedExercise(exercise)}
                                 style={{
                                     padding: 0,
                                     overflow: 'hidden',
-                                    position: 'relative'
+                                    position: 'relative',
+                                    cursor: 'pointer'
                                 }}
                             >
                                 <div
@@ -327,7 +330,34 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
 
                                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                         <button
-                                            onClick={() => navigate(`/teacher/classes/${classId}/exercise-review/${exercise.id}`)}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setSelectedExercise(exercise);
+                                            }}
+                                            style={{
+                                                flex: 1,
+                                                minWidth: '120px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.5rem',
+                                                background: '#ecfeff',
+                                                color: '#0f766e',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                fontWeight: '600'
+                                            }}
+                                        >
+                                            <Eye size={14} /> Detail
+                                        </button>
+                                        <button
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                navigate(`/teacher/classes/${classId}/exercise-review/${exercise.id}`);
+                                            }}
                                             disabled={exerciseAttempts.length === 0}
                                             style={{
                                                 flex: 1,
@@ -349,7 +379,10 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                                             <ExternalLink size={14} /> Review
                                         </button>
                                         <button
-                                            onClick={() => navigate(`/teacher/classes/${classId}/exercise-editor/${exercise.id}`)}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                navigate(`/teacher/classes/${classId}/exercise-editor/${exercise.id}`);
+                                            }}
                                             style={{
                                                 flex: 1,
                                                 minWidth: '120px',
@@ -369,7 +402,10 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                                             <Edit size={14} /> Edit
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(exercise.id)}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                void handleDelete(exercise.id);
+                                            }}
                                             style={{
                                                 padding: '0.5rem 0.75rem',
                                                 background: '#fee2e2',
@@ -388,6 +424,151 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                     })}
                 </div>
             )}
+
+            {selectedExercise && (() => {
+                const difficulty = difficultyConfig[selectedExercise.difficulty] || difficultyConfig.medium;
+                const attempts = selectedExercise.attempts || [];
+                const pending = attempts.filter((attempt) => attempt.gradingStatus === 'pending_review').length;
+                const questions = parseExerciseQuestions({
+                    title: selectedExercise.title,
+                    description: selectedExercise.description || '',
+                    instructions: selectedExercise.description || '',
+                    points: selectedExercise.points,
+                    answerType: selectedExercise.answerType,
+                    correctAnswer: null,
+                    options: null,
+                    canvasState: null,
+                    canvasMode: 'readonly',
+                    questionSet: selectedExercise.questionSet || null
+                });
+                const typeSummary = getQuestionAnswerTypeSummary(questions);
+
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.55)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '1rem'
+                    }}>
+                        <div style={{
+                            width: '100%',
+                            maxWidth: '680px',
+                            maxHeight: '88vh',
+                            overflow: 'auto',
+                            background: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '1rem',
+                            boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)'
+                        }}>
+                            <div style={{
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 2,
+                                padding: '1.25rem 1.5rem',
+                                background: 'white',
+                                borderBottom: '1px solid #e2e8f0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                alignItems: 'flex-start'
+                            }}>
+                                <div>
+                                    <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                                        Detail Latihan
+                                    </p>
+                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
+                                        {selectedExercise.title}
+                                    </h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedExercise(null)}
+                                    style={{ width: '38px', height: '38px', borderRadius: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    aria-label="Tutup detail latihan"
+                                >
+                                    <X size={20} color="#64748b" />
+                                </button>
+                            </div>
+
+                            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                    <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: selectedExercise.isPublished ? '#dcfce7' : '#f1f5f9', color: selectedExercise.isPublished ? '#166534' : '#475569', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {selectedExercise.isPublished ? 'Publik' : 'Draft'}
+                                    </span>
+                                    <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: difficulty.bg, color: difficulty.color, fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {difficulty.text}
+                                    </span>
+                                    <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {selectedExercise.points} XP
+                                    </span>
+                                </div>
+
+                                <div style={{ padding: '1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                    <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.5rem' }}>Deskripsi</p>
+                                    <p style={{ color: '#0f172a', lineHeight: 1.7 }}>
+                                        {selectedExercise.description || 'Belum ada deskripsi latihan.'}
+                                    </p>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.8rem' }}>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Jumlah soal</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{questions.length}</p>
+                                    </div>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Timer</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{selectedExercise.hasTimer ? `${selectedExercise.timerMinutes || 0} menit` : 'Tidak aktif'}</p>
+                                    </div>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Pengumpulan</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{attempts.length} siswa</p>
+                                    </div>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Butuh review</p>
+                                        <p style={{ color: pending > 0 ? '#b45309' : '#166534', fontWeight: 800 }}>{pending}</p>
+                                    </div>
+                                </div>
+
+                                {typeSummary.length > 0 && (
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        {typeSummary.map((label) => (
+                                            <span key={label} style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#eef2ff', color: '#4338ca', fontSize: '0.78rem', fontWeight: 700 }}>
+                                                {label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <button type="button" className="btn btn-secondary" onClick={() => setSelectedExercise(null)}>
+                                        Tutup
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        disabled={attempts.length === 0}
+                                        onClick={() => navigate(`/teacher/classes/${classId}/exercise-review/${selectedExercise.id}`)}
+                                        style={{ opacity: attempts.length === 0 ? 0.55 : 1 }}
+                                    >
+                                        <ExternalLink size={16} /> Review
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => navigate(`/teacher/classes/${classId}/exercise-editor/${selectedExercise.id}`)}
+                                    >
+                                        <Edit size={16} /> Edit Latihan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
                 <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>

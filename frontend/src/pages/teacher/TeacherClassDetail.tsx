@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { 
     ArrowLeft, Users, BookOpen, Settings, Copy, Plus,
     Award, BarChart3, Clock, ExternalLink, FileText, X,
-    Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy
+    Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy, Eye
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { classesAPI, modulesAPI } from '../../utils/api';
@@ -74,6 +74,12 @@ type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'leader
 
 const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'leaderboard', 'forum', 'library', 'settings'];
 
+const stripHtml = (value: string) =>
+    value
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
 const getTeacherTab = (value: string | null): TeacherTab => {
     if (value && teacherTabs.includes(value as TeacherTab)) {
         return value as TeacherTab;
@@ -114,6 +120,7 @@ export const TeacherClassDetail: React.FC = () => {
     const [loadingBooks, setLoadingBooks] = useState(false);
     const [showBookModal, setShowBookModal] = useState(false);
     const [editingBook, setEditingBook] = useState<ClassBook | null>(null);
+    const [selectedBook, setSelectedBook] = useState<ClassBook | null>(null);
     const [newBook, setNewBook] = useState({
         title: '',
         author: '',
@@ -823,10 +830,12 @@ export const TeacherClassDetail: React.FC = () => {
                                 {books.map(book => (
                                     <div 
                                         key={book.id}
+                                        onClick={() => setSelectedBook(book)}
                                         style={{ 
                                             padding: '1.25rem', background: '#f8fafc', 
                                             border: '1px solid #e2e8f0', borderRadius: '1rem',
-                                            display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                                            display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                                            cursor: 'pointer'
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
@@ -864,8 +873,19 @@ export const TeacherClassDetail: React.FC = () => {
                                                 {book.contentType === 'pdf' ? 'PDF' : 'Teks'}
                                             </span>
                                             <span style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setSelectedBook(book);
+                                                    }}
+                                                    style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'white', border: '1px solid #ccfbf1', cursor: 'pointer' }}
+                                                    title="Detail"
+                                                >
+                                                    <Eye size={16} color="#0f766e" />
+                                                </button>
                                                 <button 
-                                                    onClick={() => {
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
                                                         if (book.contentType === 'rich_text') {
                                                             navigate(`/teacher/classes/${id}/book-editor/${book.id}`);
                                                         } else {
@@ -878,7 +898,10 @@ export const TeacherClassDetail: React.FC = () => {
                                                     <Edit size={16} color="#64748b" />
                                                 </button>
                                                 <button 
-                                                    onClick={() => handleDeleteBook(book.id)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        void handleDeleteBook(book.id);
+                                                    }}
                                                     style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'white', border: '1px solid #fecaca', cursor: 'pointer' }}
                                                     title="Hapus"
                                                 >
@@ -1246,6 +1269,130 @@ export const TeacherClassDetail: React.FC = () => {
                 </div>
             )}
 
+            {/* Book Detail Modal */}
+            {selectedBook && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.55)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000,
+                    overflow: 'auto',
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        width: '100%',
+                        maxWidth: '680px',
+                        maxHeight: '88vh',
+                        overflow: 'auto',
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '1rem',
+                        boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)'
+                    }}>
+                        <div style={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 2,
+                            padding: '1.25rem 1.5rem',
+                            background: 'white',
+                            borderBottom: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: '1rem',
+                            alignItems: 'flex-start'
+                        }}>
+                            <div>
+                                <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                                    Detail Buku
+                                </p>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
+                                    {selectedBook.title}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedBook(null)}
+                                style={{ width: '38px', height: '38px', borderRadius: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                aria-label="Tutup detail buku"
+                            >
+                                <X size={20} color="#64748b" />
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: selectedBook.contentType === 'pdf' ? '#fef2f2' : '#eef2ff', color: selectedBook.contentType === 'pdf' ? '#dc2626' : '#4338ca', fontSize: '0.78rem', fontWeight: 700 }}>
+                                    {selectedBook.contentType === 'pdf' ? 'PDF' : 'Buku Digital'}
+                                </span>
+                                <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#f8fafc', color: '#475569', fontSize: '0.78rem', fontWeight: 700 }}>
+                                    Dibuat {new Date(selectedBook.createdAt).toLocaleDateString('id-ID')}
+                                </span>
+                            </div>
+
+                            <div style={{ padding: '1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>Info Buku</p>
+                                <p style={{ color: '#0f172a', fontWeight: 700 }}>{selectedBook.author ? `oleh ${selectedBook.author}` : 'Penulis belum diisi'}</p>
+                                {selectedBook.description && (
+                                    <p style={{ color: '#475569', marginTop: '0.55rem', lineHeight: 1.7 }}>{selectedBook.description}</p>
+                                )}
+                            </div>
+
+                            <div style={{ padding: '1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.5rem' }}>Konten</p>
+                                {selectedBook.contentType === 'pdf' ? (
+                                    <>
+                                        <p style={{ color: '#0f172a', wordBreak: 'break-word' }}>
+                                            {selectedBook.pdfUrl || 'URL PDF belum tersedia.'}
+                                        </p>
+                                        {selectedBook.pdfUrl && (
+                                            <a
+                                                href={selectedBook.pdfUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn btn-secondary"
+                                                style={{ marginTop: '1rem', padding: '0.6rem 1rem', borderRadius: '0.75rem', fontSize: '0.9rem' }}
+                                            >
+                                                <ExternalLink size={16} /> Buka PDF
+                                            </a>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p style={{ color: '#0f172a', lineHeight: 1.7 }}>
+                                        {selectedBook.content
+                                            ? `${stripHtml(selectedBook.content).slice(0, 260)}${stripHtml(selectedBook.content).length > 260 ? '...' : ''}`
+                                            : 'Konten buku belum diisi.'}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <button type="button" className="btn btn-secondary" onClick={() => setSelectedBook(null)}>
+                                    Tutup
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        const book = selectedBook;
+                                        setSelectedBook(null);
+                                        if (book.contentType === 'rich_text') {
+                                            navigate(`/teacher/classes/${id}/book-editor/${book.id}`);
+                                        } else {
+                                            openEditBook(book);
+                                        }
+                                    }}
+                                >
+                                    <Edit size={16} /> Edit Buku
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Book Create/Edit Modal */}
             {showBookModal && (
                 <div style={{
@@ -1253,7 +1400,7 @@ export const TeacherClassDetail: React.FC = () => {
                     background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
                     overflow: 'auto', padding: '2rem'
                 }}>
-                    <div className="card glass" style={{ width: '700px', maxHeight: '90vh', padding: '2rem', overflow: 'auto' }}>
+                    <div className="card glass" style={{ width: '700px', maxWidth: '100%', maxHeight: '90vh', padding: '2rem', overflow: 'auto', background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontWeight: '700' }}>{editingBook ? 'Edit Buku' : 'Tambah Buku Baru'}</h2>
                             <button onClick={() => { setShowBookModal(false); setEditingBook(null); }} style={{ padding: '0.5rem', cursor: 'pointer', background: 'none', border: 'none' }}>

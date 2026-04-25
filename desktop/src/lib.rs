@@ -430,6 +430,7 @@ fn configure_backend_command(
         .env("FRONTEND_URL", DESKTOP_FRONTEND_ORIGINS)
         .env("DATABASE_URL", database_url(&paths.database_path))
         .env("JWT_SECRET", jwt_secret)
+        .env("NODE_PATH", paths.backend_root.join("node_modules"))
         .env("DESKTOP_RUNTIME_DIR", paths.runtime_root.as_os_str())
         .stdin(Stdio::null())
         .stdout(stdout)
@@ -630,9 +631,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|app_handle, event| {
-        if let tauri::RunEvent::Exit = event {
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
             stop_desktop_backend(app_handle);
         }
+        _ => {}
     });
 }

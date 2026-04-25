@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List, Layers3, Library, Sparkles, Workflow } from 'lucide-react';
+import { Plus, Search, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List, Layers3, Library, Sparkles, Workflow, Eye, ExternalLink } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { materialsAPI, getApiErrorMessage } from '../../utils/api';
 import { RichTextEditor } from '../../components/RichTextEditor';
@@ -65,6 +65,95 @@ const initialFormData: MaterialFormData = {
     order: null
 };
 
+const stripHtml = (value: string) =>
+    value
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const getMaterialTypeLabel = (type: string) => {
+    switch (type.toLowerCase()) {
+        case 'video':
+            return 'Video Pembelajaran';
+        case 'quiz':
+            return 'Kuis Latihan';
+        case 'book':
+            return 'E-Book / PDF';
+        default:
+            return 'Artikel / Teks';
+    }
+};
+
+const parseMaterialDetail = (material: Material) => {
+    if (!material.content) {
+        return {
+            primary: 'Belum ada konten yang tersimpan.',
+            secondary: null as string | null,
+            href: null as string | null
+        };
+    }
+
+    try {
+        const parsed = JSON.parse(material.content) as unknown;
+
+        if (material.type === 'video') {
+            const url = typeof parsed === 'string'
+                ? parsed
+                : parsed && typeof parsed === 'object'
+                    ? String((parsed as Record<string, unknown>).url ?? (parsed as Record<string, unknown>).videoUrl ?? '')
+                    : '';
+
+            return {
+                primary: url || 'URL video belum tersedia.',
+                secondary: url ? 'Tautan video yang akan dibuka oleh siswa.' : null,
+                href: url || null
+            };
+        }
+
+        if (material.type === 'book') {
+            const url = typeof parsed === 'string'
+                ? parsed
+                : parsed && typeof parsed === 'object'
+                    ? String((parsed as Record<string, unknown>).url ?? (parsed as Record<string, unknown>).pdfUrl ?? '')
+                    : '';
+
+            return {
+                primary: url || 'URL e-book/PDF belum tersedia.',
+                secondary: url ? 'Dokumen eksternal yang dibuka dari materi siswa.' : null,
+                href: url || null
+            };
+        }
+
+        if (material.type === 'quiz' && parsed && typeof parsed === 'object') {
+            const questions = Array.isArray((parsed as Record<string, unknown>).questions)
+                ? (parsed as { questions: unknown[] }).questions
+                : [];
+
+            return {
+                primary: `${questions.length} pertanyaan tersimpan`,
+                secondary: 'Kuis akan langsung dikerjakan siswa dari halaman materi.',
+                href: null
+            };
+        }
+    } catch {
+        if (material.type === 'video' || material.type === 'book') {
+            const rawUrl = material.content.trim();
+            return {
+                primary: rawUrl,
+                secondary: 'Konten lama terdeteksi sebagai tautan mentah.',
+                href: rawUrl.startsWith('http') ? rawUrl : null
+            };
+        }
+    }
+
+    const preview = stripHtml(material.content);
+    return {
+        primary: preview ? `${preview.slice(0, 220)}${preview.length > 220 ? '...' : ''}` : 'Konten artikel kosong.',
+        secondary: 'Ringkasan konten artikel.',
+        href: null
+    };
+};
+
 export const TeacherMaterials: React.FC = () => {
     const notifications = useNotifications();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -75,6 +164,7 @@ export const TeacherMaterials: React.FC = () => {
 
     // Modal states
     const [showModal, setShowModal] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState<MaterialFormData>(initialFormData);
@@ -203,6 +293,37 @@ export const TeacherMaterials: React.FC = () => {
         nextParams.delete('create');
         setSearchParams(nextParams, { replace: true });
     }, [handleOpenCreate, searchParams, setSearchParams]);
+
+    useEffect(() => {
+        const detailId = searchParams.get('detail');
+        if (!detailId) {
+            return;
+        }
+
+        const material = materials.find((item) => item.id === detailId);
+        if (material) {
+            setSelectedMaterial(material);
+            return;
+        }
+
+        if (!loading) {
+            void materialsAPI.getById(detailId)
+                .then((item) => setSelectedMaterial(item as Material))
+                .catch((err) => {
+                    console.error('Failed to load material detail:', err);
+                });
+        }
+    }, [loading, materials, searchParams]);
+
+    const closeMaterialDetail = () => {
+        setSelectedMaterial(null);
+
+        if (searchParams.get('detail')) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('detail');
+            setSearchParams(nextParams, { replace: true });
+        }
+    };
 
     const handleOpenEdit = (material: Material) => {
         const baseData: MaterialFormData = {
@@ -629,7 +750,11 @@ export const TeacherMaterials: React.FC = () => {
                             </thead>
                             <tbody>
                                 {materials.map((material) => (
-                                    <tr key={material.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <tr
+                                        key={material.id}
+                                        onClick={() => setSelectedMaterial(material)}
+                                        style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                                    >
                                         <td style={{ padding: '1rem 1.5rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>{material.title}</span>
@@ -689,14 +814,30 @@ export const TeacherMaterials: React.FC = () => {
                                         <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
                                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                                                 <button
-                                                    onClick={() => handleOpenEdit(material)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setSelectedMaterial(material);
+                                                    }}
+                                                    style={{ padding: '0.5rem', color: '#0f766e', background: '#ccfbf1', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }}
+                                                    title="Detail"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleOpenEdit(material);
+                                                    }}
                                                     style={{ padding: '0.5rem', color: 'var(--primary)', background: '#e0e7ff', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }}
                                                     title="Edit"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => setDeleteConfirm(material.id)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setDeleteConfirm(material.id);
+                                                    }}
                                                     style={{ padding: '0.5rem', color: '#dc2626', background: '#fee2e2', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }}
                                                     title="Hapus"
                                                 >
@@ -719,6 +860,139 @@ export const TeacherMaterials: React.FC = () => {
                 </div>
             )}
 
+            {/* Material Detail Modal */}
+            {selectedMaterial && (() => {
+                const detail = parseMaterialDetail(selectedMaterial);
+
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.55)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '1rem'
+                    }}>
+                        <div
+                            style={{
+                                width: '100%',
+                                maxWidth: '720px',
+                                maxHeight: '88vh',
+                                overflow: 'auto',
+                                background: 'white',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '1rem',
+                                boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)'
+                            }}
+                        >
+                            <div style={{
+                                position: 'sticky',
+                                top: 0,
+                                zIndex: 2,
+                                padding: '1.25rem 1.5rem',
+                                background: 'white',
+                                borderBottom: '1px solid #e2e8f0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '1rem',
+                                alignItems: 'flex-start'
+                            }}>
+                                <div>
+                                    <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                                        Detail Materi
+                                    </p>
+                                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', lineHeight: 1.3 }}>
+                                        {selectedMaterial.title}
+                                    </h2>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeMaterialDetail}
+                                    style={{ width: '38px', height: '38px', borderRadius: '0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    aria-label="Tutup detail materi"
+                                >
+                                    <X size={20} color="#64748b" />
+                                </button>
+                            </div>
+
+                            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#eef2ff', color: '#4338ca', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {getTypeIcon(selectedMaterial.type)} {getMaterialTypeLabel(selectedMaterial.type)}
+                                    </span>
+                                    <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#f8fafc', color: '#475569', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        {formatCategory(selectedMaterial.category)}
+                                    </span>
+                                    <span style={{ padding: '0.35rem 0.65rem', borderRadius: '999px', background: '#f8fafc', color: '#475569', fontSize: '0.78rem', fontWeight: 700 }}>
+                                        Kelas {selectedMaterial.grade} / Semester {selectedMaterial.semester}
+                                    </span>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.8rem' }}>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Level</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{selectedMaterial.level}</p>
+                                    </div>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Dibuat</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{new Date(selectedMaterial.createdAt).toLocaleDateString('id-ID')}</p>
+                                    </div>
+                                    <div style={{ padding: '0.9rem 1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                        <p style={{ color: '#64748b', fontSize: '0.78rem', marginBottom: '0.25rem' }}>Urutan</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800 }}>{selectedMaterial.order ?? '-'}</p>
+                                    </div>
+                                </div>
+
+                                {selectedMaterial.linkedQuiz && (
+                                    <div style={{ padding: '1rem', borderRadius: '0.85rem', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+                                        <p style={{ fontWeight: 800, marginBottom: '0.25rem' }}>Materi bertaut kuis</p>
+                                        <p>{selectedMaterial.linkedQuiz.title}</p>
+                                    </div>
+                                )}
+
+                                <div style={{ padding: '1rem', borderRadius: '0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                    <p style={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.5rem' }}>Konten</p>
+                                    <p style={{ color: '#0f172a', lineHeight: 1.7, wordBreak: 'break-word' }}>{detail.primary}</p>
+                                    {detail.secondary && (
+                                        <p style={{ color: '#64748b', fontSize: '0.86rem', marginTop: '0.45rem' }}>{detail.secondary}</p>
+                                    )}
+                                    {detail.href && (
+                                        <a
+                                            href={detail.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-secondary"
+                                            style={{ marginTop: '1rem', padding: '0.6rem 1rem', borderRadius: '0.75rem', fontSize: '0.9rem' }}
+                                        >
+                                            <ExternalLink size={16} /> Buka Tautan
+                                        </a>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <button type="button" className="btn btn-secondary" onClick={closeMaterialDetail}>
+                                        Tutup
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => {
+                                            const material = selectedMaterial;
+                                            closeMaterialDetail();
+                                            handleOpenEdit(material);
+                                        }}
+                                    >
+                                        <Edit size={16} /> Edit Materi
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* Create/Edit Modal */}
             {showModal && (
                 <div style={{
@@ -736,6 +1010,10 @@ export const TeacherMaterials: React.FC = () => {
                         maxWidth: '900px',
                         maxHeight: '90vh',
                         overflow: 'auto',
+                        background: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '1rem',
+                        boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)',
                         animation: 'fadeIn 0.2s ease-out'
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', position: 'sticky', top: 0, background: 'white', zIndex: 10, paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
@@ -1172,7 +1450,7 @@ export const TeacherMaterials: React.FC = () => {
                     justifyContent: 'center',
                     zIndex: 1000
                 }}>
-                    <div className="card" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+                    <div className="card" style={{ width: '100%', maxWidth: '400px', textAlign: 'center', background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)' }}>
                         <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                             <Trash2 size={28} color="#dc2626" />
                         </div>

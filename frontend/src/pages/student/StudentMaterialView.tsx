@@ -38,6 +38,9 @@ interface BookContent {
     url: string;
 }
 
+const detectVideoPlatform = (url: string): VideoContent['platform'] =>
+    /youtube\.com|youtu\.be/i.test(url) ? 'youtube' : 'other';
+
 export const StudentMaterialView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -349,11 +352,96 @@ export const StudentMaterialView: React.FC = () => {
         }
     };
 
-    // Helper to extract YouTube ID
+    // Helper to extract YouTube ID from watch, short, shorts, and embed URLs.
     const getYoutubeId = (url: string) => {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
+        try {
+            const parsed = new URL(url);
+            const host = parsed.hostname.replace(/^www\./, '');
+
+            if (host === 'youtu.be') {
+                const id = parsed.pathname.split('/').filter(Boolean)[0];
+                return id?.length === 11 ? id : null;
+            }
+
+            if (host.endsWith('youtube.com')) {
+                const watchId = parsed.searchParams.get('v');
+                if (watchId?.length === 11) {
+                    return watchId;
+                }
+
+                const pathParts = parsed.pathname.split('/').filter(Boolean);
+                const embeddedId = pathParts[0] === 'embed' || pathParts[0] === 'shorts'
+                    ? pathParts[1]
+                    : null;
+
+                return embeddedId?.length === 11 ? embeddedId : null;
+            }
+        } catch {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        return null;
+    };
+
+    const parseVideoContent = (content: string | null): VideoContent | null => {
+        const raw = content?.trim();
+        if (!raw) {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(raw) as unknown;
+            if (typeof parsed === 'string') {
+                const url = parsed.trim();
+                return url ? { url, platform: detectVideoPlatform(url) } : null;
+            }
+
+            if (parsed && typeof parsed === 'object') {
+                const record = parsed as Record<string, unknown>;
+                const url = String(record.url ?? record.videoUrl ?? record.link ?? '').trim();
+                if (url) {
+                    return {
+                        url,
+                        platform: record.platform === 'youtube' || record.platform === 'other'
+                            ? record.platform
+                            : detectVideoPlatform(url)
+                    };
+                }
+            }
+        } catch {
+            if (/^https?:\/\//i.test(raw)) {
+                return { url: raw, platform: detectVideoPlatform(raw) };
+            }
+        }
+
+        return null;
+    };
+
+    const parseBookContent = (content: string | null): BookContent | null => {
+        const raw = content?.trim();
+        if (!raw) {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(raw) as unknown;
+            if (typeof parsed === 'string') {
+                return parsed.trim() ? { url: parsed.trim() } : null;
+            }
+
+            if (parsed && typeof parsed === 'object') {
+                const url = String((parsed as Record<string, unknown>).url ?? (parsed as Record<string, unknown>).pdfUrl ?? '').trim();
+                return url ? { url } : null;
+            }
+        } catch {
+            if (/^https?:\/\//i.test(raw)) {
+                return { url: raw };
+            }
+        }
+
+        return null;
     };
 
     if (loading) {
@@ -389,9 +477,9 @@ export const StudentMaterialView: React.FC = () => {
     try {
         if (material.content) {
             if (material.type === 'video') {
-                videoContent = JSON.parse(material.content);
+                videoContent = parseVideoContent(material.content);
             } else if (material.type === 'book') {
-                bookContent = JSON.parse(material.content);
+                bookContent = parseBookContent(material.content);
             } else if (material.type === 'quiz') {
                 // Quiz content is handled by state
             } else {
@@ -601,7 +689,7 @@ export const StudentMaterialView: React.FC = () => {
                     {/* VIDEO PLAYER */}
                     {videoContent && (
                         <div>
-                            {videoContent.url.includes('youtube') ? (
+                            {getYoutubeId(videoContent.url) ? (
                                 <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '1rem', marginBottom: '2rem' }}>
                                     <iframe 
                                         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
@@ -622,6 +710,16 @@ export const StudentMaterialView: React.FC = () => {
                                 </div>
                             )}
                             {/* Summary / Notes section for video can be added here if needed */}
+                        </div>
+                    )}
+
+                    {material.type === 'video' && !videoContent && (
+                        <div style={{ padding: '2rem', background: '#f8fafc', borderRadius: '1rem', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                            <Video size={48} style={{ marginBottom: '1rem', color: 'var(--primary)' }} />
+                            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.5rem' }}>Video belum tersedia</h3>
+                            <p style={{ color: 'var(--text-muted)' }}>
+                                Materi video ini belum memiliki URL video yang valid. Hubungi guru untuk memperbarui materi.
+                            </p>
                         </div>
                     )}
 

@@ -106,6 +106,14 @@ button {
 }
 
 /* Modern Card Premium */
+.card {
+  background: white;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+}
+
 .card-premium {
   background: var(--surface);
   border-radius: var(--radius-lg);

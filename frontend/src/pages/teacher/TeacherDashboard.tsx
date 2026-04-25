@@ -332,7 +332,7 @@ export const TeacherDashboard: React.FC = () => {
                             {data.recentMaterials.map((item) => (
                                 <button
                                     key={item.id}
-                                    onClick={() => navigate('/teacher/materials')}
+                                    onClick={() => navigate(`/teacher/materials?detail=${item.id}`)}
                                     style={{
                                         width: '100%',
                                         textAlign: 'left',
