@@ -1,16 +1,25 @@
 services:
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY}/backend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}/backend:${IMAGE_TAG:-latest}
     container_name: geoeducation-backend
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - DATABASE_URL=file:/app/dev.db
-      - JWT_SECRET=${JWT_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL:-https://geoeducation.denisetiya.site}
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/prod.db}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:-geo-education}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-geo-education-app}
+      AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-token}
+      FRONTEND_URL: ${FRONTEND_URL:-https://geoeducation.denisetiya.site}
+      REQUEST_BODY_LIMIT: ${REQUEST_BODY_LIMIT:-5mb}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-400}
+      AUTH_RATE_LIMIT_WINDOW_MS: ${AUTH_RATE_LIMIT_WINDOW_MS:-900000}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-10}
     volumes:
-      - ./backend/dev.db:/app/dev.db
+      - ${BACKEND_DATA_DIR:-./data/backend}:/app/data
     networks:
       - app-network
     healthcheck:
@@ -20,11 +29,12 @@ services:
       retries: 3
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY}/frontend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}/frontend:${IMAGE_TAG:-latest}
     container_name: geoeducation-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -32,9 +42,9 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: geoeducation-tunnel
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
     depends_on:
       - frontend
     networks:
