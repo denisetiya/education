@@ -16,3 +16,4 @@
 
 - Fixed the backend Docker production install so Prisma CLI is available before `postinstall` runs.
 - Pinned Docker builds to the repository pnpm version for deterministic CI installs.
+- Fixed backend auth middleware typing for the Express core type exports available in Docker builds.
