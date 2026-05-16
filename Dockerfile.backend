@@ -9,15 +9,16 @@ RUN apk add --no-cache openssl openssl-dev
 # Copy package files
 COPY backend/package*.json ./
 COPY backend/pnpm-lock.yaml* ./
+COPY backend/prisma ./prisma
 
 # Install pnpm and ALL dependencies (including devDependencies for build)
-RUN npm install -g pnpm && pnpm install
+RUN npm install -g pnpm@10.30.3 && pnpm install --frozen-lockfile
 
 # Copy source code
 COPY backend/ ./
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 
 # Build TypeScript
 RUN pnpm run build
@@ -31,18 +32,16 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.30.3
 
-# Copy package files and install production dependencies + prisma
+# Copy package files and Prisma schema before install because postinstall runs prisma generate
 COPY backend/package*.json ./
 COPY backend/pnpm-lock.yaml* ./
-
-# Install production dependencies AND prisma (for generate & migrate)
-RUN pnpm install --prod && pnpm add prisma@5.22.0 @prisma/client@5.22.0
-
-# Copy Prisma schema and generate client
 COPY backend/prisma ./prisma
-RUN npx prisma generate
+
+# Install production dependencies, including Prisma CLI for migrate deploy
+RUN pnpm install --prod --frozen-lockfile
+RUN pnpm exec prisma generate
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
