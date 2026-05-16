@@ -10,7 +10,7 @@ PRAGMA foreign_keys=OFF;
 CREATE TABLE "new_Class" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
-    "subject" TEXT NOT NULL,
+    "subject" TEXT NOT NULL DEFAULT 'Umum',
     "description" TEXT,
     "code" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

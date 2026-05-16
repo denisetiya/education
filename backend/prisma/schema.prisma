@@ -270,6 +270,8 @@ model ClassDiscussionThread {
   author      User     @relation(fields: [authorId], references: [id])
   authorId    String
   replies     ClassDiscussionReply[]
+
+  @@index([classId, createdAt])
 }
 
 model ClassDiscussionReply {
@@ -282,5 +284,6 @@ model ClassDiscussionReply {
   threadId    String
   author      User     @relation(fields: [authorId], references: [id])
   authorId    String
-}
 
+  @@index([threadId, createdAt])
+}

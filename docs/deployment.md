@@ -47,3 +47,15 @@ Container `cloudflared` membaca `CLOUDFLARE_TUNNEL_TOKEN` dari `.env` yang dibua
 ## Deploy
 
 Push ke branch `main` akan menjalankan build dan deploy otomatis. Deploy juga bisa dijalankan manual dari tab GitHub Actions lewat workflow `Build and Deploy`.
+
+## Recovery Migration SQLite
+
+Jika deploy pertama gagal saat `prisma migrate deploy` dan log menunjukkan `SQLite database prod.db created`, database production belum berisi data aplikasi. Hapus file database parsial di server sebelum menjalankan ulang workflow:
+
+```bash
+cd /opt/geoeducation
+docker compose down
+rm -f data/backend/prod.db
+```
+
+Jangan hapus file ini kalau database sudah berisi data production. Untuk database yang sudah dipakai, backup dulu lalu pulihkan migration dengan prosedur Prisma `migrate resolve`.
