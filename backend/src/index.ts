@@ -13,6 +13,7 @@ import env from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiRateLimitMiddleware, securityHeadersMiddleware } from './middleware/security.middleware';
 
+
 const app = express();
 
 app.disable('x-powered-by');
