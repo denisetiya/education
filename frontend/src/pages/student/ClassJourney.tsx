@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Map, Loader, CheckCircle, Lock, Play, Star, ChevronDown } from 'lucide-react';
+import { Map, Loader, CheckCircle, Lock, Play, Star, ChevronDown, Trophy, PartyPopper, ArrowRight } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 
 interface Module {
@@ -428,6 +428,31 @@ export const ClassJourney: React.FC = () => {
                                     })}
                                 </div>
                             )}
+
+                            {/* Per-Module Completion Banner */}
+                            {isComplete && isExpanded && (
+                                <div style={{
+                                    marginTop: '0.75rem',
+                                    marginLeft: isLeft ? 'calc(20% + 96px)' : '20%',
+                                    marginRight: isLeft ? '20%' : 'calc(20% + 96px)',
+                                    width: 'calc(60% - 96px)',
+                                    padding: '1rem',
+                                    borderRadius: '12px',
+                                    background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                                    border: '2px solid #86efac',
+                                    textAlign: 'center',
+                                    animation: 'fadeSlideIn 0.3s ease-out',
+                                    boxShadow: '0 2px 12px rgba(34, 197, 94, 0.12)'
+                                }}>
+                                    <Trophy size={24} color="#16a34a" style={{ marginBottom: '0.35rem' }} />
+                                    <p style={{ fontWeight: '700', color: '#166534', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                        Modul &quot;{module.title}&quot; Selesai!
+                                    </p>
+                                    <p style={{ color: '#15803d', fontSize: '0.8rem' }}>
+                                        Lanjutkan semangatmu ke modul berikutnya.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -454,6 +479,77 @@ export const ClassJourney: React.FC = () => {
                         🏆
                     </div>
                 </div>
+
+                {/* Congratulations Banner - All Modules Complete */}
+                {(() => {
+                    const allModulesComplete = modules.length > 0 && modules.every(mod => {
+                        const { completed, total } = getModuleProgress(mod);
+                        return completed === total && total > 0;
+                    });
+                    if (!allModulesComplete) return null;
+
+                    return (
+                        <div style={{
+                            marginTop: '1.5rem',
+                            padding: '2rem',
+                            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #fef9c3 100%)',
+                            borderRadius: '1.5rem',
+                            border: '2px solid #86efac',
+                            textAlign: 'center',
+                            animation: 'fadeIn 0.5s ease-out',
+                            boxShadow: '0 8px 32px rgba(34, 197, 94, 0.2)'
+                        }}>
+                            <PartyPopper size={48} color="#16a34a" style={{ marginBottom: '0.75rem' }} />
+                            <h2 style={{
+                                fontSize: '1.5rem',
+                                fontWeight: '800',
+                                color: '#166534',
+                                marginBottom: '0.5rem'
+                            }}>
+                                Selamat! Kamu Telah Menyelesaikan Semua Modul!
+                            </h2>
+                            <p style={{
+                                color: '#15803d',
+                                fontSize: '1rem',
+                                lineHeight: 1.6,
+                                marginBottom: '1.5rem',
+                                maxWidth: '500px',
+                                margin: '0 auto 1.5rem'
+                            }}>
+                                Hebat! Semua materi di kelas <strong>{className}</strong> sudah kamu tuntaskan.
+                                Teruskan semangat belajarmu ke kelas berikutnya!
+                            </p>
+                            <button
+                                onClick={() => navigate('/student/classes')}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.85rem 2rem',
+                                    background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '1rem',
+                                    fontWeight: '700',
+                                    fontSize: '1rem',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 8px 24px rgba(22, 163, 74, 0.35)',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(22, 163, 74, 0.45)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(22, 163, 74, 0.35)';
+                                }}
+                            >
+                                <Trophy size={20} /> Lanjut ke Kelas Berikutnya <ArrowRight size={20} />
+                            </button>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Legend */}

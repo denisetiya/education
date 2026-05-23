@@ -26,6 +26,7 @@ model User {
   achievements  Achievement[]
   progress      Progress[]
   createdMaterials Material[] @relation("CreatedMaterials")
+  createdModules  Module[]   @relation("CreatedModules")
   teachingClasses  Class[]    @relation("TeachingClasses")
   enrolledClasses  ClassEnrollment[]
   classAchievements StudentClassAchievement[]
@@ -75,6 +76,8 @@ model Module {
   classId     String?
   class       Class?    @relation(fields: [classId], references: [id])
   order       Int       @default(0)
+  createdBy   User?     @relation("CreatedModules", fields: [createdById], references: [id])
+  createdById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

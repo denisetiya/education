@@ -48,7 +48,11 @@ const env = {
     jwtAudience: process.env.JWT_AUDIENCE || 'geo-education-app',
     authCookieName: process.env.AUTH_COOKIE_NAME || 'token',
     frontendOrigins: Array.from(
-        new Set([...DEFAULT_FRONTEND_ORIGINS, ...parseOrigins(process.env.FRONTEND_URL)])
+        new Set([
+            ...DEFAULT_FRONTEND_ORIGINS,
+            ...parseOrigins(process.env.FRONTEND_URL),
+            ...parseOrigins(process.env.FRONTEND_ADDITIONAL_ORIGINS)
+        ])
     ),
     requestBodyLimit: process.env.REQUEST_BODY_LIMIT || '5mb',
     bcryptRounds: parseInteger(process.env.BCRYPT_ROUNDS, 10),

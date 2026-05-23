@@ -13,18 +13,26 @@ const getRequestUser = (req: AuthRequest) => {
 };
 
 // Get modules with materials
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
+        const user = getRequestUser(req);
         const { grade, semester, subject } = req.query;
+
+        const where: Record<string, unknown> = {};
+
+        if (grade) where.grade = Number(grade);
+        if (semester) where.semester = Number(semester);
+        if (subject) where.subject = String(subject);
+
+        if (user.role === 'TEACHER') {
+            where.createdById = user.id;
+        }
+
         const modules = await prisma.module.findMany({
-            where: {
-                ...(grade && { grade: Number(grade) }),
-                ...(semester && { semester: Number(semester) }),
-                ...(subject && { subject: String(subject) })
-            },
+            where,
             include: {
                 materials: {
-                    select: { id: true, title: true, type: true, moduleOrder: true, content: false }, // Exclude heavy content
+                    select: { id: true, title: true, type: true, moduleOrder: true, content: false },
                     orderBy: { moduleOrder: 'asc' }
                 }
             },
@@ -37,11 +45,12 @@ router.get('/', async (req, res) => {
 });
 
 // Create module
-router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
+        const user = getRequestUser(req);
         const { title, description, grade, semester, subject, order } = req.body;
         const module = await prisma.module.create({
-            data: { title, description, grade, semester, subject, order }
+            data: { title, description, grade, semester, subject, order, createdById: user.id }
         });
         res.status(201).json(module);
     } catch (error) {

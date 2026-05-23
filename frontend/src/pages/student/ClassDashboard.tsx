@@ -7,6 +7,7 @@ import {
     ChevronRight,
     Lock,
     MessageSquare,
+    PartyPopper,
     PlayCircle,
     Sparkles,
     Star,
@@ -327,8 +328,38 @@ export const ClassDashboard: React.FC = () => {
                                 </div>
                             </button>
                         ) : (
-                            <div style={{ padding: '1rem 1.1rem', borderRadius: '1rem', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}>
-                                Semua materi yang tersedia sudah kamu sentuh. Lanjutkan ke latihan atau forum kelas.
+                            <div style={{
+                                padding: '1.5rem',
+                                borderRadius: '1rem',
+                                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #fef9c3 100%)',
+                                border: '2px solid #86efac',
+                                textAlign: 'center',
+                                boxShadow: '0 4px 20px rgba(34, 197, 94, 0.15)'
+                            }}>
+                                <PartyPopper size={32} color="#16a34a" style={{ marginBottom: '0.5rem' }} />
+                                <h3 style={{ fontWeight: '800', color: '#166534', fontSize: '1.1rem', marginBottom: '0.35rem' }}>
+                                    Selamat! Semua Materi Tuntas!
+                                </h3>
+                                <p style={{ color: '#15803d', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                    Semua materi di kelas ini sudah kamu selesaikan. Lanjut ke kelas berikutnya!
+                                </p>
+                                <Link
+                                    to="/student/classes"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.65rem 1.5rem',
+                                        background: '#16a34a',
+                                        color: 'white',
+                                        borderRadius: '0.75rem',
+                                        fontWeight: '700',
+                                        fontSize: '0.9rem',
+                                        textDecoration: 'none'
+                                    }}
+                                >
+                                    <Star size={18} /> Pilih Kelas Lain <ArrowRight size={18} />
+                                </Link>
                             </div>
                         )}
                     </div>
@@ -345,17 +376,57 @@ export const ClassDashboard: React.FC = () => {
                                     Belum ada modul di kelas ini.
                                 </div>
                             ) : (
-                                cls.modules.map((module, moduleIndex) => (
-                                    <div key={module.id} style={{ padding: '1rem', borderRadius: '1rem', background: '#fcfdff', border: '1px solid #e2e8f0' }}>
+                                cls.modules.map((module, moduleIndex) => {
+                                    const moduleComplete = module.materials.length > 0 && module.materials.every(m => getMaterialStatus(m.id) === 'completed');
+                                    return (
+                                    <div key={module.id} style={{ 
+                                        padding: '1rem', 
+                                        borderRadius: '1rem', 
+                                        background: moduleComplete ? '#f0fdf4' : '#fcfdff', 
+                                        border: moduleComplete ? '2px solid #86efac' : '1px solid #e2e8f0'
+                                    }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '0.9rem' }}>
-                                            <div>
-                                                <p style={{ color: '#2563eb', fontSize: '0.76rem', fontWeight: 700, marginBottom: '0.2rem' }}>
-                                                    Modul {moduleIndex + 1}
-                                                </p>
-                                                <h3 style={{ color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>{module.title}</h3>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <div>
+                                                    <p style={{ color: '#2563eb', fontSize: '0.76rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+                                                        Modul {moduleIndex + 1}
+                                                    </p>
+                                                    <h3 style={{ color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>{module.title}</h3>
+                                                </div>
+                                                {moduleComplete && (
+                                                    <span style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.2rem',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: '700',
+                                                        color: '#166534',
+                                                        background: '#dcfce7',
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: '1rem'
+                                                    }}>
+                                                        <CheckCircle2 size={12} /> Selesai
+                                                    </span>
+                                                )}
                                             </div>
                                             <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>{module.materials.length} materi</span>
                                         </div>
+
+                                        {moduleComplete && (
+                                            <div style={{
+                                                padding: '0.65rem 0.85rem',
+                                                marginBottom: '0.75rem',
+                                                borderRadius: '0.75rem',
+                                                background: 'linear-gradient(135deg, #dcfce7, #fef9c3)',
+                                                border: '1px solid #bbf7d0',
+                                                textAlign: 'center'
+                                            }}>
+                                                <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#166534' }}>
+                                                    <PartyPopper size={14} style={{ display: 'inline', marginRight: '0.25rem', verticalAlign: 'middle' }} />
+                                                    Modul &quot;{module.title}&quot; selesai! Hebat!
+                                                </span>
+                                            </div>
+                                        )}
 
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
                                             {module.materials.map((material, materialIndex) => {

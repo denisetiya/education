@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     Library,
     LogOut,
+    Map,
     Medal,
     MessageSquare,
     PenTool,
@@ -65,6 +66,7 @@ const StudentLayout: React.FC = () => {
     const generalNav = useMemo<NavItem[]>(
         () => [
             { to: '/student/classes', label: 'Kelas Saya', icon: <LayoutDashboard size={18} />, active: (pathname) => pathname === '/student' || pathname === '/student/classes' || pathname.startsWith('/student/class/') },
+            { to: '/student/journey', label: 'Peta Belajar', icon: <Map size={18} />, active: (pathname) => pathname === '/student/journey' },
             { to: '/student/discover', label: 'Jelajah', icon: <Compass size={18} />, active: (pathname) => pathname.startsWith('/student/discover') },
             { to: '/student/leaderboard', label: 'Leaderboard', icon: <Trophy size={18} />, active: (pathname) => pathname === '/student/leaderboard' },
             { to: '/student/achievements', label: 'Prestasi', icon: <Medal size={18} />, active: (pathname) => pathname === '/student/achievements' }
@@ -80,6 +82,7 @@ const StudentLayout: React.FC = () => {
                     { to: `/student/class/${classId}`, label: 'Ringkasan', icon: <LayoutDashboard size={18} />, active: (pathname) => pathname === `/student/class/${classId}` },
                     { to: `/student/class/${classId}/materials`, label: 'Materi', icon: <BookOpen size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/materials`) },
                     { to: `/student/class/${classId}/exercises`, label: 'Latihan', icon: <PenTool size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/exercise`) || pathname.includes(`/student/class/${classId}/exercises`) },
+                    { to: `/student/class/${classId}/journey`, label: 'Perjalanan', icon: <Map size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/journey`) },
                     { to: `/student/class/${classId}/library`, label: 'Library', icon: <Library size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/library`) },
                     { to: `/student/class/${classId}/forum`, label: 'Forum', icon: <MessageSquare size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/forum`) },
                     { to: `/student/class/${classId}/leaderboard`, label: 'Peringkat', icon: <Trophy size={18} />, active: (pathname) => pathname.includes(`/student/class/${classId}/leaderboard`) }
@@ -104,6 +107,9 @@ const StudentLayout: React.FC = () => {
             if (location.pathname.includes(`/student/class/${classId}/leaderboard`)) {
                 return { title: 'Leaderboard Kelas', description: 'Pantau ranking, badge, dan progres teman sekelas.', accent: 'Motivasi belajar' };
             }
+            if (location.pathname.includes(`/student/class/${classId}/journey`)) {
+                return { title: 'Perjalanan Belajar', description: 'Visualisasi progres modul dan materi yang sudah kamu selesaikan.', accent: 'Peta belajar' };
+            }
             if (location.pathname.includes(`/student/class/${classId}/library`)) {
                 return { title: 'Library Kelas', description: 'Buka buku ringkas dan bahan pendamping dari guru.', accent: 'Bahan belajar' };
             }
@@ -111,6 +117,9 @@ const StudentLayout: React.FC = () => {
             return { title: 'Dashboard Kelas', description: 'Lihat progres, langkah berikutnya, dan akses cepat ke materi penting.', accent: 'Ruang kelas' };
         }
 
+        if (location.pathname.startsWith('/student/journey')) {
+            return { title: 'Peta Pembelajaran', description: 'Jelajahi modul per mata pelajaran dan lihat progres belajarmu.', accent: 'Peta belajar' };
+        }
         if (location.pathname.startsWith('/student/discover')) {
             return { title: 'Jelajah Kelas', description: 'Temukan kelas publik yang relevan untuk kamu ikuti.', accent: 'Eksplorasi' };
         }
@@ -140,10 +149,12 @@ const StudentLayout: React.FC = () => {
     const headerActions = insideClass && classId
         ? [
             { label: 'Materi', primary: true, onClick: () => navigate(`/student/class/${classId}/materials`) },
+            { label: 'Perjalanan', primary: false, onClick: () => navigate(`/student/class/${classId}/journey`) },
             { label: 'Latihan', primary: false, onClick: () => navigate(`/student/class/${classId}/exercises`) }
         ]
         : [
             { label: 'Kelas Saya', primary: true, onClick: () => navigate('/student/classes') },
+            { label: 'Peta Belajar', primary: false, onClick: () => navigate('/student/journey') },
             { label: 'Jelajah', primary: false, onClick: () => navigate('/student/discover') }
         ];
 
@@ -151,11 +162,13 @@ const StudentLayout: React.FC = () => {
         ? [
             { to: `/student/class/${classId}`, icon: <LayoutDashboard size={20} />, active: (pathname: string) => pathname === `/student/class/${classId}` },
             { to: `/student/class/${classId}/materials`, icon: <BookOpen size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/materials`) },
+            { to: `/student/class/${classId}/journey`, icon: <Map size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/journey`) },
             { to: `/student/class/${classId}/exercises`, icon: <PenTool size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/exercise`) || pathname.includes(`/student/class/${classId}/exercises`) },
             { to: `/student/class/${classId}/forum`, icon: <MessageSquare size={20} />, active: (pathname: string) => pathname.includes(`/student/class/${classId}/forum`) }
         ]
         : [
             { to: '/student/classes', icon: <LayoutDashboard size={20} />, active: (pathname: string) => pathname === '/student' || pathname === '/student/classes' || pathname.startsWith('/student/class/') },
+            { to: '/student/journey', icon: <Map size={20} />, active: (pathname: string) => pathname === '/student/journey' },
             { to: '/student/discover', icon: <Compass size={20} />, active: (pathname: string) => pathname.startsWith('/student/discover') },
             { to: '/student/leaderboard', icon: <Trophy size={20} />, active: (pathname: string) => pathname === '/student/leaderboard' },
             { to: '/student/achievements', icon: <Medal size={20} />, active: (pathname: string) => pathname === '/student/achievements' }

@@ -19,18 +19,24 @@ const canManageMaterial = async (materialId: string, userId: string, role: strin
 
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
+        const user = req.user!;
         const { category, type, grade, semester, search } = req.query;
 
+        const where: Record<string, unknown> = {};
+
+        if (category) where.category = category as string;
+        if (type) where.type = type as string;
+        if (grade) where.grade = parseInt(grade as string, 10);
+        if (semester) where.semester = parseInt(semester as string, 10);
+        if (search) where.title = { contains: search as string };
+
+        // Students see all materials, teachers see only their own
+        if (user.role === 'TEACHER') {
+            where.createdById = user.id;
+        }
+
         const materials = await prisma.material.findMany({
-            where: {
-                ...(category && { category: category as string }),
-                ...(type && { type: type as string }),
-                ...(grade && { grade: parseInt(grade as string, 10) }),
-                ...(semester && { semester: parseInt(semester as string, 10) }),
-                ...(search && {
-                    title: { contains: search as string }
-                })
-            },
+            where,
             include: {
                 createdBy: { select: { name: true } },
                 linkedQuiz: { select: { id: true, title: true, type: true } }
@@ -45,10 +51,17 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
-router.get('/quizzes', authMiddleware, async (_req, res) => {
+router.get('/quizzes', authMiddleware, async (req: AuthRequest, res) => {
     try {
+        const user = req.user!;
+        const where: Record<string, unknown> = { type: 'quiz' };
+
+        if (user.role === 'TEACHER') {
+            where.createdById = user.id;
+        }
+
         const quizzes = await prisma.material.findMany({
-            where: { type: 'quiz' },
+            where,
             select: {
                 id: true,
                 title: true,
