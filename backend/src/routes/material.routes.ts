@@ -99,7 +99,7 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: Au
                 level: level || 'Mudah',
                 content,
                 semester: semester || 1,
-                grade: grade || 10,
+                grade: grade || 7,
                 linkedQuizId: linkedQuizId || null,
                 minPassingScore: minPassingScore ?? 70,
                 order: order || null,

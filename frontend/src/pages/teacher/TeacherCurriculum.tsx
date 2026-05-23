@@ -32,7 +32,7 @@ export const TeacherCurriculum: React.FC = () => {
     const [newModule, setNewModule] = useState({
         title: '',
         description: '',
-        grade: 10,
+        grade: 7,
         semester: 1,
         subject: 'MATEMATIKA'
     });
@@ -69,7 +69,7 @@ export const TeacherCurriculum: React.FC = () => {
             setShowCreateModal(false);
             refreshData();
             // Reset form
-            setNewModule({ title: '', description: '', grade: 10, semester: 1, subject: 'MATEMATIKA' });
+            setNewModule({ title: '', description: '', grade: 7, semester: 1, subject: 'MATEMATIKA' });
         } catch (error) {
             console.error("Failed to create module", error);
             notifications.error(
@@ -354,7 +354,19 @@ export const TeacherCurriculum: React.FC = () => {
                                     placeholder="Singkat tentang modul ini"
                                 />
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Kelas</label>
+                                    <select 
+                                        className="input" 
+                                        value={newModule.grade}
+                                        onChange={e => setNewModule({...newModule, grade: Number(e.target.value)})}
+                                    >
+                                        <option value={7}>Kls 7</option>
+                                        <option value={8}>Kls 8</option>
+                                        <option value={9}>Kls 9</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Semester</label>
                                     <select 

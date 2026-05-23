@@ -59,7 +59,7 @@ const initialFormData: MaterialFormData = {
     level: 'Mudah',
     content: '',
     semester: 1,
-    grade: 10,
+    grade: 7,
     linkedQuizId: '',
     minPassingScore: 70,
     order: null
@@ -1081,9 +1081,9 @@ export const TeacherMaterials: React.FC = () => {
                                                 onChange={(e) => setFormData({ ...formData, grade: parseInt(e.target.value) })}
                                                 style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
                                             >
-                                                <option value={10}>Kls 10</option>
-                                                <option value={11}>Kls 11</option>
-                                                <option value={12}>Kls 12</option>
+                                                <option value={7}>Kls 7</option>
+                                                <option value={8}>Kls 8</option>
+                                                <option value={9}>Kls 9</option>
                                             </select>
                                             <select
                                                 value={formData.semester}

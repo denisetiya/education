@@ -115,7 +115,7 @@ export const StudentMaterials: React.FC = () => {
                         >
                             Semua
                         </button>
-                        {[10, 11, 12].map(grade => (
+                        {[7, 8, 9].map(grade => (
                             <button
                                 key={grade}
                                 onClick={() => setSelectedGrade(grade)}

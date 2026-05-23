@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, Star, History, ChevronRight, Award, Trophy, Loader } from 'lucide-react';
+import { Play, Clock, Star, History, ChevronRight, Award, Trophy, Loader, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { materialsAPI } from '../../utils/api';
 
@@ -20,12 +20,14 @@ interface QuizMaterial {
 const StudentPracticeHub: React.FC = () => {
     const [quizzes, setQuizzes] = useState<QuizMaterial[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchQuizzes = async () => {
             try {
-                // Fetch only quizzes
-                const data = await materialsAPI.getAll({ type: 'quiz' });
+                const filters: { type: string; grade?: number } = { type: 'quiz' };
+                if (selectedGrade) filters.grade = selectedGrade;
+                const data = await materialsAPI.getAll(filters);
                 setQuizzes(data);
             } catch (error) {
                 console.error("Failed to fetch quizzes", error);
@@ -34,7 +36,7 @@ const StudentPracticeHub: React.FC = () => {
             }
         };
         fetchQuizzes();
-    }, []);
+    }, [selectedGrade]);
 
     const getCategoryColor = (category: string) => {
         const colors: Record<string, string> = {
@@ -89,6 +91,31 @@ const StudentPracticeHub: React.FC = () => {
                 <Star className="text-gradient" fill="var(--warning)" color="var(--warning)" />
                 Zona Latihan & Kuis
             </h1>
+
+            {/* Grade Filter */}
+            <div className="card glass" style={{ marginBottom: '1.5rem', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <Filter size={20} color="var(--text-muted)" />
+                <span style={{ fontWeight: '600', color: 'var(--text-muted)', fontSize: '0.9rem' }}>KELAS:</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                        onClick={() => setSelectedGrade(null)}
+                        className={`btn ${selectedGrade === null ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+                    >
+                        Semua
+                    </button>
+                    {[7, 8, 9].map(grade => (
+                        <button
+                            key={grade}
+                            onClick={() => setSelectedGrade(grade)}
+                            className={`btn ${selectedGrade === grade ? 'btn-primary' : 'btn-secondary'}`}
+                            style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+                        >
+                            {grade}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {/* Main Sections Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>

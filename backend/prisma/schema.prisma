@@ -42,7 +42,7 @@ model Material {
   level           String    @default("Mudah") // Mudah, Menengah, Sulit
   content         String?   // JSON or markdown content
   semester        Int       @default(1)
-  grade           Int       @default(10) // 10, 11, 12
+  grade           Int       @default(7) // 7, 8, 9
   
   // Curriculum fields
   moduleId        String?
