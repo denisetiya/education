@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     ArrowRight,
     BookOpen,
@@ -476,7 +476,8 @@ export const ClassDashboard: React.FC = () => {
                                             })}
                                         </div>
                                     </div>
-                                ))
+                                );
+                                })
                             )}
                         </div>
                     </div>
