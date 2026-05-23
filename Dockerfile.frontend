@@ -14,11 +14,8 @@ RUN npm install -g pnpm@10.30.3 && pnpm install --frozen-lockfile
 # Copy source code
 COPY frontend/ ./
 
-# Build argument for API URL (empty for production - uses nginx proxy)
-ARG VITE_API_URL=""
-ENV VITE_API_URL=$VITE_API_URL
-
-# Build the app (skip TypeScript checking, just build with vite)
+# Build the frontend
+WORKDIR /app/frontend
 RUN npx vite build
 
 # Production stage with Nginx
