@@ -3,11 +3,10 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
-    Settings,
+    BookOpen,
+    Building2,
     LogOut,
-    Shield,
-    Database,
-    CreditCard
+    Shield
 } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
@@ -40,9 +39,8 @@ export const AdminLayout: React.FC = () => {
                 <nav style={{ flex: 1, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <NavItem to="/admin" icon={<LayoutDashboard size={18} />} label="Overview" active={isActive('/admin') || isActive('/admin/')} />
                     <NavItem to="/admin/users" icon={<Users size={18} />} label="User Management" active={isActive('/admin/users')} />
-                    <NavItem to="/admin/content" icon={<Database size={18} />} label="Content DB" active={isActive('/admin/content')} />
-                    <NavItem to="/admin/billing" icon={<CreditCard size={18} />} label="Subscriptions" active={isActive('/admin/billing')} />
-                    <NavItem to="/admin/settings" icon={<Settings size={18} />} label="System Settings" active={isActive('/admin/settings')} />
+                    <NavItem to="/admin/materials" icon={<BookOpen size={18} />} label="Materials" active={isActive('/admin/materials')} />
+                    <NavItem to="/admin/classes" icon={<Building2 size={18} />} label="Classes" active={isActive('/admin/classes')} />
                 </nav>
 
                 <div style={{ padding: '2rem', borderTop: '1px solid #1f2937' }}>

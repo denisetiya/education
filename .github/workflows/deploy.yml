@@ -150,7 +150,7 @@ jobs:
             fi
 
             docker compose pull
-            docker compose run --rm backend npx prisma migrate deploy
+            docker compose run --rm backend npx prisma db push
             docker compose up -d --remove-orphans
 
             sleep 10

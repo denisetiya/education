@@ -1,8 +1,53 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
+import { z } from 'zod';
 import prisma from '../utils/prisma';
+import env from '../config/env';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
+import { validateBody } from '../middleware/validation.middleware';
 
 const router = Router();
+
+const createUserSchema = z.object({
+    email: z.string().trim().email('Email tidak valid').transform(v => v.toLowerCase()),
+    password: z.string().min(8, 'Password minimal 8 karakter').max(72, 'Password terlalu panjang'),
+    name: z.string().trim().min(2, 'Nama minimal 2 karakter').max(80, 'Nama terlalu panjang'),
+    role: z.enum(['STUDENT', 'TEACHER'], { message: 'Role harus STUDENT atau TEACHER' })
+});
+
+// Create user (Admin only)
+router.post('/', authMiddleware, requireRole('ADMIN'), validateBody(createUserSchema), async (req, res) => {
+    try {
+        const { email, password, name, role } = req.body;
+
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return res.status(409).json({ error: 'Email sudah terdaftar' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, env.bcryptRounds);
+        const user = await prisma.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+                role
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                createdAt: true
+            }
+        });
+
+        res.status(201).json({ message: 'User berhasil dibuat', user });
+    } catch (error) {
+        console.error('Create user error:', error);
+        res.status(500).json({ error: 'Gagal membuat user' });
+    }
+});
 
 // Get all users (Admin only)
 router.get('/', authMiddleware, requireRole('ADMIN'), async (req, res) => {

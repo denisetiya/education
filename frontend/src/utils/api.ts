@@ -173,6 +173,8 @@ export const authAPI = {
 export const usersAPI = {
     getAll: () => apiFetch<User[]>('/users'),
     getById: (id: string) => apiFetch<User>(`/users/${id}`),
+    create: (data: { email: string; password: string; name: string; role: string }) =>
+        apiFetch<{ message: string; user: User }>('/users', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Record<string, unknown>) =>
         apiFetch<Record<string, unknown>>(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) =>

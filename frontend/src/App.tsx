@@ -32,6 +32,7 @@ import { TeacherLayout } from './layouts/TeacherLayout';
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
 import { TeacherClasses } from './pages/teacher/TeacherClasses';
 import { TeacherMaterials } from './pages/teacher/TeacherMaterials';
+import { TeacherMaterialEditor } from './pages/teacher/TeacherMaterialEditor';
 import { TeacherCurriculum } from './pages/teacher/TeacherCurriculum';
 import { TeacherAnalytics } from './pages/teacher/TeacherAnalytics';
 import { TeacherClassDetail } from './pages/teacher/TeacherClassDetail';
@@ -42,6 +43,8 @@ import { ExerciseSession } from './pages/student/ExerciseSession';
 import { AdminLayout } from './layouts/AdminLayout';
 import { AdminOverview } from './pages/admin/AdminOverview';
 import { AdminUsers } from './pages/admin/AdminUsers';
+import { AdminMaterials } from './pages/admin/AdminMaterials';
+import { AdminClasses } from './pages/admin/AdminClasses';
 
 
 function App() {
@@ -97,6 +100,8 @@ function App() {
             <Route path="classes" element={<TeacherClasses />} />
             <Route path="classes/:id" element={<TeacherClassDetail />} />
             <Route path="materials" element={<TeacherMaterials />} />
+            <Route path="materials/new" element={<TeacherMaterialEditor />} />
+            <Route path="materials/:id/edit" element={<TeacherMaterialEditor />} />
             <Route path="curriculum" element={<TeacherCurriculum />} />
             <Route path="analytics" element={<TeacherAnalytics />} />
             <Route path="classes/:classId/book-editor" element={<BookEditor />} />
@@ -114,9 +119,8 @@ function App() {
           }>
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<AdminUsers />} />
-            <Route path="content" element={<div>Content Management (Coming Soon)</div>} />
-            <Route path="billing" element={<div>Billing (Coming Soon)</div>} />
-            <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
+            <Route path="materials" element={<AdminMaterials />} />
+            <Route path="classes" element={<AdminClasses />} />
           </Route>
           </Routes>
         </BrowserRouter>
