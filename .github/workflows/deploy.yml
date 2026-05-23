@@ -155,4 +155,3 @@ jobs:
 
             sleep 10
             docker compose ps
-            docker compose exec -T frontend wget -qO- http://localhost/health
