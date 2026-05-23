@@ -4,6 +4,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { StudentLayout } from './layouts/StudentLayout';
 import { StudentDashboard } from './pages/student/StudentDashboard';
 import { LearningJourney } from './pages/student/LearningJourney';
@@ -55,6 +56,7 @@ function App() {
           <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
           {/* Student Routes - Protected */}
           <Route path="/student" element={
