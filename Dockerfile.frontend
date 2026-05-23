@@ -6,23 +6,32 @@ WORKDIR /app
 # Copy root package files for workspace install
 COPY package.json pnpm-workspace.yaml ./
 COPY pnpm-lock.yaml* ./
-COPY frontend/package*.json ./frontend/
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm@10.30.3 && pnpm install --frozen-lockfile
+# Copy workspace package.json files (needed for pnpm resolution)
+COPY backend/package*.json ./backend/
+COPY frontend/package*.json ./frontend/
+COPY desktop/package*.json ./desktop/
+
+# Install pnpm and dependencies (filter frontend only)
+RUN npm install -g pnpm@10.30.3 && pnpm install --frozen-lockfile --filter frontend
 
 # Copy source code
-COPY frontend/ ./
+COPY frontend/ ./frontend/
 
 # Build the frontend
 WORKDIR /app/frontend
+
+# Build argument for API URL (empty for production - uses nginx proxy)
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npx vite build
 
 # Production stage with Nginx
 FROM nginx:alpine AS production
 
 # Copy built files
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
