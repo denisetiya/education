@@ -296,11 +296,109 @@ export const LandingPage: React.FC = () => {
             </div>
           </Reveal>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
-            <Reveal delay={0}><WorkflowCard title="Guru" color="#6366f1" icon={<Users size={16} />} steps={workflows.teacher} /></Reveal>
-            <Reveal delay={0.15}><WorkflowCard title="Siswa" color="#0891b2" icon={<BookOpen size={16} />} steps={workflows.student} /></Reveal>
+          {/* Visual Timeline */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 80px 1fr', gap: isMobile ? '2rem' : '0', alignItems: 'start' }}>
+            {/* Guru Column */}
+            <div>
+              <Reveal>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '2rem', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+                  <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--gray-900)' }}>Guru</span>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#6366f1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Users size={16} />
+                  </div>
+                </div>
+              </Reveal>
+              {workflows.teacher.map((s, i) => (
+                <Reveal key={s.title} delay={i * 0.15}>
+                  <div style={{
+                    padding: '1.5rem', background: 'white', borderRadius: 16,
+                    border: '1.5px solid var(--gray-100)', marginBottom: '1rem',
+                    position: 'relative', transition: 'border-color 200ms, box-shadow 200ms, transform 200ms'
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(99,102,241,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--gray-100)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>{i + 1}</div>
+                      <h4 style={{ fontWeight: 600, color: 'var(--gray-900)', fontSize: '0.9375rem' }}>{s.title}</h4>
+                    </div>
+                    <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', lineHeight: 1.55, paddingLeft: '2.75rem' }}>{s.desc}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+
+            {/* Center Timeline - Desktop only */}
+            {!isMobile && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '4.5rem' }}>
+                <div style={{ width: 2, flex: 1, background: 'linear-gradient(180deg, #6366f1, #0891b2)', borderRadius: 1, position: 'relative', minHeight: 300 }}>
+                  {/* Animated dot */}
+                  <div style={{
+                    position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                    width: 12, height: 12, borderRadius: '50%', background: '#6366f1',
+                    boxShadow: '0 0 12px rgba(99,102,241,0.4)',
+                    animation: 'flowDot 4s ease-in-out infinite'
+                  }} />
+                  {/* Connection nodes */}
+                  {[0, 33, 66, 100].map(p => (
+                    <div key={p} style={{
+                      position: 'absolute', top: `${p}%`, left: '50%', transform: 'translate(-50%, -50%)',
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: 'white', border: '2px solid var(--gray-300)'
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Siswa Column */}
+            <div>
+              <Reveal delay={0.1}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '2rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#0891b2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BookOpen size={16} />
+                  </div>
+                  <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--gray-900)' }}>Siswa</span>
+                </div>
+              </Reveal>
+              {workflows.student.map((s, i) => (
+                <Reveal key={s.title} delay={0.1 + i * 0.15}>
+                  <div style={{
+                    padding: '1.5rem', background: 'white', borderRadius: 16,
+                    border: '1.5px solid var(--gray-100)', marginBottom: '1rem',
+                    transition: 'border-color 200ms, box-shadow 200ms, transform 200ms'
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#a5f3fc'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(8,145,178,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--gray-100)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ecfeff', color: '#0891b2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>{i + 1}</div>
+                      <h4 style={{ fontWeight: 600, color: 'var(--gray-900)', fontSize: '0.9375rem' }}>{s.title}</h4>
+                    </div>
+                    <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', lineHeight: 1.55, paddingLeft: '2.75rem' }}>{s.desc}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
+
+          {/* Flow arrow indicator */}
+          <Reveal delay={0.3}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginTop: '2.5rem', padding: '1.25rem 2rem', background: 'white', borderRadius: 14, border: '1.5px solid var(--gray-100)', maxWidth: 500, margin: '2.5rem auto 0' }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#6366f1' }} />
+              <div style={{ flex: 1, height: 2, background: 'linear-gradient(90deg, #6366f1, #0891b2)', borderRadius: 1 }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#0891b2' }} />
+              <span style={{ fontSize: '0.8125rem', color: 'var(--gray-500)', marginLeft: '0.5rem' }}>Guru mengajar → Siswa belajar → Feedback loop</span>
+            </div>
+          </Reveal>
         </div>
+
+        <style>{`
+          @keyframes flowDot {
+            0% { top: 0%; opacity: 1; }
+            100% { top: 100%; opacity: 0.3; }
+          }
+        `}</style>
       </section>
 
       {/* ===== ROLES ===== */}
@@ -393,22 +491,4 @@ export const LandingPage: React.FC = () => {
   );
 };
 
-const WorkflowCard = ({ title, color, icon, steps }: { title: string; color: string; icon: React.ReactNode; steps: { title: string; desc: string }[] }) => (
-  <div style={{ padding: '2rem', background: 'white', border: '1.5px solid var(--gray-200)', borderRadius: 18 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-      <span style={{ fontWeight: 600, color: 'var(--gray-900)', fontSize: '1.0625rem' }}>{title}</span>
-    </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {steps.map((s, i) => (
-        <div key={s.title} style={{ display: 'flex', gap: '0.75rem' }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: `${color}12`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, marginTop: 2 }}>{i + 1}</div>
-          <div>
-            <p style={{ fontWeight: 500, color: 'var(--gray-800)', fontSize: '0.9375rem' }}>{s.title}</p>
-            <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', lineHeight: 1.55 }}>{s.desc}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+// WorkflowCard removed - using inline timeline visualization
