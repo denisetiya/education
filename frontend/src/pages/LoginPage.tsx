@@ -1,28 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-    AlertTriangle,
-    Eye,
-    EyeOff,
-    FlaskConical,
-    Loader,
-    Lock,
-    LogIn,
-    Mail
-} from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, FlaskConical, GraduationCap, Loader, Lock, LogIn, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoleBasedRedirect } from '../components/ProtectedRoute';
-import { Login3D } from '../components/Login3D';
 
 const demoAccounts = [
-    {
-        label: 'Student',
-        credential: 'alya@siswa.edu / Siswa12345'
-    },
-    {
-        label: 'Teacher',
-        credential: 'guru@geo.edu / Guru12345'
-    }
+    { label: 'Student', credential: 'alya@siswa.edu / Siswa12345' },
+    { label: 'Teacher', credential: 'guru@geo.edu / Guru12345' }
 ];
 
 export const LoginPage: React.FC = () => {
@@ -45,483 +29,197 @@ export const LoginPage: React.FC = () => {
         event.preventDefault();
         setError(null);
         setLoading(true);
-
         try {
             const loggedInUser = await login(email, password);
             navigate(getRoleBasedRedirect(loggedInUser?.role || 'STUDENT'));
         } catch (caughtError: any) {
-            setError(caughtError.message || 'Login gagal. Periksa lagi email dan password Anda.');
+            setError(caughtError.message || 'Login gagal. Periksa email dan password Anda.');
         } finally {
             setLoading(false);
         }
     };
 
+    const inputStyle: React.CSSProperties = {
+        width: '100%',
+        padding: '0.7rem 0.875rem 0.7rem 2.5rem',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--gray-200)',
+        fontSize: '0.9375rem',
+        outline: 'none',
+        background: 'white',
+        transition: 'border-color 150ms, box-shadow 150ms'
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        e.target.style.borderColor = 'var(--primary)';
+        e.target.style.boxShadow = '0 0 0 3px rgba(79, 70, 229, 0.08)';
+    };
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        e.target.style.borderColor = 'var(--gray-200)';
+        e.target.style.boxShadow = 'none';
+    };
+
     return (
-        <div
-            style={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                justifyContent: isMobile ? 'center' : 'flex-start',
-                alignItems: isMobile ? 'center' : 'stretch',
-                background:
-                    'radial-gradient(circle at top left, rgba(129, 140, 248, 0.28), transparent 32%), linear-gradient(135deg, #141b3a 0%, #27226f 52%, #1b1f46 100%)',
-                position: 'relative',
-                overflow: 'hidden'
-            }}
-        >
-            <div
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    zIndex: 0,
-                    pointerEvents: 'none'
-                }}
-            >
-                <Login3D isMobile={isMobile} />
-            </div>
-
-            <div
-                className="animate-slide-up"
-                style={{
-                    display: isMobile ? 'none' : 'flex',
-                    flex: 1,
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+        <div style={{
+            minHeight: '100vh', display: 'flex',
+            background: isMobile ? 'white' : 'var(--gray-50)'
+        }}>
+            {/* Left Panel - Desktop only */}
+            {!isMobile && (
+                <div style={{
+                    flex: 1, display: 'flex', flexDirection: 'column',
+                    justifyContent: 'center', alignItems: 'center',
                     padding: '3rem',
-                    color: 'white',
-                    zIndex: 1,
-                    position: 'relative',
-                    textAlign: 'left'
-                }}
-            >
-                {!isMobile && (
-                    <div
-                        style={{
-                            background: 'rgba(19, 29, 65, 0.28)',
-                            backdropFilter: 'blur(18px)',
-                            padding: '2.5rem',
-                            borderRadius: '2rem',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            maxWidth: '560px',
-                            boxShadow: '0 32px 80px rgba(2, 6, 23, 0.35)'
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                marginBottom: '1rem',
-                                padding: '0.5rem 0.875rem',
-                                borderRadius: '999px',
-                                background: 'rgba(99, 102, 241, 0.18)',
-                                border: '1px solid rgba(165, 180, 252, 0.22)',
-                                color: '#dbe4ff',
-                                fontSize: '0.85rem',
-                                fontWeight: 700
-                            }}
-                        >
-                            Workspace pembelajaran modern
-                        </div>
+                    background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
+                    color: 'white', position: 'relative', overflow: 'hidden'
+                }}>
+                    {/* Subtle decorative circles */}
+                    <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)' }} />
+                    <div style={{ position: 'absolute', bottom: '-15%', left: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.08)' }} />
 
-                        <h1
-                            style={{
-                                fontSize: 'clamp(2.3rem, 5vw, 4rem)',
-                                fontWeight: 800,
-                                lineHeight: 1.05,
-                                marginBottom: '1rem',
-                                background: 'linear-gradient(135deg, #c7d2fe 0%, #eef2ff 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent'
-                            }}
-                        >
+                    <div style={{ position: 'relative', maxWidth: 420, textAlign: 'center' }}>
+                        <div style={{
+                            width: 56, height: 56, borderRadius: 14,
+                            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 1.5rem'
+                        }}>
+                            <GraduationCap size={28} color="white" />
+                        </div>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', lineHeight: 1.2 }}>
                             Geo Education
                         </h1>
-
-                        <p
-                            style={{
-                                fontSize: '1.05rem',
-                                color: '#d6ddff',
-                                lineHeight: 1.75,
-                                marginBottom: '2rem',
-                                maxWidth: '46ch'
-                            }}
-                        >
-                            Satu app untuk guru dan siswa: kelas, materi, latihan interaktif, forum
-                            diskusi, leaderboard, dan penilaian yang rapi dalam pengalaman desktop
-                            yang konsisten.
+                        <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, fontSize: '0.9375rem' }}>
+                            Platform pembelajaran terpadu untuk guru dan siswa. Kelola kelas, materi, latihan interaktif, dan pantau progres dalam satu tempat.
                         </p>
 
-                        <div
-                            style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                                gap: '1rem'
-                            }}
-                        >
-                            {[
-                                ['Kelas', 'Join code, forum, dan progress'],
-                                ['Latihan', 'Multi-tipe dengan review guru'],
-                            ].map(([title, subtitle]) => (
-                                <div
-                                    key={title}
-                                    style={{
-                                        padding: '1rem',
-                                        borderRadius: '1.1rem',
-                                        background: 'rgba(255,255,255,0.08)',
-                                        border: '1px solid rgba(255,255,255,0.1)'
-                                    }}
-                                >
-                                    <div style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.35rem' }}>
-                                        {title}
-                                    </div>
-                                    <div style={{ fontSize: '0.8rem', lineHeight: 1.5, color: '#cbd5ff' }}>
-                                        {subtitle}
-                                    </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '2rem' }}>
+                            {[['Kelas Terstruktur', 'Modul, materi, dan forum'], ['Latihan Interaktif', 'Multi-tipe dengan review']].map(([title, desc]) => (
+                                <div key={title} style={{
+                                    padding: '1rem', borderRadius: 'var(--radius-md)',
+                                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                                    textAlign: 'left'
+                                }}>
+                                    <p style={{ fontWeight: 600, fontSize: '0.8125rem', marginBottom: '0.2rem' }}>{title}</p>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{desc}</p>
                                 </div>
                             ))}
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
-            <div
-                style={{
-                    width: isMobile ? '100%' : '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: isMobile ? '1rem' : '3rem',
-                    zIndex: 10
-                }}
-            >
-                <div
-                    className="glass animate-slide-up"
-                    style={{
-                        width: '100%',
-                        maxWidth: '460px',
-                        padding: isMobile ? '2rem' : '3rem',
-                        borderRadius: '2rem',
-                        background: 'rgba(255,255,255,0.96)',
-                        boxShadow: '0 25px 60px rgba(15, 23, 42, 0.32)',
-                        border: '1px solid rgba(226, 232, 240, 0.8)'
-                    }}
-                >
-                    <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                        <div
-                            style={{
-                                width: '56px',
-                                height: '56px',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                                borderRadius: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                margin: '0 auto 1rem',
-                                boxShadow: '0 14px 32px rgba(79, 70, 229, 0.28)'
-                            }}
-                        >
-                            <LogIn color="white" size={26} />
+            {/* Right Panel - Form */}
+            <div style={{
+                width: isMobile ? '100%' : '480px', minWidth: isMobile ? 'auto' : '480px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: isMobile ? '2rem 1.5rem' : '2rem 3rem',
+                background: 'white'
+            }}>
+                <div style={{ width: '100%', maxWidth: 380 }}>
+                    {/* Mobile logo */}
+                    {isMobile && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <GraduationCap size={18} color="white" />
+                            </div>
+                            <span style={{ fontWeight: 600, color: 'var(--gray-900)' }}>Geo Education</span>
                         </div>
-                        <h2
-                            style={{
-                                fontSize: '1.9rem',
-                                fontWeight: 800,
-                                color: '#0f172a',
-                                marginBottom: '0.5rem'
-                            }}
-                        >
-                            Selamat Datang
-                        </h2>
-                        <p style={{ color: '#64748b', lineHeight: 1.6 }}>
-                            Masuk untuk melanjutkan pengelolaan kelas dan pembelajaran interaktif.
-                        </p>
-                    </div>
+                    )}
+
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.35rem' }}>Masuk</h2>
+                    <p style={{ color: 'var(--gray-500)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
+                        Masukkan email dan password untuk melanjutkan.
+                    </p>
 
                     {error && (
-                        <div
-                            style={{
-                                background: '#fef2f2',
-                                color: '#b91c1c',
-                                padding: '1rem',
-                                borderRadius: '0.9rem',
-                                marginBottom: '1.5rem',
-                                fontSize: '0.92rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.65rem',
-                                border: '1px solid #fecaca'
-                            }}
-                        >
-                            <AlertTriangle size={18} />
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)',
+                            background: 'var(--error-light)', color: 'var(--error)',
+                            fontSize: '0.8125rem', marginBottom: '1.25rem',
+                            border: '1px solid #fecaca'
+                        }}>
+                            <AlertTriangle size={16} />
                             <span>{error}</span>
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit}>
-                        <div style={{ marginBottom: '1.25rem' }}>
-                            <label
-                                style={{
-                                    display: 'block',
-                                    marginBottom: '0.5rem',
-                                    fontWeight: 700,
-                                    color: '#334155',
-                                    fontSize: '0.9rem'
-                                }}
-                            >
-                                Email
-                            </label>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '0.4rem' }}>Email</label>
                             <div style={{ position: 'relative' }}>
-                                <Mail
-                                    size={18}
-                                    color="#94a3b8"
-                                    style={{
-                                        position: 'absolute',
-                                        left: '1rem',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)'
-                                    }}
-                                />
+                                <Mail size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
                                 <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(event) => setEmail(event.target.value)}
-                                    placeholder="nama@email.com"
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '1rem 1rem 1rem 3rem',
-                                        borderRadius: '0.9rem',
-                                        border: '2px solid #e2e8f0',
-                                        fontSize: '1rem',
-                                        transition: 'all 0.2s',
-                                        outline: 'none',
-                                        background: '#f8fafc'
-                                    }}
-                                    onFocus={(event) => {
-                                        event.target.style.borderColor = '#6366f1';
-                                        event.target.style.background = 'white';
-                                        event.target.style.boxShadow =
-                                            '0 0 0 3px rgba(99, 102, 241, 0.12)';
-                                    }}
-                                    onBlur={(event) => {
-                                        event.target.style.borderColor = '#e2e8f0';
-                                        event.target.style.background = '#f8fafc';
-                                        event.target.style.boxShadow = 'none';
-                                    }}
+                                    type="email" value={email} onChange={e => setEmail(e.target.value)}
+                                    placeholder="nama@email.com" required
+                                    style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}
                                 />
                             </div>
                         </div>
 
-                        <div style={{ marginBottom: '1.25rem' }}>
-                            <label
-                                style={{
-                                    display: 'block',
-                                    marginBottom: '0.5rem',
-                                    fontWeight: 700,
-                                    color: '#334155',
-                                    fontSize: '0.9rem'
-                                }}
-                            >
-                                Password
-                            </label>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '0.4rem' }}>Password</label>
                             <div style={{ position: 'relative' }}>
-                                <Lock
-                                    size={18}
-                                    color="#94a3b8"
-                                    style={{
-                                        position: 'absolute',
-                                        left: '1rem',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)'
-                                    }}
-                                />
+                                <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
                                 <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(event) => setPassword(event.target.value)}
-                                    placeholder="Masukkan password"
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '1rem 3rem 1rem 3rem',
-                                        borderRadius: '0.9rem',
-                                        border: '2px solid #e2e8f0',
-                                        fontSize: '1rem',
-                                        transition: 'all 0.2s',
-                                        outline: 'none',
-                                        background: '#f8fafc'
-                                    }}
-                                    onFocus={(event) => {
-                                        event.target.style.borderColor = '#6366f1';
-                                        event.target.style.background = 'white';
-                                        event.target.style.boxShadow =
-                                            '0 0 0 3px rgba(99, 102, 241, 0.12)';
-                                    }}
-                                    onBlur={(event) => {
-                                        event.target.style.borderColor = '#e2e8f0';
-                                        event.target.style.background = '#f8fafc';
-                                        event.target.style.boxShadow = 'none';
-                                    }}
+                                    type={showPassword ? 'text' : 'password'} value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="Masukkan password" required
+                                    style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                                    onFocus={handleFocus} onBlur={handleBlur}
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword((current) => !current)}
-                                    style={{
-                                        position: 'absolute',
-                                        right: '1rem',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        padding: 0,
-                                        color: '#94a3b8'
-                                    }}
-                                >
-                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                <button type="button" onClick={() => setShowPassword(v => !v)} style={{
+                                    position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                                    color: 'var(--gray-400)', padding: 0, background: 'none', border: 'none', cursor: 'pointer'
+                                }}>
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
                         </div>
 
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '1.75rem'
-                            }}
-                        >
-                            <label
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    style={{ width: '16px', height: '16px', accentColor: '#6366f1' }}
-                                />
-                                <span style={{ fontSize: '0.9rem', color: '#475569' }}>
-                                    Ingat saya
-                                </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                                <input type="checkbox" style={{ width: 14, height: 14, accentColor: 'var(--primary)' }} />
+                                Ingat saya
                             </label>
-                            <Link
-                                to="/forgot-password"
-                                style={{ fontSize: '0.9rem', color: '#4f46e5', fontWeight: 700 }}
-                            >
-                                Lupa password?
-                            </Link>
+                            <Link to="/forgot-password" style={{ fontSize: '0.8125rem', color: 'var(--primary)', fontWeight: 500 }}>Lupa password?</Link>
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            style={{
-                                width: '100%',
-                                padding: '1rem',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '0.9rem',
-                                fontSize: '1rem',
-                                fontWeight: 700,
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem',
-                                transition: 'all 0.2s',
-                                opacity: loading ? 0.75 : 1,
-                                boxShadow: '0 14px 30px rgba(79, 70, 229, 0.28)'
-                            }}
-                            onMouseEnter={(event) => {
-                                if (!loading) {
-                                    event.currentTarget.style.transform = 'translateY(-2px)';
-                                    event.currentTarget.style.boxShadow =
-                                        '0 18px 36px rgba(79, 70, 229, 0.34)';
-                                }
-                            }}
-                            onMouseLeave={(event) => {
-                                event.currentTarget.style.transform = 'translateY(0)';
-                                event.currentTarget.style.boxShadow =
-                                    '0 14px 30px rgba(79, 70, 229, 0.28)';
-                            }}
+                        <button type="submit" disabled={loading} style={{
+                            width: '100%', padding: '0.7rem',
+                            background: 'var(--primary)', color: 'white',
+                            borderRadius: 'var(--radius-md)', fontSize: '0.9375rem', fontWeight: 600,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                            opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer',
+                            transition: 'background 150ms'
+                        }}
+                            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--primary-hover)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; }}
                         >
-                            {loading ? (
-                                <>
-                                    <Loader size={20} className="animate-spin" />
-                                    Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <LogIn size={20} />
-                                    Masuk
-                                </>
-                            )}
+                            {loading ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Memproses...</> : <><LogIn size={18} /> Masuk</>}
                         </button>
                     </form>
 
-                    <div
-                        style={{
-                            textAlign: 'center',
-                            marginTop: '1.75rem',
-                            paddingTop: '1.5rem',
-                            borderTop: '1px solid #e2e8f0'
-                        }}
-                    >
-                        <p style={{ color: '#64748b', fontSize: '0.92rem' }}>
-                            Belum punya akun?{' '}
-                            <Link to="/register" style={{ color: '#4f46e5', fontWeight: 700 }}>
-                                Daftar sekarang
-                            </Link>
-                        </p>
-                    </div>
+                    <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
+                        Belum punya akun? <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 500 }}>Daftar</Link>
+                    </p>
 
-                    <div
-                        style={{
-                            marginTop: '1.5rem',
-                            padding: '1rem',
-                            background: '#f8fafc',
-                            borderRadius: '0.95rem',
-                            border: '1px solid #e2e8f0'
-                        }}
-                    >
-                        <p
-                            style={{
-                                fontSize: '0.82rem',
-                                color: '#334155',
-                                fontWeight: 800,
-                                marginBottom: '0.65rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                            }}
-                        >
-                            <FlaskConical size={14} />
-                            <span>Demo Login</span>
+                    {/* Demo accounts */}
+                    <div style={{
+                        marginTop: '1.5rem', padding: '0.875rem',
+                        background: 'var(--gray-50)', borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--gray-100)'
+                    }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray-600)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <FlaskConical size={12} /> Demo
                         </p>
-                        <div style={{ display: 'grid', gap: '0.35rem' }}>
-                            {demoAccounts.map((account) => (
-                                <div
-                                    key={account.label}
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: '1rem',
-                                        fontSize: '0.82rem',
-                                        color: '#475569'
-                                    }}
-                                >
-                                    <span>{account.label}:</span>
-                                    <span style={{ fontFamily: 'monospace' }}>{account.credential}</span>
-                                </div>
-                            ))}
-                        </div>
+                        {demoAccounts.map(acc => (
+                            <div key={acc.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--gray-500)', padding: '0.2rem 0' }}>
+                                <span>{acc.label}</span>
+                                <code style={{ fontSize: '0.6875rem', color: 'var(--gray-600)' }}>{acc.credential}</code>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

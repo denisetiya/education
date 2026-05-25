@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, BookOpen, Users } from 'lucide-react';
+import { UserPlus, BookOpen, Users, Loader, ArrowRight } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { classesAPI, getApiErrorMessage } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -12,9 +12,7 @@ export const StudentClasses: React.FC = () => {
     const [joining, setJoining] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchEnrollments();
-    }, []);
+    useEffect(() => { fetchEnrollments(); }, []);
 
     const fetchEnrollments = async () => {
         try {
@@ -37,128 +35,121 @@ export const StudentClasses: React.FC = () => {
             setJoinCode('');
             fetchEnrollments();
         } catch (error: unknown) {
-            notifications.error(
-                getApiErrorMessage(error, 'Gagal bergabung ke kelas.'),
-                'Kelas belum ditambahkan'
-            );
+            notifications.error(getApiErrorMessage(error, 'Gagal bergabung ke kelas.'), 'Kelas belum ditambahkan');
         } finally {
             setJoining(false);
         }
     };
 
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Header with Join Section */}
-            <div className="animate-slide-up" style={{ 
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', 
-                padding: '3rem', 
-                borderRadius: '1.5rem', 
-                color: 'white',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                boxShadow: '0 20px 25px -5px rgba(99, 102, 241, 0.2)'
-            }}>
-                <div style={{ maxWidth: '500px' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem' }}>Kelas Saya</h1>
-                    <p style={{ fontSize: '1.1rem', opacity: 0.9 }}>Temukan materi pembelajaran, tugas, dan latihan dari gurumu di sini.</p>
-                </div>
+    const colors = ['#4f46e5', '#0891b2', '#7c3aed', '#059669', '#dc2626', '#ca8a04'];
 
-                <div className="glass" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', width: '350px' }}>
-                    <h3 style={{ marginBottom: '1rem', fontWeight: '600' }}>Gabung Kelas Baru</h3>
-                    <form onSubmit={handleJoinClass} style={{ display: 'flex', gap: '0.5rem' }}>
-                        <input 
-                            type="text" 
-                            placeholder="Masukkan Kode Kelas"
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                            style={{ 
-                                flex: 1, 
-                                padding: '0.8rem', 
-                                borderRadius: '0.5rem', 
-                                border: 'none', 
-                                outline: 'none',
-                                background: 'white',
-                                color: '#1e293b',
-                                fontWeight: 'bold',
-                                textAlign: 'center',
-                                letterSpacing: '2px'
-                            }}
-                        />
-                        <button 
-                            type="submit" 
-                            disabled={joining || !joinCode}
-                            style={{ 
-                                padding: '0.8rem', 
-                                borderRadius: '0.5rem', 
-                                border: 'none', 
-                                background: '#10b981', 
-                                color: 'white',
-                                cursor: 'pointer',
-                                transition: 'transform 0.2s',
-                                fontWeight: 'bold'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                            {joining ? '...' : <UserPlus size={24} />}
-                        </button>
-                    </form>
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Page Header + Join */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.25rem' }}>Kelas Saya</h1>
+                    <p style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>Akses materi, tugas, dan latihan dari gurumu.</p>
                 </div>
+                <form onSubmit={handleJoinClass} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                        type="text"
+                        placeholder="Kode kelas"
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                        style={{
+                            padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--gray-200)', fontSize: '0.875rem',
+                            width: 140, fontWeight: 500, letterSpacing: '1px',
+                            textAlign: 'center', outline: 'none',
+                            transition: 'border-color 150ms'
+                        }}
+                        onFocus={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                        onBlur={e => e.currentTarget.style.borderColor = 'var(--gray-200)'}
+                    />
+                    <button
+                        type="submit"
+                        disabled={joining || !joinCode}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.55rem 1rem', borderRadius: 'var(--radius-md)',
+                            background: 'var(--primary)', color: 'white',
+                            fontSize: '0.875rem', fontWeight: 500,
+                            opacity: (joining || !joinCode) ? 0.5 : 1,
+                            transition: 'opacity 150ms'
+                        }}
+                    >
+                        {joining ? <Loader size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                        Gabung
+                    </button>
+                </form>
             </div>
 
-            {/* Enrolled Classes Grid */}
-            <div style={{ marginTop: '1rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#334155', marginBottom: '1.5rem' }}>Daftar Kelas</h2>
-                
-                {loading ? (
-                    <div>Loading...</div>
-                ) : classes.length === 0 ? (
-                    <div className="card glass" style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
-                         <BookOpen size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                         <p>Kamu belum bergabung dengan kelas manapun.</p>
-                         <p style={{ fontSize: '0.9rem' }}>Minta kode kelas dari gurumu untuk mulai belajar.</p>
+            {/* Content */}
+            {loading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
+                    <Loader size={24} style={{ color: 'var(--gray-400)', animation: 'spin 1s linear infinite' }} />
+                </div>
+            ) : classes.length === 0 ? (
+                <div style={{
+                    padding: '3rem 2rem', textAlign: 'center',
+                    background: 'white', border: '1px solid var(--gray-200)',
+                    borderRadius: 'var(--radius-lg)'
+                }}>
+                    <div style={{
+                        width: 56, height: 56, borderRadius: '50%',
+                        background: 'var(--gray-100)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 1rem'
+                    }}>
+                        <BookOpen size={24} style={{ color: 'var(--gray-400)' }} />
                     </div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                        {classes.map(cls => (
-                            <div key={cls.id} className="card glass animate-slide-up" 
-                                style={{ 
-                                    padding: '0', 
-                                    overflow: 'hidden', 
-                                    cursor: 'pointer',
-                                    transition: 'transform 0.2s, box-shadow 0.2s'
-                                }}
-                                onClick={() => navigate(`/student/classes/${cls.id}`)}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-5px)';
-                                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                }}
-                            >
-                                <div style={{ height: '100px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', padding: '1.5rem', color: 'white' }}>
-                                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cls.name}</h3>
-                                    <p style={{ fontSize: '0.9rem', opacity: 0.9 }}>{cls.subject}</p>
+                    <p style={{ fontWeight: 500, color: 'var(--gray-700)', marginBottom: '0.25rem' }}>Belum ada kelas</p>
+                    <p style={{ color: 'var(--gray-400)', fontSize: '0.875rem' }}>Masukkan kode kelas dari gurumu untuk mulai belajar.</p>
+                </div>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                    {classes.map((cls, i) => (
+                        <div
+                            key={cls.id}
+                            onClick={() => navigate(`/student/classes/${cls.id}`)}
+                            style={{
+                                background: 'white', border: '1px solid var(--gray-200)',
+                                borderRadius: 'var(--radius-lg)', overflow: 'hidden',
+                                cursor: 'pointer', transition: 'box-shadow 150ms, border-color 150ms'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.borderColor = 'var(--gray-300)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'var(--gray-200)'; }}
+                        >
+                            {/* Color bar */}
+                            <div style={{ height: 4, background: colors[i % colors.length] }} />
+                            <div style={{ padding: '1.25rem' }}>
+                                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {cls.name}
+                                </h3>
+                                <p style={{ fontSize: '0.8125rem', color: 'var(--gray-500)', marginBottom: '1rem' }}>{cls.subject}</p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <Users size={14} />
+                                        <span>{cls.teacher?.name || 'Guru'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <BookOpen size={14} />
+                                        <span>{cls._count?.modules || 0} modul</span>
+                                    </div>
                                 </div>
-                                <div style={{ padding: '1.5rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', marginBottom: '0.5rem' }}>
-                                        <Users size={16} /> Guru: {cls.teacher?.name}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
-                                        <BookOpen size={16} /> {cls._count?.modules || 0} Modul Pembelajaran
-                                    </div>
-                                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9', textAlign: 'right' }}>
-                                        <span style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '600' }}>Masuk Kelas →</span>
-                                    </div>
+
+                                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                    <span style={{ fontSize: '0.8125rem', color: 'var(--primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        Masuk <ArrowRight size={14} />
+                                    </span>
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
