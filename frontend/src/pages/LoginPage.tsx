@@ -19,6 +19,7 @@ export const LoginPage: React.FC = () => {
     const [mounted, setMounted] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
+    const glowRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const h = () => setIsMobile(window.innerWidth < 768);
@@ -26,6 +27,15 @@ export const LoginPage: React.FC = () => {
         setTimeout(() => setMounted(true), 50);
         return () => window.removeEventListener('resize', h);
     }, []);
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (glowRef.current) {
+            glowRef.current.style.setProperty('--mouse-x', e.clientX + 'px');
+            glowRef.current.style.setProperty('--mouse-y', e.clientY + 'px');
+            glowRef.current.classList.add('active');
+        }
+    };
+    const handleMouseLeave = () => { glowRef.current?.classList.remove('active'); };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,16 +52,19 @@ export const LoginPage: React.FC = () => {
     };
 
     return (
-        <div style={{
+        <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'linear-gradient(135deg, #fafafa 0%, #f0f0ff 50%, #f5f3ff 100%)',
-            position: 'relative', overflow: 'hidden',
+            position: 'relative',
             padding: isMobile ? '1.5rem' : '2rem'
         }}>
+            {/* Cursor glow */}
+            <div ref={glowRef} className="bg-glow" />
+
             {/* Animated background shapes */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 <div className="bg-grid" />
-                <div className="bg-squares" />
+                <div className="bg-squares"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
                 <div style={{
                     position: 'absolute', top: '10%', right: '15%',
                     width: 120, height: 120, borderRadius: 30, border: '2px solid rgba(99,102,241,0.1)',

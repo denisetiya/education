@@ -17,6 +17,7 @@ export const RegisterPage: React.FC = () => {
     const [mounted, setMounted] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
+    const glowRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const h = () => setIsMobile(window.innerWidth < 768);
@@ -24,6 +25,15 @@ export const RegisterPage: React.FC = () => {
         setTimeout(() => setMounted(true), 50);
         return () => window.removeEventListener('resize', h);
     }, []);
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (glowRef.current) {
+            glowRef.current.style.setProperty('--mouse-x', e.clientX + 'px');
+            glowRef.current.style.setProperty('--mouse-y', e.clientY + 'px');
+            glowRef.current.classList.add('active');
+        }
+    };
+    const handleMouseLeave = () => { glowRef.current?.classList.remove('active'); };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,16 +77,19 @@ export const RegisterPage: React.FC = () => {
     const onBlur = (e: React.FocusEvent<HTMLInputElement>) => { e.target.style.borderColor = 'var(--gray-200)'; e.target.style.background = 'var(--gray-50)'; e.target.style.boxShadow = 'none'; };
 
     return (
-        <div style={{
+        <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{
             minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'linear-gradient(135deg, #fafafa 0%, #ecfdf5 50%, #f0fdf4 100%)',
-            position: 'relative', overflow: 'hidden',
+            position: 'relative',
             padding: isMobile ? '1.5rem' : '2rem'
         }}>
+            {/* Cursor glow */}
+            <div ref={glowRef} className="bg-glow" />
+
             {/* Animated background shapes */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 <div className="bg-grid" />
-                <div className="bg-squares" />
+                <div className="bg-squares"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
                 <div style={{ position: 'absolute', top: '12%', left: '12%', width: 100, height: 100, borderRadius: 24, border: '2px solid rgba(16,185,129,0.1)', animation: 'float1 9s ease-in-out infinite' }} />
                 <div style={{ position: 'absolute', bottom: '15%', right: '10%', width: 70, height: 70, borderRadius: '50%', background: 'rgba(6,182,212,0.05)', animation: 'float2 11s ease-in-out infinite' }} />
                 <div style={{ position: 'absolute', top: '45%', right: '15%', width: 45, height: 45, borderRadius: 10, border: '2px solid rgba(16,185,129,0.08)', animation: 'float3 8s ease-in-out infinite', transform: 'rotate(45deg)' }} />

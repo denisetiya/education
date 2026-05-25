@@ -73,6 +73,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ child
 export const LandingPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const scrollY = useParallax();
+  const glowRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const u = () => setIsMobile(window.innerWidth < 768);
@@ -81,18 +82,29 @@ export const LandingPage: React.FC = () => {
     return () => window.removeEventListener('resize', u);
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (glowRef.current) {
+      glowRef.current.style.setProperty('--mouse-x', e.clientX + 'px');
+      glowRef.current.style.setProperty('--mouse-y', e.clientY + 'px');
+      glowRef.current.classList.add('active');
+    }
+  };
+  const handleMouseLeave = () => { glowRef.current?.classList.remove('active'); };
+
   return (
-    <div style={{ minHeight: '100vh', background: 'white', overflowX: 'hidden' }}>
+    <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{ minHeight: '100vh', background: 'white', overflowX: 'hidden', position: 'relative' }}>
+      {/* Cursor glow */}
+      <div ref={glowRef} className="bg-glow" style={{ position: 'fixed' }} />
       {/* ===== HERO with Parallax ===== */}
       <section style={{
-        position: 'relative', overflow: 'hidden',
+        position: 'relative',
         minHeight: '100vh', display: 'flex', flexDirection: 'column',
         background: 'linear-gradient(180deg, #fafafa 0%, #f0f0ff 100%)'
       }}>
         {/* Parallax floating shapes */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
           <div className="bg-grid" />
-          <div className="bg-squares" />
+          <div className="bg-squares"><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
           <div style={{
             position: 'absolute', top: '8%', left: '8%',
             width: 80, height: 80, borderRadius: 20, border: '2px solid rgba(99,102,241,0.15)',
@@ -259,14 +271,7 @@ export const LandingPage: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.25rem' }}>
             {features.map((f, i) => (
               <Reveal key={f.title} delay={i * 0.1}>
-                <div style={{
-                  padding: '2rem', background: 'white',
-                  border: '1.5px solid var(--gray-100)', borderRadius: 18,
-                  transition: 'border-color 200ms, box-shadow 200ms, transform 200ms'
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(99,102,241,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--gray-100)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                >
+                <TiltCard>
                   <div style={{
                     width: 48, height: 48, borderRadius: 14,
                     background: '#eef2ff', color: '#6366f1',
@@ -277,7 +282,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '0.4rem' }}>{f.title}</h3>
                   <p style={{ color: 'var(--gray-500)', fontSize: '0.9375rem', lineHeight: 1.65 }}>{f.desc}</p>
-                </div>
+                </TiltCard>
               </Reveal>
             ))}
           </div>
@@ -489,6 +494,48 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </footer>
+    </div>
+  );
+};
+
+// TiltCard - 3D tilt effect on hover like antigravity.google
+const TiltCard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -8;
+    const rotateY = ((x - centerX) / centerX) * 8;
+    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+    card.style.boxShadow = `${-rotateY}px ${rotateX}px 24px rgba(99,102,241,0.1)`;
+  };
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+    card.style.boxShadow = 'none';
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        padding: '2rem', background: 'white',
+        border: '1.5px solid var(--gray-100)', borderRadius: 18,
+        transition: 'transform 0.15s ease-out, box-shadow 0.15s ease-out',
+        willChange: 'transform'
+      }}
+    >
+      {children}
     </div>
   );
 };

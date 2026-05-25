@@ -241,45 +241,55 @@ input, textarea, select {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  overflow: hidden;
   background-image:
-    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    linear-gradient(to right, rgba(99, 102, 241, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.12) 1px, transparent 1px);
+  background-size: 50px 50px;
 }
 
-/* Streaming squares animation */
+/* Cursor glow that follows mouse */
+.bg-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99, 102, 241, 0.15), transparent 40%);
+}
+.bg-glow.active {
+  opacity: 1;
+}
+
+/* Streaming squares - falling boxes */
 .bg-squares {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
-.bg-squares::before,
-.bg-squares::after {
-  content: '';
+.bg-squares span {
   position: absolute;
-  width: 100%;
-  height: 200%;
-  top: -100%;
-  background-image:
-    radial-gradient(circle, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
-  background-size: 48px 48px;
-  animation: streamDown 20s linear infinite;
+  top: -60px;
+  display: block;
+  border: 2px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.04);
+  animation: squareFall linear infinite;
 }
-.bg-squares::after {
-  background-image:
-    radial-gradient(circle, rgba(139, 92, 246, 0.06) 1px, transparent 1px);
-  background-size: 64px 64px;
-  animation-duration: 28s;
-  animation-delay: -8s;
-}
+.bg-squares span:nth-child(1) { left: 3%; width: 45px; height: 45px; animation-duration: 15s; animation-delay: 0s; }
+.bg-squares span:nth-child(2) { left: 14%; width: 30px; height: 30px; animation-duration: 20s; animation-delay: -3s; border-color: rgba(139, 92, 246, 0.25); background: rgba(139, 92, 246, 0.04); }
+.bg-squares span:nth-child(3) { left: 26%; width: 55px; height: 55px; animation-duration: 17s; animation-delay: -7s; }
+.bg-squares span:nth-child(4) { left: 38%; width: 35px; height: 35px; animation-duration: 22s; animation-delay: -2s; border-color: rgba(6, 182, 212, 0.22); background: rgba(6, 182, 212, 0.03); }
+.bg-squares span:nth-child(5) { left: 52%; width: 48px; height: 48px; animation-duration: 16s; animation-delay: -5s; }
+.bg-squares span:nth-child(6) { left: 65%; width: 32px; height: 32px; animation-duration: 24s; animation-delay: -9s; border-color: rgba(139, 92, 246, 0.22); background: rgba(139, 92, 246, 0.03); }
+.bg-squares span:nth-child(7) { left: 78%; width: 58px; height: 58px; animation-duration: 18s; animation-delay: -1s; }
+.bg-squares span:nth-child(8) { left: 33%; width: 40px; height: 40px; animation-duration: 21s; animation-delay: -11s; border-color: rgba(16, 185, 129, 0.22); background: rgba(16, 185, 129, 0.03); }
+.bg-squares span:nth-child(9) { left: 90%; width: 25px; height: 25px; animation-duration: 14s; animation-delay: -6s; }
+.bg-squares span:nth-child(10) { left: 46%; width: 42px; height: 42px; animation-duration: 19s; animation-delay: -13s; }
 
-@keyframes streamDown {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(50%); }
+@keyframes squareFall {
+  0% { top: -80px; transform: rotate(0deg); }
+  100% { top: calc(100% + 80px); transform: rotate(180deg); }
 }
 
 @keyframes spin {
