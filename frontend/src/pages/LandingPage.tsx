@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -11,7 +11,6 @@ import {
   NotebookPen,
   Users,
 } from 'lucide-react';
-import { Login3D } from '../components/Login3D';
 
 const features = [
   { icon: <LayoutDashboard size={20} />, title: 'Manajemen kelas terpusat', desc: 'Join code, siswa, materi, latihan, forum, dan leaderboard dalam satu struktur.' },
@@ -33,8 +32,47 @@ const workflows = {
   ],
 };
 
+// Hook for scroll-based parallax
+const useParallax = () => {
+  const [scrollY, setScrollY] = useState(0);
+  useEffect(() => {
+    const h = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', h, { passive: true });
+    return () => window.removeEventListener('scroll', h);
+  }, []);
+  return scrollY;
+};
+
+// Hook for intersection observer reveal
+const useReveal = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true); }, { threshold: 0.15 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+};
+
+const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 0 }) => {
+  const { ref, visible } = useReveal();
+  return (
+    <div ref={ref} style={{
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(32px)',
+      transition: `opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`
+    }}>
+      {children}
+    </div>
+  );
+};
+
 export const LandingPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
+  const scrollY = useParallax();
 
   useEffect(() => {
     const u = () => setIsMobile(window.innerWidth < 768);
@@ -44,207 +82,258 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'white' }}>
-      {/* ===== HERO ===== */}
+    <div style={{ minHeight: '100vh', background: 'white', overflowX: 'hidden' }}>
+      {/* ===== HERO with Parallax ===== */}
       <section style={{
         position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(180deg, #f8fafc 0%, #eef2ff 40%, #f5f3ff 100%)',
-        minHeight: isMobile ? 'auto' : '100vh',
-        display: 'flex', flexDirection: 'column'
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        background: 'linear-gradient(180deg, #fafafa 0%, #f0f0ff 100%)'
       }}>
-        {/* 3D Background */}
-        <Login3D isMobile={isMobile} variant="light" />
-
-        {/* Decorative blobs */}
-        <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'rgba(99, 102, 241, 0.06)', filter: 'blur(80px)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '10%', left: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.05)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+        {/* Parallax floating shapes */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute', top: '8%', left: '8%',
+            width: 80, height: 80, borderRadius: 20, border: '2px solid rgba(99,102,241,0.15)',
+            transform: `translateY(${scrollY * 0.15}px) rotate(${scrollY * 0.02}deg)`,
+            transition: 'transform 0.1s linear'
+          }} />
+          <div style={{
+            position: 'absolute', top: '20%', right: '12%',
+            width: 60, height: 60, borderRadius: '50%', background: 'rgba(139,92,246,0.08)',
+            transform: `translateY(${scrollY * 0.25}px)`,
+          }} />
+          <div style={{
+            position: 'absolute', top: '55%', left: '5%',
+            width: 40, height: 40, borderRadius: 10, background: 'rgba(99,102,241,0.06)',
+            transform: `translateY(${scrollY * 0.3}px) rotate(45deg)`,
+          }} />
+          <div style={{
+            position: 'absolute', top: '40%', right: '6%',
+            width: 100, height: 100, borderRadius: 24, border: '2px solid rgba(6,182,212,0.1)',
+            transform: `translateY(${scrollY * 0.2}px) rotate(${-scrollY * 0.015}deg)`,
+          }} />
+          <div style={{
+            position: 'absolute', bottom: '15%', left: '20%',
+            width: 50, height: 50, borderRadius: '50%', border: '2px solid rgba(16,185,129,0.12)',
+            transform: `translateY(${scrollY * 0.35}px)`,
+          }} />
+          <div style={{
+            position: 'absolute', top: '70%', right: '25%',
+            width: 30, height: 30, borderRadius: 8, background: 'rgba(244,114,182,0.08)',
+            transform: `translateY(${scrollY * 0.4}px) rotate(${scrollY * 0.03}deg)`,
+          }} />
+          {/* Large gradient blob */}
+          <div style={{
+            position: 'absolute', top: '10%', right: '-5%',
+            width: 500, height: 500, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)',
+            transform: `translateY(${scrollY * 0.1}px)`,
+          }} />
+        </div>
 
         {/* Nav */}
         <nav style={{
-          position: 'relative', zIndex: 20,
-          padding: '1rem 1.5rem', maxWidth: 1200, margin: '0 auto', width: '100%',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+          background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          padding: '0 1.5rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99,102,241,0.2)' }}>
-              <GraduationCap size={17} color="white" />
+          <div style={{
+            maxWidth: 1100, margin: '0 auto', height: 60,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GraduationCap size={16} color="white" />
+              </div>
+              <span style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '1rem' }}>Geo Education</span>
             </div>
-            <span style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '1.0625rem' }}>Geo Education</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {!isMobile && (
-              <>
-                <a href="#features" style={{ fontSize: '0.875rem', color: 'var(--gray-600)', padding: '0.4rem 0.75rem', borderRadius: 8, transition: 'color 150ms' }}>Fitur</a>
-                <a href="#workflow" style={{ fontSize: '0.875rem', color: 'var(--gray-600)', padding: '0.4rem 0.75rem', borderRadius: 8, transition: 'color 150ms' }}>Alur Kerja</a>
-              </>
-            )}
-            <Link to="/login" style={{
-              padding: '0.5rem 1.25rem', borderRadius: 10,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              color: 'white', fontSize: '0.875rem', fontWeight: 500,
-              boxShadow: '0 4px 12px rgba(99,102,241,0.2)'
-            }}>
-              Masuk
-            </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {!isMobile && (
+                <>
+                  <a href="#features" style={{ fontSize: '0.875rem', color: 'var(--gray-600)', padding: '0.4rem 0.75rem' }}>Fitur</a>
+                  <a href="#workflow" style={{ fontSize: '0.875rem', color: 'var(--gray-600)', padding: '0.4rem 0.75rem' }}>Alur Kerja</a>
+                </>
+              )}
+              <Link to="/login" style={{
+                padding: '0.5rem 1.25rem', borderRadius: 10,
+                background: '#6366f1', color: 'white', fontSize: '0.875rem', fontWeight: 500
+              }}>Masuk</Link>
+            </div>
           </div>
         </nav>
 
         {/* Hero Content */}
         <div style={{
-          position: 'relative', zIndex: 10, flex: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: isMobile ? '3rem 1.5rem 5rem' : '0 1.5rem',
-          textAlign: 'center'
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: isMobile ? '6rem 1.5rem 4rem' : '0 1.5rem',
+          textAlign: 'center', position: 'relative', zIndex: 10
         }}>
           <div style={{ maxWidth: 700 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.4rem 0.875rem', borderRadius: 999,
-              background: 'white', border: '1px solid var(--gray-200)',
-              color: '#6366f1', fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.75rem',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-            }}>
-              ✦ Platform Pembelajaran Modern
-            </div>
-
-            <h1 style={{
-              fontSize: isMobile ? '2.25rem' : '3.75rem',
-              fontWeight: 800, lineHeight: 1.1,
-              color: 'var(--gray-900)', marginBottom: '1.25rem',
-              letterSpacing: '-0.03em'
-            }}>
-              Belajar lebih terarah,{' '}
-              <span style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                mengajar lebih ringan.
-              </span>
-            </h1>
-
-            <p style={{
-              color: 'var(--gray-500)', fontSize: isMobile ? '1rem' : '1.2rem',
-              lineHeight: 1.7, maxWidth: 540, margin: '0 auto 2.5rem'
-            }}>
-              Satu platform untuk guru dan siswa. Kelola kelas, materi interaktif, latihan multi-tipe, dan evaluasi — semua terintegrasi.
-            </p>
-
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link to="/register" style={{
+            <Reveal>
+              <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.8rem 1.75rem', borderRadius: 12,
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                color: 'white', fontSize: '0.9375rem', fontWeight: 600,
-                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.25)',
-                transition: 'transform 150ms, box-shadow 150ms'
-              }}>
-                Mulai Gratis <ArrowRight size={16} />
-              </Link>
-              <Link to="/login" style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.8rem 1.75rem', borderRadius: 12,
+                padding: '0.4rem 0.875rem', borderRadius: 999,
                 background: 'white', border: '1px solid var(--gray-200)',
-                color: 'var(--gray-700)', fontSize: '0.9375rem', fontWeight: 500,
+                color: '#6366f1', fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.75rem',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
               }}>
-                Masuk
-              </Link>
-            </div>
+                ✦ Platform Pembelajaran Modern
+              </div>
+            </Reveal>
 
-            {/* Trust indicators */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginTop: '3.5rem', flexWrap: 'wrap' }}>
-              {[['Multi-tipe', 'Soal'], ['Real-time', 'Feedback'], ['Gamifikasi', 'Belajar']].map(([t, b]) => (
-                <div key={t} style={{ textAlign: 'center' }}>
-                  <p style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.9375rem' }}>{t}</p>
-                  <p style={{ color: 'var(--gray-400)', fontSize: '0.75rem' }}>{b}</p>
-                </div>
-              ))}
-            </div>
+            <Reveal delay={0.1}>
+              <h1 style={{
+                fontSize: isMobile ? '2.5rem' : '4rem',
+                fontWeight: 800, lineHeight: 1.08,
+                color: 'var(--gray-900)', marginBottom: '1.25rem',
+                letterSpacing: '-0.03em'
+              }}>
+                Belajar lebih terarah,{' '}
+                <span style={{ color: '#6366f1' }}>mengajar lebih ringan.</span>
+              </h1>
+            </Reveal>
+
+            <Reveal delay={0.2}>
+              <p style={{
+                color: 'var(--gray-500)', fontSize: isMobile ? '1rem' : '1.2rem',
+                lineHeight: 1.7, maxWidth: 540, margin: '0 auto 2.5rem'
+              }}>
+                Satu platform untuk guru dan siswa. Kelola kelas, materi interaktif, latihan multi-tipe, dan evaluasi — semua terintegrasi.
+              </p>
+            </Reveal>
+
+            <Reveal delay={0.3}>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link to="/register" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.85rem 2rem', borderRadius: 12,
+                  background: '#6366f1', color: 'white', fontSize: '0.9375rem', fontWeight: 600,
+                  boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+                  transition: 'transform 150ms, box-shadow 150ms'
+                }}>
+                  Mulai Gratis <ArrowRight size={16} />
+                </Link>
+                <Link to="/login" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.85rem 2rem', borderRadius: 12,
+                  background: 'white', border: '1.5px solid var(--gray-200)',
+                  color: 'var(--gray-700)', fontSize: '0.9375rem', fontWeight: 500,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                }}>
+                  Masuk
+                </Link>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.4}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginTop: '4rem', flexWrap: 'wrap' }}>
+                {[['Multi-tipe', 'Soal'], ['Real-time', 'Feedback'], ['Gamifikasi', 'Belajar']].map(([t, b]) => (
+                  <div key={t} style={{ textAlign: 'center' }}>
+                    <p style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '1rem' }}>{t}</p>
+                    <p style={{ color: 'var(--gray-400)', fontSize: '0.75rem' }}>{b}</p>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
       {/* ===== FEATURES ===== */}
-      <section id="features" style={{ padding: isMobile ? '4rem 1.5rem' : '6rem 1.5rem', background: 'white' }}>
+      <section id="features" style={{ padding: isMobile ? '4rem 1.5rem' : '7rem 1.5rem', background: 'white' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
-              Fitur yang mendukung fokus
-            </h2>
-            <p style={{ color: 'var(--gray-500)', fontSize: '1rem', maxWidth: 500, margin: '0 auto' }}>
-              Guru mengelola dengan mudah, siswa belajar dengan tenang.
-            </p>
-          </div>
+          <Reveal>
+            <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.5rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
+                Fitur yang mendukung fokus
+              </h2>
+              <p style={{ color: 'var(--gray-500)', fontSize: '1.0625rem', maxWidth: 500, margin: '0 auto' }}>
+                Guru mengelola dengan mudah, siswa belajar dengan tenang.
+              </p>
+            </div>
+          </Reveal>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1rem' }}>
-            {features.map((f) => (
-              <div key={f.title} style={{
-                padding: '1.75rem', background: 'white',
-                border: '1px solid var(--gray-200)', borderRadius: 16,
-                transition: 'border-color 150ms, box-shadow 150ms'
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(99,102,241,0.06)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--gray-200)'; e.currentTarget.style.boxShadow = 'none'; }}
-              >
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.25rem' }}>
+            {features.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.1}>
                 <div style={{
-                  width: 44, height: 44, borderRadius: 12,
-                  background: 'linear-gradient(135deg, #eef2ff, #f5f3ff)', color: '#6366f1',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: '1rem'
-                }}>
-                  {f.icon}
+                  padding: '2rem', background: 'white',
+                  border: '1.5px solid var(--gray-100)', borderRadius: 18,
+                  transition: 'border-color 200ms, box-shadow 200ms, transform 200ms'
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(99,102,241,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--gray-100)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 14,
+                    background: '#eef2ff', color: '#6366f1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '1.25rem'
+                  }}>
+                    {f.icon}
+                  </div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '0.4rem' }}>{f.title}</h3>
+                  <p style={{ color: 'var(--gray-500)', fontSize: '0.9375rem', lineHeight: 1.65 }}>{f.desc}</p>
                 </div>
-                <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '0.4rem' }}>{f.title}</h3>
-                <p style={{ color: 'var(--gray-500)', fontSize: '0.9375rem', lineHeight: 1.6 }}>{f.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* ===== WORKFLOW ===== */}
-      <section id="workflow" style={{ padding: isMobile ? '4rem 1.5rem' : '6rem 1.5rem', background: 'var(--gray-50)', borderTop: '1px solid var(--gray-100)' }}>
+      <section id="workflow" style={{ padding: isMobile ? '4rem 1.5rem' : '7rem 1.5rem', background: '#fafafa', borderTop: '1px solid var(--gray-100)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
-              Alur kerja yang jelas
-            </h2>
-            <p style={{ color: 'var(--gray-500)', fontSize: '1rem', maxWidth: 500, margin: '0 auto' }}>
-              Guru punya kendali penuh, siswa mendapat navigasi yang bersih.
-            </p>
-          </div>
+          <Reveal>
+            <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.5rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
+                Alur kerja yang jelas
+              </h2>
+              <p style={{ color: 'var(--gray-500)', fontSize: '1.0625rem', maxWidth: 500, margin: '0 auto' }}>
+                Guru punya kendali penuh, siswa mendapat navigasi yang bersih.
+              </p>
+            </div>
+          </Reveal>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
-            <WorkflowCard title="Guru" color="#6366f1" icon={<Users size={16} />} steps={workflows.teacher} />
-            <WorkflowCard title="Siswa" color="#0891b2" icon={<BookOpen size={16} />} steps={workflows.student} />
+            <Reveal delay={0}><WorkflowCard title="Guru" color="#6366f1" icon={<Users size={16} />} steps={workflows.teacher} /></Reveal>
+            <Reveal delay={0.15}><WorkflowCard title="Siswa" color="#0891b2" icon={<BookOpen size={16} />} steps={workflows.student} /></Reveal>
           </div>
         </div>
       </section>
 
       {/* ===== ROLES ===== */}
-      <section style={{ padding: isMobile ? '4rem 1.5rem' : '6rem 1.5rem', background: 'white', borderTop: '1px solid var(--gray-100)' }}>
+      <section style={{ padding: isMobile ? '4rem 1.5rem' : '7rem 1.5rem', background: 'white', borderTop: '1px solid var(--gray-100)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
-              Satu platform, tiga peran
-            </h2>
-            <p style={{ color: 'var(--gray-500)', fontSize: '1rem' }}>Guru, siswa, dan admin punya portal masing-masing.</p>
-          </div>
+          <Reveal>
+            <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+              <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.5rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.5rem' }}>
+                Satu platform, tiga peran
+              </h2>
+              <p style={{ color: 'var(--gray-500)', fontSize: '1.0625rem' }}>Guru, siswa, dan admin punya portal masing-masing.</p>
+            </div>
+          </Reveal>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '1.25rem' }}>
             {[
               { title: 'Guru', desc: 'Kelola kelas, buat materi & latihan, review hasil.', color: '#6366f1', bullets: ['Class hub', 'Builder latihan', 'Review & feedback'] },
               { title: 'Siswa', desc: 'Akses materi, kerjakan latihan, lihat progres.', color: '#0891b2', bullets: ['Materi & latihan', 'Badge & ranking', 'Forum diskusi'] },
               { title: 'Admin', desc: 'Kelola akses dan operasional platform.', color: '#7c3aed', bullets: ['Kontrol akses', 'Manajemen user', 'Monitoring'] },
-            ].map((r) => (
-              <div key={r.title} style={{ padding: '1.75rem', background: 'white', border: '1px solid var(--gray-200)', borderRadius: 16 }}>
-                <div style={{ display: 'inline-block', padding: '0.25rem 0.7rem', borderRadius: 8, background: `${r.color}0a`, color: r.color, fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.875rem' }}>{r.title}</div>
-                <p style={{ color: 'var(--gray-600)', fontSize: '0.9375rem', lineHeight: 1.6, marginBottom: '1rem' }}>{r.desc}</p>
-                <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {r.bullets.map(b => (
-                    <li key={b} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                      <CheckCircle2 size={14} style={{ color: r.color, flexShrink: 0 }} />{b}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            ].map((r, i) => (
+              <Reveal key={r.title} delay={i * 0.1}>
+                <div style={{ padding: '2rem', background: 'white', border: '1.5px solid var(--gray-100)', borderRadius: 18, height: '100%' }}>
+                  <div style={{ display: 'inline-block', padding: '0.3rem 0.75rem', borderRadius: 8, background: `${r.color}0a`, color: r.color, fontSize: '0.75rem', fontWeight: 600, marginBottom: '1rem' }}>{r.title}</div>
+                  <p style={{ color: 'var(--gray-600)', fontSize: '0.9375rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>{r.desc}</p>
+                  <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {r.bullets.map(b => (
+                      <li key={b} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--gray-600)' }}>
+                        <CheckCircle2 size={15} style={{ color: r.color, flexShrink: 0 }} />{b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -252,37 +341,37 @@ export const LandingPage: React.FC = () => {
 
       {/* ===== CTA ===== */}
       <section style={{
-        padding: isMobile ? '4rem 1.5rem' : '5rem 1.5rem',
+        padding: isMobile ? '4rem 1.5rem' : '6rem 1.5rem',
         background: 'linear-gradient(135deg, #eef2ff, #f5f3ff)',
         borderTop: '1px solid var(--gray-100)'
       }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.75rem' }}>
-            Siap untuk mulai?
-          </h2>
-          <p style={{ color: 'var(--gray-500)', marginBottom: '2rem', fontSize: '1rem' }}>
-            Buat akun gratis dan langsung akses semua fitur.
-          </p>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/register" style={{
-              padding: '0.8rem 1.75rem', borderRadius: 12,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              color: 'white', fontSize: '0.9375rem', fontWeight: 600,
-              boxShadow: '0 4px 16px rgba(99, 102, 241, 0.25)',
-              display: 'inline-flex', alignItems: 'center', gap: '0.4rem'
-            }}>
-              Daftar Gratis <ArrowRight size={16} />
-            </Link>
-            <Link to="/login" style={{
-              padding: '0.8rem 1.75rem', borderRadius: 12,
-              background: 'white', border: '1px solid var(--gray-200)',
-              color: 'var(--gray-700)', fontSize: '0.9375rem', fontWeight: 500,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-            }}>
-              Masuk
-            </Link>
+        <Reveal>
+          <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
+            <h2 style={{ fontSize: isMobile ? '1.5rem' : '2.25rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.75rem' }}>
+              Siap untuk mulai?
+            </h2>
+            <p style={{ color: 'var(--gray-500)', marginBottom: '2rem', fontSize: '1.0625rem' }}>
+              Buat akun gratis dan langsung akses semua fitur.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/register" style={{
+                padding: '0.85rem 2rem', borderRadius: 12,
+                background: '#6366f1', color: 'white', fontSize: '0.9375rem', fontWeight: 600,
+                boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem'
+              }}>
+                Daftar Gratis <ArrowRight size={16} />
+              </Link>
+              <Link to="/login" style={{
+                padding: '0.85rem 2rem', borderRadius: 12,
+                background: 'white', border: '1.5px solid var(--gray-200)',
+                color: 'var(--gray-700)', fontSize: '0.9375rem', fontWeight: 500
+              }}>
+                Masuk
+              </Link>
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ===== FOOTER ===== */}
@@ -305,18 +394,18 @@ export const LandingPage: React.FC = () => {
 };
 
 const WorkflowCard = ({ title, color, icon, steps }: { title: string; color: string; icon: React.ReactNode; steps: { title: string; desc: string }[] }) => (
-  <div style={{ padding: '1.75rem', background: 'white', border: '1px solid var(--gray-200)', borderRadius: 16 }}>
+  <div style={{ padding: '2rem', background: 'white', border: '1.5px solid var(--gray-200)', borderRadius: 18 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 12px ${color}30` }}>{icon}</div>
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
       <span style={{ fontWeight: 600, color: 'var(--gray-900)', fontSize: '1.0625rem' }}>{title}</span>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {steps.map((s, i) => (
         <div key={s.title} style={{ display: 'flex', gap: '0.75rem' }}>
-          <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, background: `${color}12`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6875rem', fontWeight: 700, marginTop: 2 }}>{i + 1}</div>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: `${color}12`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, marginTop: 2 }}>{i + 1}</div>
           <div>
             <p style={{ fontWeight: 500, color: 'var(--gray-800)', fontSize: '0.9375rem' }}>{s.title}</p>
-            <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', lineHeight: 1.5 }}>{s.desc}</p>
+            <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', lineHeight: 1.55 }}>{s.desc}</p>
           </div>
         </div>
       ))}
