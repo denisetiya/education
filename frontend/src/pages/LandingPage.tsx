@@ -11,6 +11,7 @@ import {
   NotebookPen,
   Users,
 } from 'lucide-react';
+import { Login3D } from '../components/Login3D';
 
 const features = [
   {
@@ -99,13 +100,16 @@ export const LandingPage: React.FC = () => {
       <section style={{
         padding: isMobile ? '3rem 1.5rem' : '5rem 1.5rem',
         maxWidth: 1100, margin: '0 auto',
-        textAlign: 'center'
+        textAlign: 'center', position: 'relative', overflow: 'hidden'
       }}>
+        {/* 3D Background */}
+        <Login3D isMobile={isMobile} variant="light" />
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
           padding: '0.35rem 0.75rem', borderRadius: 999,
           background: 'var(--primary-light)', color: 'var(--primary)',
-          fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.5rem'
+          fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.5rem',
+          position: 'relative', zIndex: 1
         }}>
           Platform Pembelajaran Modern
         </div>
@@ -114,19 +118,21 @@ export const LandingPage: React.FC = () => {
           fontSize: isMobile ? '2rem' : '3.25rem',
           fontWeight: 700, lineHeight: 1.15,
           color: 'var(--gray-900)', marginBottom: '1rem',
-          letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 1rem'
+          letterSpacing: '-0.02em', maxWidth: 700, margin: '0 auto 1rem',
+          position: 'relative', zIndex: 1
         }}>
           Kelola kelas, materi, dan evaluasi dalam satu tempat
         </h1>
 
         <p style={{
           color: 'var(--gray-500)', fontSize: isMobile ? '0.9375rem' : '1.125rem',
-          lineHeight: 1.7, maxWidth: 560, margin: '0 auto 2rem'
+          lineHeight: 1.7, maxWidth: 560, margin: '0 auto 2rem',
+          position: 'relative', zIndex: 1
         }}>
           Geo Education menyatukan alur kerja guru dan siswa. Dari pembuatan materi hingga penilaian, semua terintegrasi.
         </p>
 
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
           <Link to="/login" style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
             padding: '0.7rem 1.5rem', borderRadius: 'var(--radius-md)',
@@ -149,7 +155,7 @@ export const LandingPage: React.FC = () => {
         {/* Stats */}
         <div style={{
           display: 'flex', justifyContent: 'center', gap: isMobile ? '1.5rem' : '3rem',
-          marginTop: '3rem', flexWrap: 'wrap'
+          marginTop: '3rem', flexWrap: 'wrap', position: 'relative', zIndex: 1
         }}>
           {[['Multi-tipe', 'Soal'], ['Real-time', 'Feedback'], ['Gamifikasi', 'Belajar']].map(([top, bottom]) => (
             <div key={top} style={{ textAlign: 'center' }}>

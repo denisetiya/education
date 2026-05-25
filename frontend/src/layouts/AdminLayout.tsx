@@ -1,99 +1,157 @@
-import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import {
-    LayoutDashboard,
-    Users,
-    BookOpen,
-    Building2,
-    LogOut,
-    Shield
-} from 'lucide-react';
+import React, { useMemo, useSyncExternalStore } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, Building2, LayoutDashboard, LogOut, Shield, Users } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+type NavItem = { to: string; label: string; icon: React.ReactNode; match: (p: string) => boolean };
+
+const subscribeMedia = (cb: () => void) => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    mq.addEventListener('change', cb);
+    return () => mq.removeEventListener('change', cb);
+};
+const useIsMobile = () => useSyncExternalStore(subscribeMedia, () => window.matchMedia('(max-width: 1024px)').matches, () => false);
 
 export const AdminLayout: React.FC = () => {
     const location = useLocation();
-    const isActive = (path: string) => location.pathname === path;
+    const navigate = useNavigate();
+    const { user, logout } = useAuth();
+    const isMobile = useIsMobile();
 
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f1f5f9' }}>
-            {/* Sidebar - Admin (Darker/Different Accents) */}
-            <aside style={{
-                width: '260px',
-                background: '#111827', // Darker than teacher
-                color: '#e2e8f0',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'fixed',
-                height: '100vh',
-                zIndex: 50
-            }}>
-                <div style={{ padding: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #1f2937' }}>
-                    <div style={{ width: '36px', height: '36px', background: '#ef4444', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Shield size={20} color="white" />
-                    </div>
-                    <div>
-                        <h1 style={{ fontSize: '1.1rem', fontWeight: '800', letterSpacing: '0.5px' }}>ADMIN PANEL</h1>
-                        <span style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>Geo Education</span>
-                    </div>
-                </div>
+    const navItems = useMemo<NavItem[]>(() => [
+        { to: '/admin', label: 'Overview', icon: <LayoutDashboard size={18} />, match: (p) => p === '/admin' || p === '/admin/' },
+        { to: '/admin/users', label: 'Users', icon: <Users size={18} />, match: (p) => p.startsWith('/admin/users') },
+        { to: '/admin/materials', label: 'Materials', icon: <BookOpen size={18} />, match: (p) => p.startsWith('/admin/materials') },
+        { to: '/admin/classes', label: 'Classes', icon: <Building2 size={18} />, match: (p) => p.startsWith('/admin/classes') },
+    ], []);
 
-                <nav style={{ flex: 1, padding: '2rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <NavItem to="/admin" icon={<LayoutDashboard size={18} />} label="Overview" active={isActive('/admin') || isActive('/admin/')} />
-                    <NavItem to="/admin/users" icon={<Users size={18} />} label="User Management" active={isActive('/admin/users')} />
-                    <NavItem to="/admin/materials" icon={<BookOpen size={18} />} label="Materials" active={isActive('/admin/materials')} />
-                    <NavItem to="/admin/classes" icon={<Building2 size={18} />} label="Classes" active={isActive('/admin/classes')} />
-                </nav>
+    const bottomNav = useMemo(() => [
+        { to: '/admin', icon: <LayoutDashboard size={20} />, label: 'Home', match: (p: string) => p === '/admin' || p === '/admin/' },
+        { to: '/admin/users', icon: <Users size={20} />, label: 'Users', match: (p: string) => p.startsWith('/admin/users') },
+        { to: '/admin/materials', icon: <BookOpen size={20} />, label: 'Materi', match: (p: string) => p.startsWith('/admin/materials') },
+        { to: '/admin/classes', icon: <Building2 size={20} />, label: 'Kelas', match: (p: string) => p.startsWith('/admin/classes') },
+    ], []);
 
-                <div style={{ padding: '2rem', borderTop: '1px solid #1f2937' }}>
-                    <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ef4444', fontSize: '0.9rem', fontWeight: '600', transition: 'opacity 0.2s' }}>
-                        <LogOut size={18} />
-                        Logout
-                    </Link>
-                </div>
-            </aside>
+    const handleLogout = async () => { await logout(); navigate('/login'); };
 
-            {/* Main Content */}
-            <div style={{ marginLeft: '260px', flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                {/* Admin Header */}
+    if (isMobile) {
+        return (
+            <div style={{ minHeight: '100vh', background: '#fafafa', paddingBottom: '4.5rem' }}>
                 <header style={{
-                    height: '60px',
-                    background: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    padding: '0 2rem',
-                    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                    position: 'sticky', top: 0, zIndex: 40,
+                    background: 'white', borderBottom: '1px solid #e4e4e7',
+                    padding: '0.75rem 1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#64748b' }}>Super Admin</span>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#ef4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>SA</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Shield size={16} color="white" />
+                        </div>
+                        <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>Admin</span>
+                    </div>
+                    <div style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        background: '#fef2f2', color: '#dc2626',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.8125rem', fontWeight: 600
+                    }}>
+                        {(user?.name || 'A')[0].toUpperCase()}
                     </div>
                 </header>
 
-                <main style={{ padding: '2rem', flex: 1, maxWidth: '1400px', width: '100%' }}>
-                    <Outlet />
-                </main>
+                <main style={{ padding: '1rem' }}><Outlet /></main>
+
+                <nav style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+                    background: 'white', borderTop: '1px solid #e4e4e7',
+                    display: 'flex', justifyContent: 'space-around',
+                    padding: '0.5rem 0.25rem', paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))'
+                }}>
+                    {bottomNav.map((item) => {
+                        const active = item.match(location.pathname);
+                        return (
+                            <Link key={item.to} to={item.to} style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem',
+                                padding: '0.35rem 0.75rem', borderRadius: 8,
+                                color: active ? '#dc2626' : 'var(--gray-400)',
+                                textDecoration: 'none', fontSize: '0.625rem', fontWeight: active ? 600 : 400
+                            }}>
+                                {item.icon}
+                                <span>{item.label}</span>
+                            </Link>
+                        );
+                    })}
+                </nav>
             </div>
+        );
+    }
+
+    return (
+        <div style={{ display: 'flex', minHeight: '100vh', background: '#fafafa' }}>
+            <aside style={{
+                position: 'fixed', top: 0, left: 0, bottom: 0,
+                width: 260, display: 'flex', flexDirection: 'column',
+                background: 'white', borderRight: '1px solid #e4e4e7',
+                padding: '1.25rem 0.75rem', overflowY: 'auto', zIndex: 30
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0 0.5rem', marginBottom: '1.5rem' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Shield size={18} color="white" />
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)', lineHeight: 1.2 }}>Geo Education</p>
+                        <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>Admin Panel</p>
+                    </div>
+                </div>
+
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
+                    {navItems.map((item) => {
+                        const active = item.match(location.pathname);
+                        return (
+                            <Link key={item.to} to={item.to} style={{
+                                display: 'flex', alignItems: 'center', gap: '0.6rem',
+                                padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-md)',
+                                color: active ? '#dc2626' : 'var(--gray-600)',
+                                background: active ? 'rgba(220, 38, 38, 0.06)' : 'transparent',
+                                fontWeight: active ? 600 : 400, fontSize: '0.875rem',
+                                textDecoration: 'none', transition: 'all 150ms'
+                            }}>
+                                {item.icon}
+                                <span>{item.label}</span>
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem' }}>
+                        <div style={{
+                            width: 34, height: 34, borderRadius: '50%',
+                            background: '#fef2f2', color: '#dc2626',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.8125rem', fontWeight: 600, flexShrink: 0
+                        }}>
+                            {(user?.name || 'A')[0].toUpperCase()}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                            <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Admin'}</p>
+                            <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>Administrator</p>
+                        </div>
+                        <button onClick={() => void handleLogout()} title="Keluar" style={{
+                            padding: '0.4rem', borderRadius: 6, color: 'var(--gray-400)', transition: 'all 150ms'
+                        }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--gray-400)'; }}
+                        >
+                            <LogOut size={16} />
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <main style={{ marginLeft: 260, flex: 1, minWidth: 0, padding: '1.5rem 2rem' }}>
+                <Outlet />
+            </main>
         </div>
     );
 };
-
-const NavItem: React.FC<{ to: string, icon: React.ReactNode, label: string, active: boolean }> = ({ to, icon, label, active }) => (
-    <Link to={to} style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.75rem 1rem',
-        borderRadius: '0.5rem',
-        color: active ? 'white' : '#9ca3af',
-        background: active ? '#ef4444' : 'transparent',
-        fontSize: '0.9rem',
-        fontWeight: active ? '600' : '500',
-        transition: 'all 0.2s',
-    }}
-        onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'white' }}
-        onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '#9ca3af' }}
-    >
-        {icon}
-        <span>{label}</span>
-    </Link>
-);

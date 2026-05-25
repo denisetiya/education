@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Eye, EyeOff, FlaskConical, GraduationCap, Loader, Lock, LogIn, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoleBasedRedirect } from '../components/ProtectedRoute';
+import { Login3D } from '../components/Login3D';
 
 const demoAccounts = [
     { label: 'Student', credential: 'alya@siswa.edu / Siswa12345' },
@@ -69,10 +70,13 @@ export const LoginPage: React.FC = () => {
                 <div style={{
                     flex: 1, display: 'flex', flexDirection: 'column',
                     justifyContent: 'center', alignItems: 'center',
-                    padding: '3rem',
+                    padding: '3rem', position: 'relative', overflow: 'hidden',
                     background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)',
-                    color: 'white', position: 'relative', overflow: 'hidden'
+                    color: 'white'
                 }}>
+                    {/* 3D Background */}
+                    <Login3D isMobile={false} variant="dark" />
+
                     {/* Subtle decorative circles */}
                     <div style={{ position: 'absolute', top: '-10%', right: '-5%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)' }} />
                     <div style={{ position: 'absolute', bottom: '-15%', left: '-10%', width: 400, height: 400, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.08)' }} />
