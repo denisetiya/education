@@ -91,6 +91,8 @@ export const LandingPage: React.FC = () => {
       }}>
         {/* Parallax floating shapes */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div className="bg-grid" />
+          <div className="bg-squares" />
           <div style={{
             position: 'absolute', top: '8%', left: '8%',
             width: 80, height: 80, borderRadius: 20, border: '2px solid rgba(99,102,241,0.15)',

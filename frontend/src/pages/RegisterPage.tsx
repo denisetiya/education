@@ -75,6 +75,8 @@ export const RegisterPage: React.FC = () => {
         }}>
             {/* Animated background shapes */}
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                <div className="bg-grid" />
+                <div className="bg-squares" />
                 <div style={{ position: 'absolute', top: '12%', left: '12%', width: 100, height: 100, borderRadius: 24, border: '2px solid rgba(16,185,129,0.1)', animation: 'float1 9s ease-in-out infinite' }} />
                 <div style={{ position: 'absolute', bottom: '15%', right: '10%', width: 70, height: 70, borderRadius: '50%', background: 'rgba(6,182,212,0.05)', animation: 'float2 11s ease-in-out infinite' }} />
                 <div style={{ position: 'absolute', top: '45%', right: '15%', width: 45, height: 45, borderRadius: 10, border: '2px solid rgba(16,185,129,0.08)', animation: 'float3 8s ease-in-out infinite', transform: 'rotate(45deg)' }} />

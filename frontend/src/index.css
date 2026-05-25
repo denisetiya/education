@@ -235,3 +235,54 @@ input, textarea, select {
   .container { padding: 0 1rem; }
   .btn { padding: 0.55rem 1rem; font-size: 0.8125rem; }
 }
+
+/* Animated grid background */
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+}
+
+/* Streaming squares animation */
+.bg-squares {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-squares::before,
+.bg-squares::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 200%;
+  top: -100%;
+  background-image:
+    radial-gradient(circle, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: streamDown 20s linear infinite;
+}
+.bg-squares::after {
+  background-image:
+    radial-gradient(circle, rgba(139, 92, 246, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation-duration: 28s;
+  animation-delay: -8s;
+}
+
+@keyframes streamDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(50%); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
