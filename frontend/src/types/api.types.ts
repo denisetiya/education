@@ -273,3 +273,107 @@ export interface TeacherDashboardData {
         };
     }>;
 }
+
+// Analytics types
+export interface TimeFilter {
+    startDate: string;
+    endDate: string;
+}
+
+export interface ClassAnalytics {
+    classInfo: {
+        id: string;
+        name: string;
+        subject: string;
+        studentCount: number;
+        moduleCount: number;
+        materialCount: number;
+        exerciseCount: number;
+    };
+    timeFilter: TimeFilter;
+    overview: {
+        completionRate: number;
+        avgScore: number;
+        avgTimeSpent: number;
+        activeStudents: number;
+        totalAccessCount: number;
+        totalExerciseAttempts: number;
+        totalDiscussions: number;
+    };
+    studentProgress: StudentProgressEntry[];
+    materialActivity: MaterialActivityEntry[];
+    dailyActivity: DailyActivityEntry[];
+    quizPerformance: QuizPerformanceEntry[];
+    exercisePerformance: ExercisePerformanceEntry[];
+    behaviorOverview: BehaviorOverview;
+}
+
+export interface StudentProgressEntry {
+    studentId: string;
+    name: string;
+    email: string;
+    level: number;
+    xp: number;
+    completedMaterials: number;
+    totalMaterials: number;
+    completionPercent: number;
+    avgScore: number;
+    totalTimeSpent: number;
+    quizPassed: number;
+    quizTotal: number;
+    quizPassPercent: number;
+    isActive: boolean;
+}
+
+export interface MaterialActivityEntry {
+    materialId: string;
+    title: string;
+    type: string;
+    accessCount: number;
+    uniqueStudents: number;
+    avgTimeSpent: number;
+    completionRate: number;
+}
+
+export interface DailyActivityEntry {
+    date: string;
+    accessCount: number;
+    quizAttempts: number;
+    exerciseAttempts: number;
+    discussions: number;
+    totalActions: number;
+}
+
+export interface QuizPerformanceEntry {
+    materialId: string;
+    title: string;
+    attemptCount: number;
+    passCount: number;
+    passRate: number;
+    avgScore: number;
+    avgTimeSpent: number;
+}
+
+export interface ExercisePerformanceEntry {
+    exerciseId: string;
+    title: string;
+    points: number;
+    type: string;
+    difficulty: string;
+    attemptCount: number;
+    uniqueStudents: number;
+    avgScore: number;
+    maxScore: number;
+    passRate: number;
+}
+
+export interface BehaviorOverview {
+    totalAccesses: number;
+    totalQuizAttempts: number;
+    totalExerciseAttempts: number;
+    totalDiscussions: number;
+    avgSessionDuration: number;
+    peakActivityDay: string;
+    mostActiveStudent: { name: string; completedMaterials: number } | null;
+    leastActiveStudent: { name: string; completedMaterials: number } | null;
+}

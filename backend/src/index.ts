@@ -9,6 +9,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import progressRoutes from './routes/progress.routes';
 import moduleRoutes from './routes/module.routes';
 import classRoutes from './routes/class.routes';
+import analyticsRoutes from './routes/analytics.routes';
 import env from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiRateLimitMiddleware, securityHeadersMiddleware } from './middleware/security.middleware';
@@ -57,6 +58,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/classes', classRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

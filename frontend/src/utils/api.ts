@@ -1,5 +1,6 @@
 import type {
     AuthResponse,
+    ClassAnalytics,
     ClassDiscussionReply,
     ClassDiscussionThread,
     ClassExerciseSummary,
@@ -374,4 +375,31 @@ export const classesAPI = {
             `/classes/${classId}/exercises/${exerciseId}/attempts/${attemptId}/grade`,
             { method: 'POST', body: JSON.stringify(data) }
         )
+};
+
+// Analytics API
+export const analyticsAPI = {
+    getClassStatistics: (classId: string, startDate?: string, endDate?: string) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return apiFetch<ClassAnalytics>(`/analytics/class/${classId}?${params.toString()}`);
+    },
+    downloadCsv: async (classId: string, startDate?: string, endDate?: string) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        const response = await fetch(`${getRuntimeApiBaseUrl()}/analytics/class/${classId}/export/csv?${params.toString()}`, {
+            credentials: 'include',
+            headers: { Authorization: `Bearer ${getStoredAuthToken()}` }
+        });
+        if (!response.ok) throw new Error('Export failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `laporan_${classId}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 };

@@ -9,6 +9,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { classesAPI, modulesAPI } from '../../utils/api';
 import ClassDiscussionPanel from '../../components/classes/ClassDiscussionPanel';
 import ClassLeaderboardPanel from '../../components/classes/ClassLeaderboardPanel';
+import { TeacherClassStatisticsTab } from '../../components/classes/TeacherClassStatisticsTab';
 import { TeacherExercisesTab } from './TeacherExercisesTab';
 
 interface ClassData {
@@ -70,9 +71,9 @@ interface ClassBook {
     createdAt: string;
 }
 
-type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'leaderboard' | 'forum' | 'library' | 'settings';
+type TeacherTab = 'overview' | 'curriculum' | 'students' | 'exercises' | 'leaderboard' | 'forum' | 'library' | 'statistics' | 'settings';
 
-const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'leaderboard', 'forum', 'library', 'settings'];
+const teacherTabs: TeacherTab[] = ['overview', 'curriculum', 'students', 'exercises', 'leaderboard', 'forum', 'library', 'statistics', 'settings'];
 
 const stripHtml = (value: string) =>
     value
@@ -413,6 +414,7 @@ export const TeacherClassDetail: React.FC = () => {
         { id: 'leaderboard', label: 'Leaderboard', icon: <Trophy size={18} /> },
         { id: 'forum', label: 'Forum', icon: <MessageSquare size={18} /> },
         { id: 'library', label: 'Pustaka', icon: <Library size={18} /> },
+        { id: 'statistics', label: 'Statistik', icon: <BarChart3 size={18} /> },
         { id: 'settings', label: 'Atur', icon: <Settings size={18} /> }
     ];
 
@@ -945,6 +947,10 @@ export const TeacherClassDetail: React.FC = () => {
                             </p>
                         </div>
                     </div>
+                )}
+
+                {activeTab === 'statistics' && (
+                    <TeacherClassStatisticsTab classId={id!} className={classData.name} />
                 )}
 
                 {activeTab === 'settings' && (
