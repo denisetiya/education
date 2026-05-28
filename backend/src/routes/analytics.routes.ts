@@ -381,4 +381,189 @@ router.get('/class/:classId/export/csv', authMiddleware, requireRole('TEACHER', 
     }
 });
 
+// Teacher analytics overview (across all classes)
+router.get('/teacher', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const teacherId = req.user!.id;
+        const { startDate, endDate } = getDateRange(req.query as any);
+
+        const teacherClasses = await prisma.class.findMany({
+            where: { teacherId },
+            include: {
+                _count: { select: { students: true, modules: true } }
+            }
+        });
+        const classIds = teacherClasses.map(c => c.id);
+        const totalStudents = teacherClasses.reduce((sum, c) => sum + c._count.students, 0);
+
+        // Get all progress across all teacher's classes in date range
+        const classModules = await prisma.module.findMany({
+            where: { classId: { in: classIds } },
+            include: { materials: true }
+        });
+        const allMaterialIds = classModules.flatMap(m => m.materials.map(mat => mat.id));
+        const totalMaterials = allMaterialIds.length;
+
+        const enrollments = await prisma.classEnrollment.findMany({
+            where: { classId: { in: classIds } },
+            include: { student: true }
+        });
+        const allStudentIds = [...new Set(enrollments.map(e => e.studentId))];
+
+        const progressRecords = await prisma.progress.findMany({
+            where: {
+                materialId: { in: allMaterialIds },
+                userId: { in: allStudentIds },
+                updatedAt: { gte: startDate, lte: endDate }
+            },
+            include: {
+                material: { select: { id: true, title: true, type: true } },
+                user: { select: { id: true, name: true } }
+            }
+        });
+
+        const exerciseAttempts = await prisma.exerciseAttempt.findMany({
+            where: {
+                exercise: { classId: { in: classIds } },
+                createdAt: { gte: startDate, lte: endDate }
+            },
+            include: {
+                student: { select: { id: true, name: true } },
+                exercise: { select: { title: true, points: true, classId: true } }
+            }
+        });
+
+        // Overall stats
+        const completedCount = progressRecords.filter(p => p.status === 'completed').length;
+        const scoredRecords = progressRecords.filter(p => p.score !== null);
+        const avgScore = scoredRecords.length > 0
+            ? Math.round(scoredRecords.reduce((s, r) => s + (r.score || 0), 0) / scoredRecords.length)
+            : 0;
+        const avgTimeSpent = progressRecords.length > 0
+            ? Math.round(progressRecords.reduce((s, r) => s + r.timeSpent, 0) / progressRecords.length)
+            : 0;
+        const activeStudentIds = [...new Set(progressRecords.map(p => p.userId))];
+        const participationRate = allStudentIds.length > 0
+            ? Math.round((activeStudentIds.length / allStudentIds.length) * 100)
+            : 0;
+
+        const gradedExercises = exerciseAttempts.filter(a => a.gradingStatus === 'graded');
+        const exerciseAvgScore = gradedExercises.length > 0
+            ? Math.round(gradedExercises.reduce((s, a) => s + a.score, 0) / gradedExercises.length)
+            : 0;
+        const totalTasks = progressRecords.filter(p => p.status === 'completed').length + gradedExercises.length;
+
+        // Weekly class performance (daily aggregation)
+        const dailyMap = new Map<string, { date: string; score: number; participation: number; completions: number }>();
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const key = d.toISOString().split('T')[0];
+            dailyMap.set(key, { date: key, score: 0, participation: 0, completions: 0 });
+        }
+
+        progressRecords.forEach(p => {
+            const key = p.updatedAt.toISOString().split('T')[0];
+            const entry = dailyMap.get(key);
+            if (entry) {
+                if (p.score != null) entry.score += p.score;
+                if (p.status === 'completed') entry.completions++;
+                entry.participation++;
+            }
+        });
+
+        const weeklyPerformance = [...dailyMap.entries()].map(([, data]) => ({
+            ...data,
+            avgScore: data.participation > 0 ? Math.round(data.score / data.participation) : 0
+        })).sort((a, b) => a.date.localeCompare(b.date));
+
+        // Students needing attention (bottom performers)
+        const studentProgressMap = new Map<string, {
+            studentId: string; name: string; email: string;
+            completed: number; totalTime: number; avgScore: number; lastActive: string;
+        }>();
+
+        enrollments.forEach(e => {
+            const records = progressRecords.filter(p => p.userId === e.studentId);
+            if (records.length > 0) {
+                const completed = records.filter(p => p.status === 'completed').length;
+                const scored = records.filter(p => p.score !== null);
+                const totalTime = records.reduce((s, r) => s + r.timeSpent, 0);
+                const avgS = scored.length > 0 ? Math.round(scored.reduce((s, r) => s + (r.score || 0), 0) / scored.length) : 0;
+                const lastActive = records.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0]?.updatedAt.toISOString() || '';
+
+                studentProgressMap.set(e.studentId, {
+                    studentId: e.studentId,
+                    name: e.student.name,
+                    email: e.student.email,
+                    completed,
+                    totalTime,
+                    avgScore: avgS,
+                    lastActive
+                });
+            }
+        });
+
+        const studentsAtRisk = [...studentProgressMap.values()]
+            .filter(s => s.avgScore < 50 || s.completed < 3)
+            .sort((a, b) => a.avgScore - b.avgScore)
+            .slice(0, 5)
+            .map(s => ({
+                name: s.name,
+                issue: s.avgScore < 50 ? 'Nilai Rata-rata Rendah' : 'Progress Rendah',
+                score: s.avgScore,
+                progress: s.completed,
+                lastActive: s.lastActive
+            }));
+
+        // Per-class summary
+        const classSummaries = teacherClasses.map(cls => {
+            const classModulesList = classModules.filter(m => m.classId === cls.id);
+            const classMaterialIds = classModulesList.flatMap(m => m.materials.map(mat => mat.id));
+            const classStudentIds = enrollments.filter(e => e.classId === cls.id).map(e => e.studentId);
+
+            const classProgress = progressRecords.filter(p => classMaterialIds.includes(p.materialId));
+            const classCompleted = classProgress.filter(p => p.status === 'completed').length;
+            const classActive = new Set(classProgress.map(p => p.userId)).size;
+
+            const classExercises = exerciseAttempts.filter(a => a.exercise?.classId === cls.id);
+            const classGraded = classExercises.filter(a => a.gradingStatus === 'graded');
+
+            return {
+                id: cls.id,
+                name: cls.name,
+                subject: cls.subject,
+                studentCount: cls._count.students,
+                averageProgress: classMaterialIds.length > 0 && classStudentIds.length > 0
+                    ? Math.round((classCompleted / (classMaterialIds.length * classStudentIds.length)) * 100)
+                    : 0,
+                activeStudents: classActive,
+                avgExerciseScore: classGraded.length > 0
+                    ? Math.round(classGraded.reduce((s, a) => s + a.score, 0) / classGraded.length)
+                    : 0,
+                totalCompletions: classCompleted + classGraded.length
+            };
+        });
+
+        res.json({
+            timeFilter: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+            overview: {
+                avgScore,
+                participationRate,
+                totalTasks,
+                avgTimeSpent,
+                totalStudents,
+                totalClasses: teacherClasses.length,
+                totalMaterials: allMaterialIds.length,
+                activeStudents: activeStudentIds.length,
+                exerciseAvgScore
+            },
+            weeklyPerformance,
+            studentsAtRisk,
+            classSummaries
+        });
+    } catch (error) {
+        console.error('Teacher analytics error:', error);
+        res.status(500).json({ error: 'Gagal mengambil data analitik' });
+    }
+});
+
 export default router;

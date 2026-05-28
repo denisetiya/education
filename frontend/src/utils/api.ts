@@ -12,6 +12,7 @@ import type {
     Module,
     ProgressHistory,
     QuizResult,
+    TeacherAnalyticsData,
     TeacherDashboardData,
     User
 } from '../types/api.types';
@@ -379,6 +380,12 @@ export const classesAPI = {
 
 // Analytics API
 export const analyticsAPI = {
+    getTeacherAnalytics: (startDate?: string, endDate?: string) => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        return apiFetch<TeacherAnalyticsData>(`/analytics/teacher?${params.toString()}`);
+    },
     getClassStatistics: (classId: string, startDate?: string, endDate?: string) => {
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);

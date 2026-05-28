@@ -377,3 +377,42 @@ export interface BehaviorOverview {
     mostActiveStudent: { name: string; completedMaterials: number } | null;
     leastActiveStudent: { name: string; completedMaterials: number } | null;
 }
+
+export interface TeacherAnalyticsData {
+    timeFilter: TimeFilter;
+    overview: {
+        avgScore: number;
+        participationRate: number;
+        totalTasks: number;
+        avgTimeSpent: number;
+        totalStudents: number;
+        totalClasses: number;
+        totalMaterials: number;
+        activeStudents: number;
+        exerciseAvgScore: number;
+    };
+    weeklyPerformance: Array<{
+        date: string;
+        score: number;
+        participation: number;
+        completions: number;
+        avgScore: number;
+    }>;
+    studentsAtRisk: Array<{
+        name: string;
+        issue: string;
+        score: number;
+        progress: number;
+        lastActive: string;
+    }>;
+    classSummaries: Array<{
+        id: string;
+        name: string;
+        subject: string;
+        studentCount: number;
+        averageProgress: number;
+        activeStudents: number;
+        avgExerciseScore: number;
+        totalCompletions: number;
+    }>;
+}
