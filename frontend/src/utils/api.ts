@@ -52,6 +52,24 @@ const parseResponseBody = async (response: Response) => {
     }
 };
 
+const isAuthEndpoint = (endpoint: string) => {
+    const normalized = endpoint.split('?')[0] ?? '';
+    return normalized === '/auth/login'
+        || normalized === '/auth/register'
+        || normalized === '/auth/logout';
+};
+
+const triggerUnauthorized = (status: number, message: string) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const reason = status === 401 ? 'expired' : 'forbidden';
+    window.dispatchEvent(new CustomEvent('auth:unauthorized', {
+        detail: { status, message, reason }
+    }));
+};
+
 const normalizeApiErrorDetails = (value: unknown): ApiErrorDetail[] | undefined => {
     if (!Array.isArray(value)) {
         return undefined;
@@ -132,6 +150,10 @@ async function apiFetch<T>(
                 : typeof payload === 'string' && payload.trim()
                     ? payload
                     : `Request failed (${response.status})`;
+
+        if ((response.status === 401 || response.status === 403) && !isAuthEndpoint(endpoint)) {
+            triggerUnauthorized(response.status, message);
+        }
 
         throw new ApiError(message, {
             status: response.status,

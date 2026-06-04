@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-    const { user, loading, isAuthenticated } = useAuth();
+    const { user, loading, isAuthenticated, lastUnauthorized } = useAuth();
     const location = useLocation();
 
     // Show loading spinner while checking auth
@@ -27,21 +27,37 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
         );
     }
 
-    // Not authenticated - redirect to login
+    // Not authenticated - redirect to login (covers expired/invalid token from AuthContext reset)
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={{
+                    from: location,
+                    notice: lastUnauthorized
+                        ? (lastUnauthorized.reason === 'expired'
+                            ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+                            : 'Akses tidak diizinkan. Silakan masuk dengan akun yang sesuai.')
+                        : null
+                }}
+            />
+        );
     }
 
     // Check role if allowedRoles specified
     if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        // Redirect to appropriate dashboard based on role
-        const roleRedirects: Record<string, string> = {
-            STUDENT: '/student',
-            TEACHER: '/teacher',
-            ADMIN: '/admin'
-        };
-        const redirectPath = roleRedirects[user.role] || '/';
-        return <Navigate to={redirectPath} replace />;
+        // Role mismatch - kick back to landing/login instead of another role's dashboard
+        return (
+            <Navigate
+                to="/login"
+                replace
+                state={{
+                    from: location,
+                    notice: 'Hak akses tidak sesuai. Silakan masuk dengan akun yang benar.'
+                }}
+            />
+        );
     }
 
     return <>{children}</>;

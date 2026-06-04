@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Eye, EyeOff, FlaskConical, GraduationCap, Loader, Lock, LogIn, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoleBasedRedirect } from '../components/ProtectedRoute';
@@ -9,6 +9,11 @@ const demoAccounts = [
     { label: 'Teacher', credential: 'guru@geo.edu / Guru12345' }
 ];
 
+interface LocationState {
+    from?: { pathname?: string };
+    notice?: string;
+}
+
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,8 +22,11 @@ export const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [mounted, setMounted] = useState(false);
-    const { login } = useAuth();
+    const { login, lastUnauthorized, clearUnauthorized } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const locationState = (location.state as LocationState | null) || null;
+    const noticeFromState = locationState?.notice;
     const glowRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -27,6 +35,25 @@ export const LoginPage: React.FC = () => {
         setTimeout(() => setMounted(true), 50);
         return () => window.removeEventListener('resize', h);
     }, []);
+
+    useEffect(() => {
+        if (noticeFromState) {
+            setError(noticeFromState);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [noticeFromState, location.pathname, navigate]);
+
+    useEffect(() => {
+        if (!lastUnauthorized) {
+            return;
+        }
+        setError(
+            lastUnauthorized.reason === 'expired'
+                ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+                : 'Akses tidak diizinkan. Silakan masuk dengan akun yang sesuai.'
+        );
+        clearUnauthorized();
+    }, [lastUnauthorized, clearUnauthorized]);
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (glowRef.current) {
