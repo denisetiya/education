@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Eye, EyeOff, FlaskConical, GraduationCap, Loader, Lock, LogIn, Mail } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, FlaskConical, Loader, Lock, LogIn, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getRoleBasedRedirect } from '../components/ProtectedRoute';
 
@@ -135,11 +135,8 @@ export const LoginPage: React.FC = () => {
                 opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(16px)',
                 transition: 'opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '2rem' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <GraduationCap size={20} color="white" />
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--gray-900)' }}>Geo Education</span>
+                <div style={{ marginBottom: '2rem' }}>
+                    <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 44, width: 'auto' }} />
                 </div>
 
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.35rem' }}>Selamat datang</h1>

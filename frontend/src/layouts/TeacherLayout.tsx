@@ -4,7 +4,6 @@ import {
     BarChart3,
     BookOpen,
     FileStack,
-    GraduationCap,
     LayoutDashboard,
     LogOut,
     Users
@@ -54,9 +53,7 @@ const TeacherLayout: React.FC = () => {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <GraduationCap size={16} color="white" />
-                        </div>
+                        <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                         <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>Guru Panel</span>
                     </div>
                     <div style={{
@@ -105,12 +102,9 @@ const TeacherLayout: React.FC = () => {
                 padding: '1.25rem 0.75rem', overflowY: 'auto', zIndex: 30
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0 0.5rem', marginBottom: '1.5rem' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <GraduationCap size={18} color="white" />
-                    </div>
+                    <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 36, height: 36, objectFit: 'contain' }} />
                     <div>
-                        <p style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)', lineHeight: 1.2 }}>Geo Education</p>
-                        <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>Panel Guru</p>
+                        <p style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)', lineHeight: 1.2 }}>Panel Guru</p>
                     </div>
                 </div>
 

@@ -157,10 +157,7 @@ export const LandingPage: React.FC = () => {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <GraduationCap size={16} color="white" />
-              </div>
-              <span style={{ fontWeight: 700, color: 'var(--gray-900)', fontSize: '1rem' }}>Geo Education</span>
+              <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 36, width: 'auto' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {!isMobile && (
