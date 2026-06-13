@@ -157,7 +157,7 @@ export const LandingPage: React.FC = () => {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <img src="/logo-with-teks-Photoroom-v2.png" alt="Geo Education" style={{ height: 40, width: 'auto' }} />
+              <img src="/logo-with-teks-Photoroom-v2.webp" alt="Geo Education" style={{ height: 40, width: 'auto' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {!isMobile && (
