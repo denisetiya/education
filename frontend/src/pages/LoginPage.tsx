@@ -136,7 +136,7 @@ export const LoginPage: React.FC = () => {
                 transition: 'opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)'
             }}>
                 <div style={{ marginBottom: '2rem' }}>
-                    <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 44, width: 'auto' }} />
+                    <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 60, width: 'auto' }} />
                 </div>
 
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: '0.35rem' }}>Selamat datang</h1>

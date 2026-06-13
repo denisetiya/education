@@ -44,7 +44,7 @@ export const AdminLayout: React.FC = () => {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                        <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 36, height: 36, objectFit: 'contain' }} />
                         <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>Admin</span>
                     </div>
                     <div style={{
@@ -93,7 +93,7 @@ export const AdminLayout: React.FC = () => {
                 padding: '1.25rem 0.75rem', overflowY: 'auto', zIndex: 30
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0 0.5rem', marginBottom: '1.5rem' }}>
-                    <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                    <img src="/logo-Photoroom.png" alt="Geo Education" style={{ width: 44, height: 44, objectFit: 'contain' }} />
                     <div>
                         <p style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)', lineHeight: 1.2 }}>Admin Panel</p>
                     </div>

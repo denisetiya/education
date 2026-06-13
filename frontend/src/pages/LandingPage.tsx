@@ -157,7 +157,7 @@ export const LandingPage: React.FC = () => {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 36, width: 'auto' }} />
+              <img src="/logo-with-teks-Photoroom.png" alt="Geo Education" style={{ height: 40, width: 'auto' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {!isMobile && (
@@ -177,7 +177,7 @@ export const LandingPage: React.FC = () => {
         {/* Hero Content */}
         <div style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: isMobile ? '6rem 1.5rem 4rem' : '0 1.5rem',
+          padding: isMobile ? '6rem 1.5rem 4rem' : '6rem 1.5rem 4rem',
           textAlign: 'center', position: 'relative', zIndex: 10
         }}>
           <div style={{ maxWidth: 700 }}>
