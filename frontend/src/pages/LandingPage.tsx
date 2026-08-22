@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   NotebookPen,
   Users,
+  Sparkles,
 } from 'lucide-react';
 
 const features = [
@@ -189,7 +190,7 @@ export const LandingPage: React.FC = () => {
                 color: '#6366f1', fontSize: '0.75rem', fontWeight: 600, marginBottom: '1.75rem',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
               }}>
-                ✦ Platform Pembelajaran Modern
+                <Sparkles size={13} style={{ color: '#6366f1' }} /> Platform Pembelajaran Modern
               </div>
             </Reveal>
 

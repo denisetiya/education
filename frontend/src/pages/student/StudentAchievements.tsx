@@ -1,22 +1,22 @@
 import React from 'react';
-import { Award, Trophy, Medal } from 'lucide-react';
+import { Award, Trophy, Medal, BookOpen } from 'lucide-react';
 
 const mockAchievements = [
-    { id: 1, title: 'Pembelajar Rajin', desc: 'Login 7 hari berturut-turut', icon: <Trophy color="gold" size={32} />, unlocked: true },
-    { id: 2, title: 'Jago Aljabar', desc: 'Selesaikan Bab Aljabar 100%', icon: <Medal color="silver" size={32} />, unlocked: true },
-    { id: 3, title: 'Kutu Buku', desc: 'Baca 20 materi perpustakaan', icon: <span style={{ fontSize: '32px' }}>📖</span>, unlocked: false },
-    { id: 4, title: 'Quiz Master', desc: 'Dapatkan nilai 100 di 5 kuis', icon: <Award color="orange" size={32} />, unlocked: false },
+    { id: 1, title: 'Pembelajar Rajin', desc: 'Login 7 hari berturut-turut', icon: <Trophy color="#eab308" size={32} />, unlocked: true },
+    { id: 2, title: 'Jago Aljabar', desc: 'Selesaikan Bab Aljabar 100%', icon: <Medal color="#94a3b8" size={32} />, unlocked: true },
+    { id: 3, title: 'Kutu Buku', desc: 'Baca 20 materi perpustakaan', icon: <BookOpen color="#3b82f6" size={32} />, unlocked: false },
+    { id: 4, title: 'Quiz Master', desc: 'Dapatkan nilai 100 di 5 kuis', icon: <Award color="#f97316" size={32} />, unlocked: false },
 ];
 
 export const StudentAchievements: React.FC = () => {
     return (
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '0.5rem' }}>Pencapaian Saya</h1>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <h1 className="text-gradient" style={{ fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', fontWeight: '800', marginBottom: '0.5rem' }}>Pencapaian Saya</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Koleksi lencana dan prestasimu selama belajar di Geo Education.</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.5rem' }}>
                 {mockAchievements.map((ach, index) => (
                     <div key={ach.id} className={`card glass card-hover-effect animate-slide-up`} style={{
                         display: 'flex',

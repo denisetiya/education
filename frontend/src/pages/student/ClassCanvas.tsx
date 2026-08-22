@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader, AlertCircle, Maximize2, Minimize2, X } from 'lucide-react';
+import { Loader, AlertCircle, Maximize2, Minimize2, X, Shapes, Lightbulb } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { GeometryCanvas } from '../../components/geometry/GeometryCanvas';
 
@@ -23,10 +23,10 @@ export const ClassCanvas: React.FC = () => {
         if (isFullscreen) {
             document.body.style.overflow = 'hidden';
         } else {
-            document.body.style.overflow = '';
+            document.body.style.overflow = 'auto';
         }
         return () => {
-            document.body.style.overflow = '';
+            document.body.style.overflow = 'auto';
         };
     }, [isFullscreen]);
 
@@ -46,7 +46,7 @@ export const ClassCanvas: React.FC = () => {
             setLoading(true);
             const data = await classesAPI.getDashboard(classId!);
             setClassName(data.class.name);
-            setGeogebraEnabled(data.class.geogebraEnabled ?? false);
+            setGeogebraEnabled(data.class.geogebraEnabled ?? true);
         } catch (err) {
             console.error('Failed to fetch class data', err);
         } finally {
@@ -64,20 +64,25 @@ export const ClassCanvas: React.FC = () => {
 
     if (!geogebraEnabled) {
         return (
-            <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-                <div className="card glass" style={{ padding: '3rem', textAlign: 'center' }}>
-                    <AlertCircle size={48} style={{ marginBottom: '1rem', color: '#f59e0b' }} />
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#334155', marginBottom: '0.5rem' }}>
-                        Canvas Geometri Tidak Aktif
+            <div style={{ padding: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+                <div className="card glass" style={{ 
+                    padding: '3rem', 
+                    textAlign: 'center',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca'
+                }}>
+                    <AlertCircle size={48} color="#ef4444" style={{ marginBottom: '1rem' }} />
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#991b1b', marginBottom: '0.5rem' }}>
+                        Canvas Geometri Dinonaktifkan
                     </h2>
-                    <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-                        Guru belum mengaktifkan fitur Canvas Geometri untuk kelas ini.
+                    <p style={{ color: '#b91c1c', marginBottom: '1.5rem' }}>
+                        Fitur canvas geometri tidak diaktifkan untuk kelas ini oleh guru.
                     </p>
                     <button
                         onClick={() => navigate(`/student/class/${classId}`)}
                         className="btn btn-primary"
                     >
-                        Kembali ke Dashboard
+                        Kembali ke Dashboard Kelas
                     </button>
                 </div>
             </div>
@@ -93,8 +98,8 @@ export const ClassCanvas: React.FC = () => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                zIndex: 9999,
                 background: '#f8fafc',
+                zIndex: 9999,
                 display: 'flex',
                 flexDirection: 'column'
             }}>
@@ -109,7 +114,7 @@ export const ClassCanvas: React.FC = () => {
                     flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1.25rem' }}>🔷</span>
+                        <Shapes size={20} color="var(--primary)" />
                         <span style={{ fontWeight: '600', color: '#1e293b' }}>Canvas Geometri</span>
                         <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>• {className}</span>
                     </div>
@@ -165,16 +170,18 @@ export const ClassCanvas: React.FC = () => {
 
     // Normal mode
     return (
-        <div style={{ padding: '1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
             <div style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'space-between',
-                marginBottom: '1.5rem' 
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap',
+                gap: '1rem'
             }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                        🔷 Canvas Geometri
+                    <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Shapes size={26} style={{ color: 'var(--primary)', flexShrink: 0 }} /> Canvas Geometri
                     </h1>
                     <p style={{ color: '#64748b' }}>Kelas: {className}</p>
                 </div>
@@ -184,7 +191,7 @@ export const ClassCanvas: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.5rem',
-                        padding: '0.75rem 1.25rem',
+                        padding: '0.65rem 1.25rem',
                         borderRadius: '0.75rem',
                         border: 'none',
                         background: 'linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%)',
@@ -214,8 +221,8 @@ export const ClassCanvas: React.FC = () => {
                 borderRadius: '0.75rem',
                 border: '1px solid #bae6fd'
             }}>
-                <h3 style={{ fontWeight: '600', color: '#0369a1', marginBottom: '0.5rem' }}>
-                    💡 Tips Menggunakan Canvas
+                <h3 style={{ fontWeight: '600', color: '#0369a1', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Lightbulb size={18} style={{ color: '#0369a1', flexShrink: 0 }} /> Tips Menggunakan Canvas
                 </h3>
                 <ul style={{ color: '#0369a1', fontSize: '0.9rem', paddingLeft: '1.25rem' }}>
                     <li>Klik <strong>Mode Fullscreen</strong> untuk layar penuh</li>

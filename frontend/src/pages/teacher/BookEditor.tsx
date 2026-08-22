@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
-import { ArrowLeft, Save, Eye, Loader, BookOpen, Check } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Loader, BookOpen, Check, Lightbulb } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 
 interface BookData {
@@ -337,9 +337,9 @@ export const BookEditor: React.FC = () => {
                         borderRadius: '0.75rem',
                         border: '1px solid #bbf7d0'
                     }}>
-                        <p style={{ fontSize: '0.9rem', color: '#166534' }}>
-                            💡 <strong>Tips:</strong> Gunakan toolbar di atas untuk memformat teks. Anda bisa menambahkan heading, 
-                            daftar, gambar, video, dan berbagai format lainnya seperti di Microsoft Word.
+                        <p style={{ fontSize: '0.9rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Lightbulb size={16} style={{ flexShrink: 0 }} /> <span><strong>Tips:</strong> Gunakan toolbar di atas untuk memformat teks. Anda bisa menambahkan heading, 
+                            daftar, gambar, video, dan berbagai format lainnya seperti di Microsoft Word.</span>
                         </p>
                     </div>
                 </div>

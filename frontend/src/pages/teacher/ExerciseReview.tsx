@@ -290,7 +290,7 @@ export const ExerciseReview: React.FC = () => {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '340px minmax(0, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1.5rem', alignItems: 'start' }}>
                 <aside className="card glass" style={{ padding: '1rem', position: 'sticky', top: '6rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                         <div>

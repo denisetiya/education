@@ -3,8 +3,10 @@ import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { 
     ArrowLeft, Users, BookOpen, Settings, Copy, Plus,
     Award, BarChart3, Clock, ExternalLink, FileText, X,
-    Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy, Eye
+    Library, Edit, Trash2, FileUp, Type, PenTool, MessageSquare, Trophy, Eye,
+    ListOrdered, Unlock, Globe, Lock, Lightbulb, Shapes, CheckCircle2, Timer
 } from 'lucide-react';
+import { AchievementIcon } from '../../components/common/IconHelpers';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { classesAPI, modulesAPI } from '../../utils/api';
 import ClassDiscussionPanel from '../../components/classes/ClassDiscussionPanel';
@@ -110,7 +112,7 @@ export const TeacherClassDetail: React.FC = () => {
     const [newAchievement, setNewAchievement] = useState({
         title: '',
         description: '',
-        icon: '🏆',
+        icon: 'trophy',
         xpReward: 50,
         conditionType: 'complete_materials',
         conditionTarget: 5
@@ -265,7 +267,7 @@ export const TeacherClassDetail: React.FC = () => {
             setNewAchievement({
                 title: '',
                 description: '',
-                icon: '🏆',
+                icon: 'trophy',
                 xpReward: 50,
                 conditionType: 'complete_materials',
                 conditionTarget: 5
@@ -388,7 +390,7 @@ export const TeacherClassDetail: React.FC = () => {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <div className="animate-pulse" style={{ fontSize: '2rem', marginBottom: '1rem' }}>📚</div>
+                    <BookOpen size={40} className="animate-pulse" color="var(--primary)" style={{ display: 'inline-block', marginBottom: '1rem' }} />
                     <p style={{ color: '#64748b' }}>Memuat data kelas...</p>
                 </div>
             </div>
@@ -579,7 +581,9 @@ export const TeacherClassDetail: React.FC = () => {
                                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
                                 }}
                             >
-                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>📚 Sequential</p>
+                                <p style={{ fontWeight: '600', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <ListOrdered size={16} color="var(--primary)" /> Sequential
+                                </p>
                                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Siswa harus menyelesaikan materi secara berurutan</p>
                             </button>
                             <button 
@@ -590,13 +594,15 @@ export const TeacherClassDetail: React.FC = () => {
                                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
                                 }}
                             >
-                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🎯 Free Access</p>
+                                <p style={{ fontWeight: '600', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Unlock size={16} color="#10b981" /> Free Access
+                                </p>
                                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Siswa bebas memilih materi apapun</p>
                             </button>
                         </div>
                         
                         <h3 style={{ marginTop: '2rem', marginBottom: '1rem', fontWeight: '600' }}>Visibilitas Kelas</h3>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                             <button 
                                 onClick={async () => {
                                     if (!classData.isPublic) {
@@ -606,12 +612,14 @@ export const TeacherClassDetail: React.FC = () => {
                                     }
                                 }}
                                 style={{ 
-                                    flex: 1, padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem',
+                                    flex: 1, minWidth: '200px', padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem',
                                     border: classData.isPublic ? '2px solid #10b981' : '2px solid #e2e8f0',
                                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
                                 }}
                             >
-                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🌐 Publik</p>
+                                <p style={{ fontWeight: '600', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Globe size={16} color="#10b981" /> Publik
+                                </p>
                                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Kelas terlihat di halaman Discover siswa</p>
                             </button>
                             <button 
@@ -623,12 +631,14 @@ export const TeacherClassDetail: React.FC = () => {
                                     }
                                 }}
                                 style={{ 
-                                    flex: 1, padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem',
+                                    flex: 1, minWidth: '200px', padding: '1.25rem', background: '#f8fafc', borderRadius: '0.75rem',
                                     border: !classData.isPublic ? '2px solid #6366f1' : '2px solid #e2e8f0',
                                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
                                 }}
                             >
-                                <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🔒 Privat</p>
+                                <p style={{ fontWeight: '600', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Lock size={16} color="#6366f1" /> Privat
+                                </p>
                                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Hanya bisa bergabung dengan kode kelas</p>
                             </button>
                         </div>
@@ -722,8 +732,8 @@ export const TeacherClassDetail: React.FC = () => {
                         
                         {/* Info Card */}
                         <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>
-                                💡 <strong>Tip:</strong> Buat modul di halaman Penyusun Kurikulum, lalu assign ke kelas ini menggunakan tombol "Assign Modul".
+                            <p style={{ fontSize: '0.9rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Lightbulb size={16} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Buat modul di halaman Penyusun Kurikulum, lalu assign ke kelas ini menggunakan tombol "Assign Modul".</span>
                             </p>
                         </div>
                     </div>
@@ -942,8 +952,8 @@ export const TeacherClassDetail: React.FC = () => {
                         )}
                         
                         <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>
-                                📚 <strong>Tip:</strong> Anda bisa menulis buku sendiri menggunakan editor teks, atau mengupload link PDF dari Google Drive atau layanan lainnya.
+                            <p style={{ fontSize: '0.9rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <BookOpen size={16} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Anda bisa menulis buku sendiri menggunakan editor teks, atau mengupload link PDF dari Google Drive atau layanan lainnya.</span>
                             </p>
                         </div>
                     </div>
@@ -986,12 +996,12 @@ export const TeacherClassDetail: React.FC = () => {
                                     >
                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
                                             <div style={{ 
-                                                fontSize: '2rem', width: '48px', height: '48px', 
+                                                width: '48px', height: '48px', 
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                 background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
-                                                borderRadius: '12px'
+                                                borderRadius: '12px', flexShrink: 0
                                             }}>
-                                                {ach.icon}
+                                                <AchievementIcon icon={ach.icon} size={28} />
                                             </div>
                                             <div style={{ flex: 1 }}>
                                                 <h4 style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{ach.title}</h4>
@@ -1053,9 +1063,9 @@ export const TeacherClassDetail: React.FC = () => {
                                             ? 'linear-gradient(135deg, #10b981, #059669)' 
                                             : 'linear-gradient(135deg, #94a3b8, #64748b)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '1.5rem'
+                                        color: 'white'
                                     }}>
-                                        📐
+                                        <Shapes size={24} color="white" />
                                     </div>
                                     <div>
                                         <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>Geometry Canvas</p>
@@ -1082,8 +1092,8 @@ export const TeacherClassDetail: React.FC = () => {
                         
                         {/* Info Card */}
                         <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#fefce8', borderRadius: '0.75rem', border: '1px solid #fef08a' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#854d0e' }}>
-                                🏆 <strong>Tip:</strong> Achievement otomatis diberikan saat siswa memenuhi syarat (menyelesaikan materi, skor kuis, dll).
+                            <p style={{ fontSize: '0.9rem', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Trophy size={16} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Achievement otomatis diberikan saat siswa memenuhi syarat (menyelesaikan materi, skor kuis, dll).</span>
                             </p>
                         </div>
                     </div>
@@ -1094,16 +1104,16 @@ export const TeacherClassDetail: React.FC = () => {
             {showAssignModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+                    padding: '1rem'
                 }}>
-                    <div className="card glass" style={{ width: '500px', maxHeight: '80vh', padding: '2rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div className="card glass modal-responsive" style={{ width: '100%', maxWidth: '500px', maxHeight: '85vh', padding: '1.5rem', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontWeight: '700' }}>Assign Modul ke Kelas</h2>
                             <button onClick={() => setShowAssignModal(false)} style={{ padding: '0.5rem', cursor: 'pointer', background: 'none', border: 'none' }}>
                                 <X size={20} color="#64748b" />
                             </button>
                         </div>
-                        
                         {unassignedModules.length > 0 ? (
                             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
@@ -1159,9 +1169,10 @@ export const TeacherClassDetail: React.FC = () => {
             {showAchievementModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+                    padding: '1rem'
                 }}>
-                    <div className="card glass" style={{ width: '500px', padding: '2rem' }}>
+                    <div className="card glass modal-responsive" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 style={{ fontWeight: '700' }}>Buat Achievement</h2>
                             <button onClick={() => setShowAchievementModal(false)} style={{ padding: '0.5rem', cursor: 'pointer', background: 'none', border: 'none' }}>
@@ -1177,16 +1188,17 @@ export const TeacherClassDetail: React.FC = () => {
                                         value={newAchievement.icon}
                                         onChange={(e) => setNewAchievement({...newAchievement, icon: e.target.value})}
                                         className="form-input"
-                                        style={{ padding: '0.75rem', fontSize: '1.5rem', textAlign: 'center' }}
+                                        style={{ padding: '0.75rem', fontSize: '0.9rem' }}
                                     >
-                                        <option value="🏆">🏆</option>
-                                        <option value="⭐">⭐</option>
-                                        <option value="🎯">🎯</option>
-                                        <option value="🔥">🔥</option>
-                                        <option value="💎">💎</option>
-                                        <option value="🎖️">🎖️</option>
-                                        <option value="🏅">🏅</option>
-                                        <option value="🌟">🌟</option>
+                                        <option value="trophy">Trophy</option>
+                                        <option value="star">Star</option>
+                                        <option value="target">Target</option>
+                                        <option value="flame">Flame</option>
+                                        <option value="gem">Gem</option>
+                                        <option value="medal">Medal</option>
+                                        <option value="sparkles">Sparkles</option>
+                                        <option value="book">Book</option>
+                                        <option value="graduation">Graduation</option>
                                     </select>
                                 </div>
                                 <div style={{ flex: 1 }}>
@@ -1502,8 +1514,8 @@ export const TeacherClassDetail: React.FC = () => {
                                         rows={10}
                                         style={{ width: '100%', padding: '0.75rem', resize: 'vertical', fontFamily: 'inherit' }}
                                     />
-                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                                        💡 Tip: Gunakan tag HTML seperti &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;strong&gt; untuk format teks
+                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <Lightbulb size={14} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Gunakan tag HTML seperti &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;strong&gt; untuk format teks</span>
                                     </p>
                                 </div>
                             ) : (
@@ -1517,8 +1529,8 @@ export const TeacherClassDetail: React.FC = () => {
                                         placeholder="https://drive.google.com/file/d/..."
                                         style={{ width: '100%', padding: '0.75rem' }}
                                     />
-                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                                        📁 Tip: Upload PDF ke Google Drive, lalu salin link "Anyone with the link can view"
+                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <FileText size={14} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Upload PDF ke Google Drive, lalu salin link "Anyone with the link can view"</span>
                                     </p>
                                 </div>
                             )}
@@ -1703,7 +1715,15 @@ export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classI
                                     fontSize: '0.7rem',
                                     fontWeight: '600'
                                 }}>
-                                    {exercise.isPublished ? '✅ Publik' : '📝 Draft'}
+                                    {exercise.isPublished ? (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <CheckCircle2 size={12} /> Publik
+                                        </span>
+                                    ) : (
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <Edit size={12} /> Draft
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Header gradient */}
@@ -1769,17 +1789,20 @@ export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classI
                                                 background: '#fee2e2', 
                                                 color: '#991b1b',
                                                 padding: '0.25rem 0.5rem',
-                                                borderRadius: '0.375rem'
+                                                borderRadius: '0.375rem',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem'
                                             }}>
-                                                ⏱️ {exercise.timerMinutes}m
+                                                <Timer size={12} /> {exercise.timerMinutes}m
                                             </span>
                                         )}
                                     </div>
 
                                     {/* Attempts count */}
                                     {exercise.attempts && exercise.attempts.length > 0 && (
-                                        <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-                                            📊 {exercise.attempts.length} siswa sudah mengerjakan
+                                        <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            <BarChart3 size={14} /> <span>{exercise.attempts.length} siswa sudah mengerjakan</span>
                                         </p>
                                     )}
 
@@ -1826,8 +1849,8 @@ export const ExercisesTabContent: React.FC<ExercisesTabContentProps> = ({ classI
             )}
 
             <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#eff6ff', borderRadius: '0.75rem', border: '1px solid #bfdbfe' }}>
-                <p style={{ fontSize: '0.9rem', color: '#1e40af' }}>
-                    📐 <strong>Tip:</strong> Latihan interaktif mendukung visualisasi geometri seperti GeoGebra. Siswa dapat melihat dan berinteraksi dengan canvas untuk memahami konsep matematika.
+                <p style={{ fontSize: '0.9rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Shapes size={16} style={{ flexShrink: 0 }} /> <span><strong>Tip:</strong> Latihan interaktif mendukung visualisasi geometri seperti GeoGebra. Siswa dapat melihat dan berinteraksi dengan canvas untuk memahami konsep matematika.</span>
                 </p>
             </div>
         </div>

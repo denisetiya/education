@@ -230,10 +230,38 @@ input, textarea, select {
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-/* Responsive */
+/* Responsive Utilities */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table {
+  min-width: 500px;
+}
+
+.modal-responsive {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 1rem;
+}
+
+/* Responsive Breakpoints */
 @media (max-width: 768px) {
   .container { padding: 0 1rem; }
-  .btn { padding: 0.55rem 1rem; font-size: 0.8125rem; }
+  .btn { padding: 0.6rem 1rem; font-size: 0.8125rem; }
+  .card { padding: 1rem; }
+  .card-flat { padding: 1rem; }
+  .mobile-stack { flex-direction: column !important; }
+  .mobile-full { width: 100% !important; }
+}
+
+@media (max-width: 480px) {
+  .btn { padding: 0.55rem 0.85rem; font-size: 0.78rem; }
+  .card { padding: 0.875rem; }
 }
 
 /* Animated grid background */

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Trophy, Loader, Star, CheckCircle } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
+import { AchievementIcon } from '../../components/common/IconHelpers';
 
 interface Achievement {
     id: string;
@@ -57,10 +58,10 @@ export const ClassAchievements: React.FC = () => {
     const totalCount = achievements.length;
 
     return (
-        <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                    🏆 Achievements Kelas
+        <div style={{ padding: '1rem', maxWidth: '1200px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Trophy size={28} style={{ color: '#d97706', flexShrink: 0 }} /> Achievements Kelas
                 </h1>
                 <p style={{ color: '#64748b' }}>Kelas: {className}</p>
             </div>
@@ -110,7 +111,7 @@ export const ClassAchievements: React.FC = () => {
                     <p>Belum ada achievement di kelas ini.</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
                     {achievements.map(ach => {
                         const isUnlocked = unlockedIds.includes(ach.id);
                         
@@ -119,7 +120,7 @@ export const ClassAchievements: React.FC = () => {
                                 key={ach.id}
                                 className="card glass"
                                 style={{
-                                    padding: '1.5rem',
+                                    padding: '1.25rem',
                                     opacity: isUnlocked ? 1 : 0.6,
                                     border: isUnlocked ? '2px solid #fbbf24' : '2px solid transparent',
                                     position: 'relative',
@@ -132,17 +133,28 @@ export const ClassAchievements: React.FC = () => {
                                         top: '0.75rem',
                                         right: '0.75rem'
                                     }}>
-                                        <CheckCircle size={24} color="#16a34a" fill="#dcfce7" />
+                                        <CheckCircle size={22} color="#16a34a" fill="#dcfce7" />
                                     </div>
                                 )}
                                 
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                                    <span style={{ fontSize: '3rem' }}>{ach.icon}</span>
-                                    <div>
-                                        <h3 style={{ fontWeight: '700', color: '#334155', marginBottom: '0.25rem' }}>
+                                    <div style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '12px',
+                                        background: isUnlocked ? 'linear-gradient(135deg, #fef3c7, #fde68a)' : '#f1f5f9',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <AchievementIcon icon={ach.icon} size={28} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <h3 style={{ fontWeight: '700', color: '#334155', marginBottom: '0.25rem', fontSize: '0.95rem' }}>
                                             {ach.title}
                                         </h3>
-                                        <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '0.75rem' }}>
+                                        <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
                                             {ach.description}
                                         </p>
                                         <div style={{
@@ -152,7 +164,7 @@ export const ClassAchievements: React.FC = () => {
                                             background: isUnlocked ? '#fef3c7' : '#f1f5f9',
                                             padding: '0.25rem 0.75rem',
                                             borderRadius: '1rem',
-                                            fontSize: '0.85rem',
+                                            fontSize: '0.8rem',
                                             fontWeight: '700',
                                             color: isUnlocked ? '#92400e' : '#64748b'
                                         }}>

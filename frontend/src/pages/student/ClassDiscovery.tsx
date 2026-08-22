@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, BookOpen, ArrowLeft, Loader, UserPlus, Eye, X } from 'lucide-react';
+import { Search, Users, BookOpen, ArrowLeft, Loader, UserPlus, Eye, X, Compass, CheckCircle2, AlertCircle } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 
 interface PublicClass {
@@ -110,8 +110,8 @@ export const ClassDiscovery: React.FC = () => {
                 >
                     <ArrowLeft size={20} /> Kembali
                 </button>
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                    🔍 Jelajahi Kelas
+                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Compass size={32} style={{ color: 'var(--primary)' }} /> Jelajahi Kelas
                 </h1>
                 <p style={{ color: '#64748b' }}>
                     Temukan kelas-kelas menarik yang tersedia untuk kamu ikuti.
@@ -450,26 +450,26 @@ export const ClassDiscovery: React.FC = () => {
             {/* Toast Notifications */}
             {success && (
                 <div style={{
-                    position: 'fixed', bottom: '2rem', right: '2rem',
+                    position: 'fixed', bottom: '5rem', right: '1.5rem',
                     background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: 'white', padding: '1rem 1.5rem', borderRadius: '1rem',
+                    color: 'white', padding: '0.85rem 1.25rem', borderRadius: '1rem',
                     boxShadow: '0 10px 40px rgba(16, 185, 129, 0.4)',
                     zIndex: 1100, display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    animation: 'slideIn 0.3s ease'
+                    animation: 'slideIn 0.3s ease', maxWidth: 'calc(100vw - 3rem)'
                 }}>
-                    ✅ {success}
+                    <CheckCircle2 size={18} /> {success}
                 </div>
             )}
             {error && (
                 <div style={{
-                    position: 'fixed', bottom: '2rem', right: '2rem',
+                    position: 'fixed', bottom: '5rem', right: '1.5rem',
                     background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                    color: 'white', padding: '1rem 1.5rem', borderRadius: '1rem',
+                    color: 'white', padding: '0.85rem 1.25rem', borderRadius: '1rem',
                     boxShadow: '0 10px 40px rgba(239, 68, 68, 0.4)',
                     zIndex: 1100, display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    animation: 'slideIn 0.3s ease'
+                    animation: 'slideIn 0.3s ease', maxWidth: 'calc(100vw - 3rem)'
                 }}>
-                    ❌ {error}
+                    <AlertCircle size={18} /> {error}
                 </div>
             )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Clock, Heart, CheckCircle, XCircle, ArrowRight, RotateCcw, GripVertical, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Clock, Heart, CheckCircle, XCircle, ArrowRight, RotateCcw, GripVertical, RefreshCw, Trophy, ChevronUp, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 type QuestionType = 'multiple-choice' | 'true-false' | 'puzzle' | 'rotation';
@@ -147,14 +147,15 @@ export const StudentQuizSession: React.FC = () => {
 
     if (isFinished) {
         return (
-            <div className="container animate-slide-up" style={{ maxWidth: '600px', margin: '2rem auto', textAlign: 'center' }}>
-                <div className="card glass" style={{ padding: '3rem' }}>
-                    <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉 Selesai!</h1>
-                    <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>Kamu telah menyelesaikan latihan ini.</p>
-                    <div style={{ fontSize: '4rem', fontWeight: '800', color: 'var(--primary)', marginBottom: '1rem' }}>{score} <span style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>PTS</span></div>
-                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                        <Link to="/student" className="btn btn-secondary"><ArrowLeft size={20} /> Kembali</Link>
-                        <button onClick={() => window.location.reload()} className="btn btn-primary"><RotateCcw size={20} /> Ulangi</button>
+            <div className="container animate-slide-up" style={{ maxWidth: '600px', margin: '2rem auto', textAlign: 'center', padding: '1rem' }}>
+                <div className="card glass" style={{ padding: 'clamp(1.5rem, 5vw, 3rem)' }}>
+                    <Trophy size={54} color="#f59e0b" style={{ display: 'inline-block', marginBottom: '0.75rem' }} />
+                    <h1 style={{ fontSize: 'clamp(2rem, 5vw, 2.5rem)', marginBottom: '0.75rem', fontWeight: 800 }}>Selesai!</h1>
+                    <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>Kamu telah menyelesaikan latihan ini.</p>
+                    <div style={{ fontSize: '3.5rem', fontWeight: '800', color: 'var(--primary)', marginBottom: '1.5rem' }}>{score} <span style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>PTS</span></div>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Link to="/student" className="btn btn-secondary"><ArrowLeft size={18} /> Kembali</Link>
+                        <button onClick={() => window.location.reload()} className="btn btn-primary"><RotateCcw size={18} /> Ulangi</button>
                     </div>
                 </div>
             </div>
@@ -164,13 +165,13 @@ export const StudentQuizSession: React.FC = () => {
     const question = mockQuestions[currentQ];
 
     return (
-        <div className="container animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <Link to="/student" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontWeight: '600' }}><ArrowLeft size={20} /> Keluar</Link>
+        <div className="container animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <Link to="/student" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontWeight: '600' }}><ArrowLeft size={18} /> Keluar</Link>
                 <div style={{ display: 'flex', gap: '1.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)', fontWeight: 'bold' }}><Clock size={20} /> {timeLeft}s</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--warning)', fontWeight: 'bold' }}><Clock size={18} /> {timeLeft}s</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--error)', fontWeight: 'bold' }}>
-                        {[...Array(lives)].map((_, i) => <Heart key={i} size={20} fill="currentColor" />)}
+                        {[...Array(lives)].map((_, i) => <Heart key={i} size={18} fill="currentColor" />)}
                     </div>
                 </div>
             </div>
@@ -179,13 +180,13 @@ export const StudentQuizSession: React.FC = () => {
                 <div style={{ width: `${((currentQ + 1) / mockQuestions.length) * 100}%`, height: '100%', background: 'var(--primary)', borderRadius: '4px', transition: 'width 0.3s' }}></div>
             </div>
 
-            <div className="card glass" style={{ padding: '2rem' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '2rem', lineHeight: 1.4 }}>{question.question}</h2>
+            <div className="card glass" style={{ padding: 'clamp(1rem, 4vw, 2rem)' }}>
+                <h2 style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.5rem)', fontWeight: '700', marginBottom: '1.5rem', lineHeight: 1.4 }}>{question.question}</h2>
 
                 {/* --- RENDER BASED ON TYPE --- */}
 
                 {question.type === 'multiple-choice' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '1rem' }}>
                         {question.options?.map((opt, idx) => {
                             let bgColor = 'white';
                             let borderColor = 'transparent';
@@ -194,11 +195,11 @@ export const StudentQuizSession: React.FC = () => {
                                 else if (idx === selectedOption) { bgColor = '#fee2e2'; borderColor = 'var(--error)'; }
                             }
                             return (
-                                <button key={idx} onClick={() => handleAnswer(idx)} disabled={isAnswered} className="btn" style={{ justifyContent: 'flex-start', padding: '1.5rem', background: bgColor, border: `2px solid ${borderColor === 'transparent' ? 'rgba(0,0,0,0.05)' : borderColor}`, fontSize: '1.1rem', position: 'relative', opacity: isAnswered && idx !== question.correct && idx !== selectedOption ? 0.5 : 1 }}>
-                                    <span style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', fontWeight: 'bold' }}>{String.fromCharCode(65 + idx)}</span>
-                                    {opt}
-                                    {isAnswered && idx === question.correct && <CheckCircle size={24} color="var(--success)" style={{ position: 'absolute', right: '1rem' }} />}
-                                    {isAnswered && idx === selectedOption && idx !== question.correct && <XCircle size={24} color="var(--error)" style={{ position: 'absolute', right: '1rem' }} />}
+                                <button key={idx} onClick={() => handleAnswer(idx)} disabled={isAnswered} className="btn" style={{ justifyContent: 'flex-start', padding: '1.25rem', background: bgColor, border: `2px solid ${borderColor === 'transparent' ? 'rgba(0,0,0,0.05)' : borderColor}`, fontSize: '1rem', position: 'relative', opacity: isAnswered && idx !== question.correct && idx !== selectedOption ? 0.5 : 1, textAlign: 'left' }}>
+                                    <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '0.75rem', fontWeight: 'bold', flexShrink: 0 }}>{String.fromCharCode(65 + idx)}</span>
+                                    <span style={{ flex: 1 }}>{opt}</span>
+                                    {isAnswered && idx === question.correct && <CheckCircle size={20} color="var(--success)" style={{ marginLeft: '0.5rem', flexShrink: 0 }} />}
+                                    {isAnswered && idx === selectedOption && idx !== question.correct && <XCircle size={20} color="var(--error)" style={{ marginLeft: '0.5rem', flexShrink: 0 }} />}
                                 </button>
                             );
                         })}
@@ -206,7 +207,7 @@ export const StudentQuizSession: React.FC = () => {
                 )}
 
                 {question.type === 'true-false' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1.5rem' }}>
                         {[true, false].map((val) => {
                             let bgColor = 'white';
                             let iconColor = val ? 'var(--success)' : 'var(--error)';
@@ -217,8 +218,8 @@ export const StudentQuizSession: React.FC = () => {
                                 else { bgColor = 'white'; borderColor = 'rgba(0,0,0,0.05)'; iconColor = 'var(--text-muted)'; }
                             }
                             return (
-                                <button key={String(val)} onClick={() => handleAnswer(val)} disabled={isAnswered} className="btn" style={{ padding: '3rem', fontSize: '1.5rem', fontWeight: '800', border: `2px solid ${borderColor === 'transparent' ? 'rgba(0,0,0,0.05)' : borderColor}`, background: bgColor, boxShadow: 'var(--shadow-md)', flexDirection: 'column', gap: '1rem', color: 'var(--text-main)' }}>
-                                    {val ? <CheckCircle size={48} color={iconColor} /> : <XCircle size={48} color={iconColor} />}
+                                <button key={String(val)} onClick={() => handleAnswer(val)} disabled={isAnswered} className="btn" style={{ padding: '2rem 1.5rem', fontSize: '1.25rem', fontWeight: '800', border: `2px solid ${borderColor === 'transparent' ? 'rgba(0,0,0,0.05)' : borderColor}`, background: bgColor, boxShadow: 'var(--shadow-md)', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-main)' }}>
+                                    {val ? <CheckCircle size={40} color={iconColor} /> : <XCircle size={40} color={iconColor} />}
                                     {val ? 'BENAR' : 'SALAH'}
                                 </button>
                             );
@@ -227,7 +228,7 @@ export const StudentQuizSession: React.FC = () => {
                 )}
 
                 {question.type === 'puzzle' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxWidth: '500px', margin: '0 auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxWidth: '500px', margin: '0 auto', width: '100%' }}>
                         {isAnswered ? (
                             (selectedOption || []).map((item: string, idx: number) => {
                                 const isCorrectPos = item === question.correctOrder![idx];
@@ -240,14 +241,18 @@ export const StudentQuizSession: React.FC = () => {
                             })
                         ) : (
                             puzzleItems.map((item, idx) => (
-                                <div key={idx} className="btn" style={{ background: 'white', border: '1px solid #e2e8f0', justifyContent: 'space-between', padding: '1rem', cursor: 'default' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <GripVertical size={20} color="#cbd5e1" />
-                                        <span>{item}</span>
+                                <div key={idx} className="btn" style={{ background: 'white', border: '1px solid #e2e8f0', justifyContent: 'space-between', padding: '0.85rem 1rem', cursor: 'default' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <GripVertical size={18} color="#cbd5e1" />
+                                        <span style={{ fontSize: '0.95rem' }}>{item}</span>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button disabled={idx === 0} onClick={() => movePuzzleItem(idx, idx - 1)} style={{ padding: '0.2rem', opacity: idx === 0 ? 0.3 : 1 }}>⬆️</button>
-                                        <button disabled={idx === puzzleItems.length - 1} onClick={() => movePuzzleItem(idx, idx + 1)} style={{ padding: '0.2rem', opacity: idx === puzzleItems.length - 1 ? 0.3 : 1 }}>⬇️</button>
+                                    <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                        <button disabled={idx === 0} onClick={() => movePuzzleItem(idx, idx - 1)} style={{ padding: '0.35rem', borderRadius: 4, background: '#f1f5f9', border: 'none', cursor: idx === 0 ? 'not-allowed' : 'pointer', opacity: idx === 0 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <ChevronUp size={16} />
+                                        </button>
+                                        <button disabled={idx === puzzleItems.length - 1} onClick={() => movePuzzleItem(idx, idx + 1)} style={{ padding: '0.35rem', borderRadius: 4, background: '#f1f5f9', border: 'none', cursor: idx === puzzleItems.length - 1 ? 'not-allowed' : 'pointer', opacity: idx === puzzleItems.length - 1 ? 0.3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <ChevronDown size={16} />
+                                        </button>
                                     </div>
                                 </div>
                             ))

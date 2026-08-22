@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Lightbulb } from 'lucide-react';
+import { ArrowLeft, BookOpen, Lightbulb, Compass } from 'lucide-react';
 import { GeometryCanvas } from '../../components/geometry/GeometryCanvas';
 
 export const GeometryPractice: React.FC = () => {
@@ -91,7 +91,7 @@ export const GeometryPractice: React.FC = () => {
                     alignItems: 'center',
                     gap: '0.75rem'
                 }}>
-                    📐 Praktik Geometri Interaktif
+                    <Compass size={28} style={{ color: 'var(--primary)', flexShrink: 0 }} /> Praktik Geometri Interaktif
                 </h1>
                 <p style={{ color: '#64748b', fontSize: '1.1rem' }}>
                     Eksplorasi bentuk geometri dengan canvas interaktif
@@ -100,7 +100,7 @@ export const GeometryPractice: React.FC = () => {
 
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '1fr 300px', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', 
                 gap: '1.5rem',
                 alignItems: 'start'
             }}>
@@ -187,8 +187,8 @@ export const GeometryPractice: React.FC = () => {
                         background: '#f0fdf4',
                         border: '2px solid #86efac'
                     }}>
-                        <h4 style={{ fontWeight: '600', color: '#166534', marginBottom: '0.75rem' }}>
-                            💡 Tips Penggunaan
+                        <h4 style={{ fontWeight: '600', color: '#166534', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Lightbulb size={16} /> Tips Penggunaan
                         </h4>
                         <ul style={{ fontSize: '0.85rem', color: '#15803d', paddingLeft: '1rem' }}>
                             <li>Gunakan grid untuk menggambar lebih presisi</li>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Book, Video, FileText } from 'lucide-react';
+import { Search, Book, Video, FileText, Sparkles, Globe } from 'lucide-react';
 
 const mockMaterials = [
     { id: 1, title: 'Aljabar Dasar: Pengenalan', type: 'video', category: 'Matematika', level: 'Mudah' },
@@ -20,8 +20,8 @@ export const StudentLibrary: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h1 className="text-gradient" style={{ fontSize: '2rem' }}>Perpustakaan Digital</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h1 className="text-gradient" style={{ fontSize: 'clamp(1.75rem, 5vw, 2rem)' }}>Perpustakaan Digital</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Jelajahi ribuan materi belajar</p>
             </div>
 
@@ -29,7 +29,7 @@ export const StudentLibrary: React.FC = () => {
             <div className="card glass animate-slide-up" style={{
                 background: 'linear-gradient(120deg, var(--secondary), #8b5cf6)',
                 color: 'white',
-                padding: '2.5rem',
+                padding: 'clamp(1.5rem, 4vw, 2.5rem)',
                 position: 'relative',
                 overflow: 'hidden',
                 border: 'none',
@@ -40,18 +40,20 @@ export const StudentLibrary: React.FC = () => {
                 gap: '2rem'
             }}>
                 <div style={{ flex: '1 1 300px', zIndex: 1 }}>
-                    <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-                        📖 REKOMENDASI MINGGU INI
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+                        <Sparkles size={14} /> REKOMENDASI MINGGU INI
                     </div>
-                    <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem' }}>Ensiklopedia Alam Semesta</h2>
-                    <p style={{ fontSize: '1.1rem', opacity: 0.9, marginBottom: '2rem', maxWidth: '500px' }}>
+                    <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '800', marginBottom: '1rem' }}>Ensiklopedia Alam Semesta</h2>
+                    <p style={{ fontSize: '1.05rem', opacity: 0.9, marginBottom: '2rem', maxWidth: '500px' }}>
                         Jelajahi misteri galaksi, bintang, dan planet dalam buku interaktif yang memukau ini.
                     </p>
                     <button className="btn" style={{ background: 'white', color: 'var(--secondary)', fontWeight: 'bold', border: 'none', padding: '0.8rem 2rem' }}>
                         Baca Sekarang
                     </button>
                 </div>
-                <div className="animate-float" style={{ fontSize: '8rem', zIndex: 1, textShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>🪐</div>
+                <div className="animate-float" style={{ zIndex: 1, display: 'flex', justifyContent: 'center', flex: '1 1 120px', minWidth: '120px' }}>
+                    <Globe size={96} color="rgba(255,255,255,0.85)" />
+                </div>
 
                 {/* Decoration Circles */}
                 <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'white', opacity: 0.1, borderRadius: '50%' }}></div>

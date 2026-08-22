@@ -9,7 +9,7 @@ interface User {
     role: string;
     xp?: number;
     level?: number;
-    createdAt: string;
+    createdAt?: string;
 }
 
 export const AdminUsers: React.FC = () => {
@@ -163,8 +163,8 @@ export const AdminUsers: React.FC = () => {
                     <Loader className="animate-spin" size={40} style={{ color: '#ef4444' }} />
                 </div>
             ) : (
-                <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="table-responsive" style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
                         <thead style={{ background: '#f9fafb', color: '#6b7280', fontSize: '0.85rem', textTransform: 'uppercase' }}>
                             <tr>
                                 <th style={{ padding: '1rem', textAlign: 'left' }}>User</th>
@@ -208,7 +208,7 @@ export const AdminUsers: React.FC = () => {
                                                 <span style={{ color: '#3b82f6', fontWeight: '600' }}>Lv.{user.level || 1}</span>
                                             </td>
                                             <td style={{ padding: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
-                                                {new Date(user.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

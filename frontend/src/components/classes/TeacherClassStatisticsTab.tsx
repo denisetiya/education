@@ -8,7 +8,7 @@ import {
     TrendingUp, Users, CheckCircle, Clock, FileSpreadsheet,
     BookOpen, Trophy, Zap, Download, RefreshCw,
     ArrowUp, ArrowDown, Target, Activity, Brain,
-    PenTool, MessageSquare, BarChart3
+    PenTool, MessageSquare, BarChart3, Medal
 } from 'lucide-react';
 import type {
     ClassAnalytics, StudentProgressEntry, MaterialActivityEntry,
@@ -174,7 +174,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <div className="animate-pulse" style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
+                    <BarChart3 size={40} className="animate-pulse" color="var(--primary)" style={{ display: 'inline-block', marginBottom: '1rem' }} />
                     <p style={{ color: '#64748b' }}>Memuat data statistik...</p>
                 </div>
             </div>
@@ -360,7 +360,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
             )}
 
             {/* Charts Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '1.5rem' }}>
                 {/* Student Progress Chart */}
                 <div className="card glass" style={{ padding: '1.5rem' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -372,7 +372,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
                                 <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-                                <Tooltip formatter={(value: number, name: string) => [`${value}%`, name]} labelFormatter={(label: string) => progressChartData.find(d => d.name === label)?.fullName || label} />
+                                <Tooltip formatter={((value: any, name: any) => [`${value}%`, name]) as any} labelFormatter={((label: any) => progressChartData.find(d => d.name === label)?.fullName || label) as any} />
                                 <Bar dataKey="Progress (%)" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -416,7 +416,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis type="number" tick={{ fontSize: 11 }} />
                                 <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} />
-                                <Tooltip formatter={(value: number) => [`${value} akses`, 'Frekuensi']} labelFormatter={(label: string) => materialChartData.find(d => d.name === label)?.fullName || label} />
+                                <Tooltip formatter={((value: any) => [`${value} akses`, 'Frekuensi']) as any} labelFormatter={((label: any) => materialChartData.find(d => d.name === label)?.fullName || label) as any} />
                                 <Bar dataKey="akses" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={18} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -435,7 +435,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                                     <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                                    <Tooltip formatter={(value: number, name: string) => [`${value}%`, name]} labelFormatter={(label: string) => quizChartData.find(d => d.name === label)?.fullName || label} />
+                                    <Tooltip formatter={((value: any, name: any) => [`${value}%`, name]) as any} labelFormatter={((label: any) => quizChartData.find(d => d.name === label)?.fullName || label) as any} />
                                     <Bar dataKey="value" name="Tingkat Kelulusan" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={30} />
                                     <Bar dataKey="score" name="Rata-rata Nilai" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={30} />
                                 </BarChart>
@@ -459,7 +459,7 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis type="number" tick={{ fontSize: 11 }} />
                                 <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} />
-                                <Tooltip formatter={(value: number) => [`${value} menit`, 'Durasi Rata-rata']} labelFormatter={(label: string) => materialChartData.find(d => d.name === label)?.fullName || label} />
+                                <Tooltip formatter={((value: any) => [`${value} menit`, 'Durasi Rata-rata']) as any} labelFormatter={((label: any) => materialChartData.find(d => d.name === label)?.fullName || label) as any} />
                                 <Bar dataKey="durasi" fill="#ec4899" radius={[0, 4, 4, 0]} barSize={18} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -618,9 +618,11 @@ export const TeacherClassStatisticsTab: React.FC<Props> = ({ classId, className 
                                 {leaderboard.slice(0, 10).map((entry: any, i: number) => (
                                     <tr key={entry.studentId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                         <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
-                                            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : (
-                                                <span style={{ fontWeight: '600', color: '#64748b' }}>{entry.rank}</span>
-                                            )}
+                                            {entry.rank === 1 ? <Medal size={20} color="#eab308" style={{ display: 'inline-block' }} /> :
+                                             entry.rank === 2 ? <Medal size={20} color="#94a3b8" style={{ display: 'inline-block' }} /> :
+                                             entry.rank === 3 ? <Medal size={20} color="#d97706" style={{ display: 'inline-block' }} /> : (
+                                                 <span style={{ fontWeight: '600', color: '#64748b' }}>{entry.rank}</span>
+                                             )}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.5rem' }}>
                                             <div style={{ fontWeight: '500' }}>{entry.name}</div>

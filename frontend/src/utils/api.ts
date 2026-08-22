@@ -294,6 +294,7 @@ export const progressAPI = {
 // Classes API
 export const classesAPI = {
     getAll: () => apiFetch<ClassItem[]>('/classes'),
+    getMyEnrolledClasses: () => apiFetch<ClassItem[]>('/classes'),
     getById: (id: string) => apiFetch<ClassItem>(`/classes/${id}`),
     create: (data: { name: string; subject?: string; description?: string }) =>
         apiFetch<ClassItem>('/classes', { method: 'POST', body: JSON.stringify(data) }),

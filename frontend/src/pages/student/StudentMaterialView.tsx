@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, BookOpen, Video, FileText, Clock, User, Loader, AlertCircle, Award, HelpCircle, Zap, Timer, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle, BookOpen, Video, FileText, Clock, User, Loader, AlertCircle, Award, HelpCircle, Zap, Timer, ChevronRight, Trophy, Target } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { materialsAPI, progressAPI, getApiErrorMessage } from '../../utils/api';
 import type { QuizContent as SharedQuizContent } from '../../types/quiz';
@@ -512,7 +512,7 @@ export const StudentMaterialView: React.FC = () => {
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
                 }}>
                     <Award size={64} style={{ marginBottom: '1rem' }} />
-                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Materi Selesai! 🎉</h2>
+                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Materi Selesai!</h2>
                     <p style={{ fontSize: '2rem', fontWeight: '800' }}>+{xpEarned} XP</p>
                 </div>
             )}
@@ -552,7 +552,7 @@ export const StudentMaterialView: React.FC = () => {
                             <HelpCircle size={36} color="white" />
                         </div>
                         <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.75rem', color: 'var(--text-main)' }}>
-                            Saatnya Mengerjakan Quiz! 📝
+                            Saatnya Mengerjakan Quiz!
                         </h2>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
                             Materi <strong>{material.title}</strong> terhubung dengan quiz 
@@ -745,8 +745,8 @@ export const StudentMaterialView: React.FC = () => {
                            {/* GAME OVER / RESULTS */}
                            {quizSubmitted && (
                                <div style={{ padding: '3rem', background: quizScore >= (material.minPassingScore || 70) ? '#f0fdf4' : '#fffbeb', border: `1px solid ${quizScore >= (material.minPassingScore || 70) ? '#bbf7d0' : '#fde68a'}`, borderRadius: '1.5rem', marginBottom: '2rem', textAlign: 'center', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
-                                   <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
-                                       {quizScore >= (material.minPassingScore || 70) ? '🎉' : '💪'}
+                                   <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+                                       {quizScore >= (material.minPassingScore || 70) ? <Trophy size={60} color="#16a34a" /> : <Target size={60} color="#d97706" />}
                                    </div>
                                    <h3 style={{ color: quizScore >= (material.minPassingScore || 70) ? '#166534' : '#92400e', fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>
                                        Skor Kamu: {quizScore}
@@ -811,18 +811,18 @@ export const StudentMaterialView: React.FC = () => {
 
                                    {/* PowerUps */}
                                    {quizContent.settings?.enablePowerUps && (
-                                       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2rem' }}>
+                                       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
                                            <button 
                                                 onClick={() => handlePowerUp('fiftyFifty')} 
                                                 disabled={powerUps.fiftyFifty <= 0 || quizContent.questions[currentQuestionIndex].type !== 'multiple_choice'}
-                                                style={{ padding: '0.75rem 1.5rem', borderRadius: '0.75rem', border: 'none', background: powerUps.fiftyFifty > 0 ? 'linear-gradient(135deg, #fbbf24, #d97706)' : '#f1f5f9', color: powerUps.fiftyFifty > 0 ? 'white' : '#cbd5e1', fontWeight: 'bold', cursor: powerUps.fiftyFifty > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.5rem', transform: 'translateY(0)', transition: 'transform 0.1s' }}
+                                                style={{ padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none', background: powerUps.fiftyFifty > 0 ? 'linear-gradient(135deg, #fbbf24, #d97706)' : '#f1f5f9', color: powerUps.fiftyFifty > 0 ? 'white' : '#cbd5e1', fontWeight: 'bold', cursor: powerUps.fiftyFifty > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.5rem', transform: 'translateY(0)', transition: 'transform 0.1s' }}
                                            >
                                                <Zap size={18} fill="currentColor" /> 50/50 ({powerUps.fiftyFifty})
                                            </button>
                                            <button 
                                                 onClick={() => handlePowerUp('timeFreeze')} 
                                                 disabled={powerUps.timeFreeze <= 0}
-                                                style={{ padding: '0.75rem 1.5rem', borderRadius: '0.75rem', border: 'none', background: powerUps.timeFreeze > 0 ? 'linear-gradient(135deg, #60a5fa, #2563eb)' : '#f1f5f9', color: powerUps.timeFreeze > 0 ? 'white' : '#cbd5e1', fontWeight: 'bold', cursor: powerUps.timeFreeze > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                                style={{ padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: 'none', background: powerUps.timeFreeze > 0 ? 'linear-gradient(135deg, #60a5fa, #2563eb)' : '#f1f5f9', color: powerUps.timeFreeze > 0 ? 'white' : '#cbd5e1', fontWeight: 'bold', cursor: powerUps.timeFreeze > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                            >
                                                <Clock size={18} /> Bekukan Waktu ({powerUps.timeFreeze})
                                            </button>
@@ -830,8 +830,8 @@ export const StudentMaterialView: React.FC = () => {
                                    )}
 
                                    {/* Question Card */}
-                                   <div style={{ background: 'white', padding: '2rem', borderRadius: '1.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '2rem', lineHeight: 1.5 }}>
+                                   <div style={{ background: 'white', padding: 'clamp(1.25rem, 4vw, 2rem)', borderRadius: '1.5rem', border: '1px solid #e2e8f0', marginBottom: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+                                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '1.5rem', lineHeight: 1.5 }}>
                                             {quizContent.questions[currentQuestionIndex].text}
                                         </h3>
 
@@ -842,9 +842,9 @@ export const StudentMaterialView: React.FC = () => {
                                             // Handling different types without complex TS casting inside JSX if possible
                                             if (question.type === 'multiple_choice') {
                                                 return (
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
                                                         {(question as any).options.map((opt: string, idx: number) => {
-                                                            const isEliminated =eliminatedOptions[question.id]?.includes(idx);
+                                                            const isEliminated = eliminatedOptions[question.id]?.includes(idx);
                                                             const isSelected = quizAnswers[question.id] === idx;
                                                             
                                                             if (isEliminated) return null;
@@ -854,22 +854,24 @@ export const StudentMaterialView: React.FC = () => {
                                                                     key={idx}
                                                                     onClick={() => handleAnswer(idx)}
                                                                     style={{
-                                                                        padding: '1.25rem',
+                                                                        padding: '1rem',
                                                                         textAlign: 'left',
                                                                         borderRadius: '1rem',
                                                                         border: isSelected ? '2px solid var(--primary)' : '2px solid #e2e8f0',
                                                                         background: isSelected ? '#e0e7ff' : 'white',
                                                                         color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                                                                         fontWeight: '600',
-                                                                        fontSize: '1rem',
+                                                                        fontSize: '0.95rem',
                                                                         cursor: 'pointer',
-                                                                        transition: 'all 0.2s'
+                                                                        transition: 'all 0.2s',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center'
                                                                     }}
                                                                 >
-                                                                    <span style={{ display: 'inline-block', width: '30px', height: '30px', borderRadius: '50%', background: isSelected ? 'var(--primary)' : '#f1f5f9', color: isSelected ? 'white' : 'var(--text-muted)', textAlign: 'center', lineHeight: '30px', marginRight: '1rem', fontSize: '0.9rem' }}>
+                                                                    <span style={{ display: 'inline-block', width: '30px', height: '30px', borderRadius: '50%', background: isSelected ? 'var(--primary)' : '#f1f5f9', color: isSelected ? 'white' : 'var(--text-muted)', textAlign: 'center', lineHeight: '30px', marginRight: '0.75rem', fontSize: '0.9rem', flexShrink: 0 }}>
                                                                         {String.fromCharCode(65 + idx)}
                                                                     </span>
-                                                                    {opt}
+                                                                    <span style={{ flex: 1 }}>{opt}</span>
                                                                 </button>
                                                             );
                                                         })}
@@ -878,18 +880,18 @@ export const StudentMaterialView: React.FC = () => {
                                             } else if (question.type === 'true_false') {
                                                 const currentAnswer = quizAnswers[question.id];
                                                 return (
-                                                    <div style={{ display: 'flex', gap: '1.5rem' }}>
+                                                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                                                         <button
                                                             onClick={() => handleAnswer(true)}
                                                             style={{
-                                                                flex: 1,
-                                                                padding: '2rem',
+                                                                flex: '1 1 140px',
+                                                                padding: '1.5rem',
                                                                 borderRadius: '1rem',
                                                                 border: currentAnswer === true ? '2px solid #16a34a' : '2px solid #e2e8f0',
                                                                 background: currentAnswer === true ? '#dcfce7' : 'white',
                                                                 color: currentAnswer === true ? '#166534' : 'var(--text-main)',
                                                                 fontWeight: 'bold',
-                                                                fontSize: '1.25rem',
+                                                                fontSize: '1.1rem',
                                                                 cursor: 'pointer'
                                                             }}
                                                         >
@@ -898,14 +900,14 @@ export const StudentMaterialView: React.FC = () => {
                                                         <button
                                                             onClick={() => handleAnswer(false)}
                                                             style={{
-                                                                flex: 1,
-                                                                padding: '2rem',
+                                                                flex: '1 1 140px',
+                                                                padding: '1.5rem',
                                                                 borderRadius: '1rem',
                                                                 border: currentAnswer === false ? '2px solid #dc2626' : '2px solid #e2e8f0',
                                                                 background: currentAnswer === false ? '#fee2e2' : 'white',
                                                                 color: currentAnswer === false ? '#991b1b' : 'var(--text-main)',
                                                                 fontWeight: 'bold',
-                                                                fontSize: '1.25rem',
+                                                                fontSize: '1.1rem',
                                                                 cursor: 'pointer'
                                                             }}
                                                         >

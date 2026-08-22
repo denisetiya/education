@@ -146,7 +146,7 @@ export const ClassExercises: React.FC = () => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div className="card glass" style={{ padding: '1.25rem' }}>
                     <p style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '0.35rem' }}>Total latihan</p>
                     <p style={{ fontSize: '1.7rem', fontWeight: '800', color: '#0f172a' }}>{exercises.length}</p>
@@ -174,7 +174,7 @@ export const ClassExercises: React.FC = () => {
                     <p>Guru akan menambahkan latihan untuk kelas ini sebentar lagi.</p>
                 </div>
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
                     {exercises.map((exercise) => {
                         const attempt = getLatestAttempt(exercise);
                         const status = getStatusMeta(attempt);

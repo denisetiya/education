@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, Award, ChevronRight, TrendingUp, BookOpen, Loader } from 'lucide-react';
+import { Play, Clock, Award, ChevronRight, TrendingUp, BookOpen, Loader, Flame, GraduationCap, Trophy, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { dashboardAPI, materialsAPI } from '../../utils/api';
+import { getCategoryIcon } from '../../components/common/IconHelpers';
 
 interface DashboardStats {
     completedMaterials: number;
@@ -87,18 +88,9 @@ export const StudentDashboard: React.FC = () => {
         ? Math.round((dashboardData.stats.completedMaterials / Math.max(dashboardData.stats.totalMaterials, 1)) * 100)
         : 0;
 
-    // Get category emoji
-    const getCategoryEmoji = (category: string) => {
-        const emojis: Record<string, string> = {
-            'MATEMATIKA': '📐',
-            'IPA': '🔬',
-            'IPS': '🌍',
-            'BAHASA_INDONESIA': '📚',
-            'BAHASA_INGGRIS': '🇬🇧',
-            'SENI': '🎨',
-            'OLAHRAGA': '⚽',
-        };
-        return emojis[category] || '📖';
+    // Get category icon helper
+    const renderCategoryIcon = (category: string) => {
+        return getCategoryIcon(category, 24);
     };
 
     // Get category color
@@ -139,7 +131,7 @@ export const StudentDashboard: React.FC = () => {
     const currentProgress = dashboardData?.recentProgress?.[0];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
             {/* Welcome Hero - Modern Glass */}
             <div className="card animate-slide-up" style={{
@@ -148,8 +140,8 @@ export const StudentDashboard: React.FC = () => {
                 display: 'flex',
                 flexWrap: 'wrap',
                 alignItems: 'center',
-                gap: '2rem',
-                padding: '3rem',
+                gap: '1.5rem',
+                padding: 'clamp(1.5rem, 4vw, 2.5rem)',
                 position: 'relative',
                 overflow: 'hidden',
                 border: 'none',
@@ -160,28 +152,28 @@ export const StudentDashboard: React.FC = () => {
                 <div style={{ position: 'absolute', bottom: '-20px', left: '40%', width: '150px', height: '150px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%' }}></div>
 
                 <div style={{ position: 'relative', zIndex: 1, flex: '2 1 300px' }}>
-                    <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: '600', marginBottom: '1rem' }}>
-                        🚀 Daily Streak: {dashboardData?.user?.streak || user?.streak || 0} Hari
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: '600', marginBottom: '1rem' }}>
+                        <Flame size={16} /> Daily Streak: {dashboardData?.user?.streak || user?.streak || 0} Hari
                     </div>
-                    <h1 style={{ marginBottom: '1rem', fontSize: '2.5rem', fontWeight: '800', lineHeight: 1.2 }}>Halo, {user?.name || 'Siswa'}! 👋</h1>
-                    <p style={{ opacity: 0.9, fontSize: '1.1rem', maxWidth: '400px', marginBottom: '2rem' }}>
+                    <h1 style={{ marginBottom: '1rem', fontSize: 'clamp(1.75rem, 5vw, 2.5rem)', fontWeight: '800', lineHeight: 1.2 }}>Halo, {user?.name || 'Siswa'}!</h1>
+                    <p style={{ opacity: 0.9, fontSize: '1.05rem', maxWidth: '400px', marginBottom: '1.5rem' }}>
                         {progressPercentage > 0
                             ? `Kamu sudah menyelesaikan ${progressPercentage}% dari semua materi. ${progressPercentage >= 80 ? 'Luar biasa!' : 'Ayo sedikit lagi!'}`
                             : 'Mulai perjalanan belajarmu hari ini!'}
                     </p>
-                    <Link to="/student/materials" className="btn" style={{ background: 'white', color: 'var(--primary)', padding: '1rem 2rem', fontSize: '1rem' }}>
-                        <Play size={20} fill="currentColor" /> Lanjut Belajar
+                    <Link to="/student/materials" className="btn" style={{ background: 'white', color: 'var(--primary)', padding: '0.85rem 1.75rem', fontSize: '0.95rem', fontWeight: 600 }}>
+                        <Play size={18} fill="currentColor" /> Lanjut Belajar
                     </Link>
                 </div>
 
                 {/* Hero Image / Illustration Placeholder */}
-                <div className="animate-float" style={{ display: 'flex', justifyContent: 'center', flex: '1 1 150px', minWidth: '150px' }}>
-                    <div style={{ fontSize: 'min(8rem, 20vw)', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' }}>🎓</div>
+                <div className="animate-float" style={{ display: 'flex', justifyContent: 'center', flex: '1 1 120px', minWidth: '120px' }}>
+                    <GraduationCap size={84} color="rgba(255,255,255,0.85)" />
                 </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', animationDelay: '0.1s' }}>
+            <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', animationDelay: '0.1s' }}>
                 <StatCard
                     icon={<Clock size={24} />}
                     label="Total Waktu Belajar"
@@ -220,18 +212,18 @@ export const StudentDashboard: React.FC = () => {
 
                     <div className="glass card card-hover-effect animate-slide-up" style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', border: '1px solid rgba(255,255,255,0.6)' }}>
                         <div style={{
-                            width: '100px',
-                            height: '100px',
+                            width: '80px',
+                            height: '80px',
                             borderRadius: '1.5rem',
                             background: `linear-gradient(135deg, ${getCategoryColor(currentProgress.material.category).bg} 0%, ${getCategoryColor(currentProgress.material.category).bg} 100%)`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: getCategoryColor(currentProgress.material.category).text,
-                            fontSize: '3rem',
-                            boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.2)'
+                            boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.2)',
+                            flexShrink: 0
                         }}>
-                            {getCategoryEmoji(currentProgress.material.category)}
+                            {getCategoryIcon(currentProgress.material.category, 36)}
                         </div>
                         <div style={{ flex: '1 1 300px' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -244,7 +236,7 @@ export const StudentDashboard: React.FC = () => {
                             </div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.5rem' }}>{currentProgress.material.title}</h3>
                             <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-                                {currentProgress.status === 'completed' ? 'Selesai! 🎉' : 'Lanjutkan pembelajaran'}
+                                {currentProgress.status === 'completed' ? 'Selesai!' : 'Lanjutkan pembelajaran'}
                             </p>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -271,28 +263,29 @@ export const StudentDashboard: React.FC = () => {
                         </Link>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
                         {recentMaterials.map((material) => (
                             <Link key={material.id} to={`/student/materials/${material.id}`} className="glass card card-hover-effect" style={{ display: 'flex', gap: '1rem', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
                                 <div style={{
-                                    width: '60px',
-                                    height: '60px',
+                                    width: '52px',
+                                    height: '52px',
                                     borderRadius: '1rem',
                                     background: getCategoryColor(material.category).bg,
+                                    color: getCategoryColor(material.category).text,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '1.5rem'
+                                    flexShrink: 0
                                 }}>
-                                    {getCategoryEmoji(material.category)}
+                                    {renderCategoryIcon(material.category)}
                                 </div>
-                                <div style={{ flex: 1 }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
                                     <span style={{ fontSize: '0.7rem', fontWeight: '600', color: getCategoryColor(material.category).text, background: getCategoryColor(material.category).bg, padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}>
                                         {material.category.replace('_', ' ')}
                                     </span>
-                                    <h4 style={{ fontSize: '1rem', fontWeight: '600', marginTop: '0.25rem' }}>{material.title}</h4>
+                                    <h4 style={{ fontSize: '1rem', fontWeight: '600', marginTop: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{material.title}</h4>
                                 </div>
-                                <ChevronRight size={20} style={{ color: 'var(--text-muted)' }} />
+                                <ChevronRight size={20} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                             </Link>
                         ))}
                     </div>
@@ -312,8 +305,8 @@ export const StudentDashboard: React.FC = () => {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                         {dashboardData.achievements.slice(0, 5).map((achievement, index) => (
                             <div key={index} className="glass card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '180px' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
-                                    🏆
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+                                    <Trophy size={20} color="white" />
                                 </div>
                                 <div>
                                     <p style={{ fontWeight: '600', fontSize: '0.9rem' }}>{achievement.name || 'Achievement'}</p>

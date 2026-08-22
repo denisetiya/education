@@ -10,7 +10,7 @@ interface ClassItem {
     description?: string;
     code: string;
     isPublic: boolean;
-    createdAt: string;
+    createdAt?: string;
     teacher?: { name: string };
     _count?: { modules: number; students: number };
 }
@@ -105,8 +105,8 @@ export const AdminClasses: React.FC = () => {
                     <Loader className="animate-spin" size={40} style={{ color: '#ef4444' }} />
                 </div>
             ) : (
-                <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="table-responsive" style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
                         <thead style={{ background: '#f9fafb', color: '#6b7280', fontSize: '0.85rem', textTransform: 'uppercase' }}>
                             <tr>
                                 <th style={{ padding: '1rem', textAlign: 'left' }}>Nama Kelas</th>
@@ -131,7 +131,7 @@ export const AdminClasses: React.FC = () => {
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ fontWeight: '600', color: '#111827' }}>{cls.name}</div>
                                             <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                                {new Date(cls.createdAt).toLocaleDateString('id-ID')}
+                                                {cls.createdAt ? new Date(cls.createdAt).toLocaleDateString('id-ID') : '-'}
                                             </div>
                                         </td>
                                         <td style={{ padding: '1rem' }}>

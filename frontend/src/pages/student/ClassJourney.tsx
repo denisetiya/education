@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Map, Loader, CheckCircle, Lock, Play, Star, ChevronDown, Trophy, PartyPopper, ArrowRight } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
+import { getContentTypeIcon } from '../../components/common/IconHelpers';
 
 interface Module {
     id: string;
@@ -101,12 +102,7 @@ export const ClassJourney: React.FC = () => {
     };
 
     const getTypeEmoji = (type: string) => {
-        switch (type) {
-            case 'video': return '🎥';
-            case 'book': return '📖';
-            case 'quiz': return '📝';
-            default: return '📚';
-        }
+        return getContentTypeIcon(type, 18);
     };
 
     const getModuleColors = (module: Module) => {
@@ -140,10 +136,10 @@ export const ClassJourney: React.FC = () => {
     const totalHeight = modules.length * nodeSpacing;
 
     return (
-        <div style={{ padding: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+        <div style={{ padding: '1rem', maxWidth: '800px', margin: '0 auto' }}>
             <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                    🗺️ Perjalanan Belajar
+                <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <Map size={28} style={{ color: 'var(--primary)', flexShrink: 0 }} /> Perjalanan Belajar
                 </h1>
                 <p style={{ color: '#64748b' }}>Kelas: {className}</p>
             </div>
@@ -474,9 +470,9 @@ export const ClassJourney: React.FC = () => {
                         background: 'linear-gradient(145deg, #fbbf24, #f59e0b)',
                         boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)',
                         border: '3px solid white',
-                        fontSize: '1.75rem'
+                        color: 'white'
                     }}>
-                        🏆
+                        <Trophy size={28} color="white" />
                     </div>
                 </div>
 

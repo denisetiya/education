@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     TrendingUp, Users, CheckCircle, AlertCircle, Clock,
     BookOpen, Target, RefreshCw, ArrowUp, ArrowDown,
-    Brain, ExternalLink
+    Brain, ExternalLink, BarChart3
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -83,7 +83,7 @@ export const TeacherAnalytics: React.FC = () => {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
                 <div style={{ textAlign: 'center' }}>
-                    <div className="animate-pulse" style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
+                    <BarChart3 size={40} className="animate-pulse" color="var(--primary)" style={{ display: 'inline-block', marginBottom: '1rem' }} />
                     <p style={{ color: '#64748b' }}>Memuat data analitik...</p>
                 </div>
             </div>
@@ -316,8 +316,8 @@ export const TeacherAnalytics: React.FC = () => {
                                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
                                 <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
                                 <Tooltip
-                                    formatter={(value: number, name: string) => [`${value}${name === 'progress' ? '%' : ''}`, name === 'progress' ? 'Progress Rata-rata' : 'Siswa Aktif']}
-                                    labelFormatter={(label: string) => classChartData.find(d => d.name === label)?.fullName || label}
+                                    formatter={((value: any, name: any) => [`${value}${name === 'progress' ? '%' : ''}`, name === 'progress' ? 'Progress Rata-rata' : 'Siswa Aktif']) as any}
+                                    labelFormatter={((label: any) => classChartData.find(d => d.name === label)?.fullName || label) as any}
                                 />
                                 <Bar dataKey="progress" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={16} name="Progress Rata-rata" />
                                 <Bar dataKey="students" fill="#06b6d4" radius={[0, 4, 4, 0]} barSize={16} name="Siswa Aktif" />

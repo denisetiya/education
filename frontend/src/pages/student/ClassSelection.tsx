@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, Compass, Sparkles, GraduationCap, ArrowRight, Search, Clock, Zap, LogOut } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getSubjectIcon } from '../../components/common/IconHelpers';
 
 interface EnrolledClass {
     id: string;
@@ -24,15 +25,16 @@ export const ClassSelection: React.FC = () => {
     const { user, logout } = useAuth();
 
     useEffect(() => {
-        fetchEnrolledClasses();
+        fetchMyClasses();
     }, []);
 
-    const fetchEnrolledClasses = async () => {
+    const fetchMyClasses = async () => {
         try {
-            const data = await classesAPI.getAll();
+            setLoading(true);
+            const data = await classesAPI.getMyEnrolledClasses();
             setClasses(data);
-        } catch (error) {
-            console.error('Failed to fetch classes', error);
+        } catch (err) {
+            console.error('Failed to fetch classes', err);
         } finally {
             setLoading(false);
         }
@@ -57,21 +59,6 @@ export const ClassSelection: React.FC = () => {
     ];
 
     const getGradient = (index: number) => gradients[index % gradients.length];
-
-    const getSubjectEmoji = (subject: string) => {
-        const map: Record<string, string> = {
-            'matematika': '📐', 'geometri': '📐', 'math': '➗',
-            'fisika': '⚛️', 'kimia': '🧪', 'biologi': '🧬',
-            'bahasa': '📝', 'sejarah': '📜', 'geografi': '🌍',
-            'seni': '🎨', 'musik': '🎵', 'olahraga': '⚽',
-            'komputer': '💻', 'coding': '👨‍💻'
-        };
-        const key = subject.toLowerCase();
-        for (const [k, v] of Object.entries(map)) {
-            if (key.includes(k)) return v;
-        }
-        return '📚';
-    };
 
     const filteredClasses = classes.filter(c => 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -272,7 +259,7 @@ export const ClassSelection: React.FC = () => {
                     </div>
                 ) : (
                     /* Classes Grid */
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1.5rem' }}>
                         {filteredClasses.map((cls, index) => (
                             <div
                                 key={cls.id}
@@ -318,9 +305,13 @@ export const ClassSelection: React.FC = () => {
                                             fontSize: '0.8rem', 
                                             fontWeight: '600',
                                             color: '#475569',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem'
                                         }}>
-                                            {getSubjectEmoji(cls.subject)} {cls.subject}
+                                            {getSubjectIcon(cls.subject, 14)}
+                                            <span>{cls.subject}</span>
                                         </span>
                                         
                                         {cls.progressionMode === 'sequential' && (

@@ -106,7 +106,27 @@ const StudentLayout: React.FC = () => {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <img src="/logo-Photoroom-v2.webp" alt="Geo Education" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                        {insideClass && (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/student/classes')}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '0.35rem',
+                                    borderRadius: '0.5rem',
+                                    color: 'var(--gray-600)',
+                                    background: 'var(--gray-100)',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                                title="Kembali ke Kelas Saya"
+                            >
+                                <ArrowLeft size={18} />
+                            </button>
+                        )}
+                        <img src="/logo-Photoroom-v2.webp" alt="Geo Education" style={{ width: 32, height: 32, objectFit: 'contain' }} />
                         <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>Geo Education</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

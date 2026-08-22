@@ -47,13 +47,26 @@ export const AdminLayout: React.FC = () => {
                         <img src="/logo-Photoroom-v2.webp" alt="Geo Education" style={{ width: 36, height: 36, objectFit: 'contain' }} />
                         <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--gray-900)' }}>Admin</span>
                     </div>
-                    <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: '#fef2f2', color: '#dc2626',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.8125rem', fontWeight: 600
-                    }}>
-                        {(user?.name || 'A')[0].toUpperCase()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: '#fef2f2', color: '#dc2626',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.8125rem', fontWeight: 600
+                        }}>
+                            {(user?.name || 'A')[0].toUpperCase()}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => void handleLogout()}
+                            title="Keluar"
+                            style={{
+                                padding: '0.35rem', borderRadius: 6, color: 'var(--gray-400)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                        >
+                            <LogOut size={16} />
+                        </button>
                     </div>
                 </header>
 

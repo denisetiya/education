@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Edit, Users, Copy, BookOpen, Grid, List } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Users, Copy, BookOpen, Grid, List, CheckCircle2 } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import type { ClassItem } from '../../types/api.types';
@@ -194,9 +194,10 @@ export const TeacherClasses: React.FC = () => {
             {showCreateModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+                    padding: '1rem'
                 }}>
-                    <div className="card glass" style={{ width: '440px', padding: '2rem' }}>
+                    <div className="card glass modal-responsive" style={{ padding: '1.5rem' }}>
                         <h2 style={{ marginBottom: '1.5rem' }}>Buat Kelas Baru</h2>
                         {error && (
                             <div style={{ 
@@ -273,16 +274,16 @@ export const TeacherClasses: React.FC = () => {
                     right: '2rem',
                     background: '#10b981',
                     color: 'white',
-                    padding: '1rem 1.5rem',
+                    padding: '0.85rem 1.25rem',
                     borderRadius: '0.75rem',
                     boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
+                    gap: '0.5rem',
                     animation: 'slideUp 0.3s ease-out',
                     zIndex: 1100
                 }}>
-                    ✓ {success}
+                    <CheckCircle2 size={18} /> {success}
                 </div>
             )}
         </div>

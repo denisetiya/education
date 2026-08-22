@@ -51,10 +51,10 @@ export const ClassLibrary: React.FC = () => {
     }
 
     return (
-        <div style={{ padding: '1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>
-                    📖 Perpustakaan Kelas
+        <div style={{ padding: '1rem', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+                <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Library size={28} style={{ color: 'var(--primary)', flexShrink: 0 }} /> Perpustakaan Kelas
                 </h1>
                 <p style={{ color: '#64748b' }}>Buku dan materi bacaan untuk kelas ini</p>
             </div>
