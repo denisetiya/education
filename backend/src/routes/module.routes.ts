@@ -12,6 +12,22 @@ const getRequestUser = (req: AuthRequest) => {
     return req.user;
 };
 
+const moduleExercisesInclude = {
+    exercises: {
+        select: {
+            id: true,
+            title: true,
+            exerciseType: true,
+            difficulty: true,
+            isPublished: true,
+            points: true,
+            moduleOrder: true,
+            class: { select: { id: true, name: true } }
+        },
+        orderBy: { moduleOrder: 'asc' as const }
+    }
+};
+
 // Get modules with materials
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -34,7 +50,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
                 materials: {
                     select: { id: true, title: true, type: true, moduleOrder: true, content: false },
                     orderBy: { moduleOrder: 'asc' }
-                }
+                },
+                ...moduleExercisesInclude
             },
             orderBy: { order: 'asc' }
         });
@@ -125,6 +142,71 @@ router.delete('/:moduleId/materials/:materialId', authMiddleware, requireRole('T
     }
 });
 
+// Assign exercises to module
+router.post('/:id/exercises', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const user = getRequestUser(req);
+        const { exerciseIds } = req.body as { exerciseIds?: string[] };
+
+        if (!Array.isArray(exerciseIds)) {
+            return res.status(400).json({ error: 'exerciseIds must be an array' });
+        }
+
+        const module = await prisma.module.findUnique({
+            where: { id: req.params.id },
+            select: { createdById: true }
+        });
+
+        if (!module) {
+            return res.status(404).json({ error: 'Module not found' });
+        }
+
+        if (user.role !== 'ADMIN' && module.createdById !== user.id) {
+            return res.status(403).json({ error: 'Not authorized to modify this module' });
+        }
+
+        // Only exercises from classes owned by this teacher may be assigned
+        const exercises = await prisma.classExercise.findMany({
+            where: { id: { in: exerciseIds } },
+            select: { id: true, class: { select: { teacherId: true } } }
+        });
+
+        if (exercises.length !== exerciseIds.length) {
+            return res.status(404).json({ error: 'One or more exercises not found' });
+        }
+
+        if (user.role !== 'ADMIN' && exercises.some(ex => ex.class.teacherId !== user.id)) {
+            return res.status(403).json({ error: 'Not authorized to assign exercises from other teachers' });
+        }
+
+        await prisma.$transaction(
+            exerciseIds.map((exerciseId: string, index: number) =>
+                prisma.classExercise.update({
+                    where: { id: exerciseId },
+                    data: { moduleId: req.params.id, moduleOrder: index }
+                })
+            )
+        );
+
+        res.json({ message: 'Exercises updated in module' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update module exercises' });
+    }
+});
+
+// Remove exercise from module
+router.delete('/:moduleId/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req, res) => {
+    try {
+        await prisma.classExercise.update({
+            where: { id: req.params.exerciseId },
+            data: { moduleId: null, moduleOrder: null }
+        });
+        res.json({ message: 'Exercise removed from module' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to remove exercise' });
+    }
+});
+
 // Assign module to class
 router.put('/:id/assign-class', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
@@ -179,7 +261,8 @@ router.get('/by-class/:classId', authMiddleware, requireRole('TEACHER', 'ADMIN')
                 materials: {
                     select: { id: true, title: true, type: true, moduleOrder: true },
                     orderBy: { moduleOrder: 'asc' }
-                }
+                },
+                ...moduleExercisesInclude
             },
             orderBy: { order: 'asc' }
         });
@@ -198,7 +281,8 @@ router.get('/unassigned', authMiddleware, requireRole('TEACHER', 'ADMIN'), async
                 materials: {
                     select: { id: true, title: true, type: true, moduleOrder: true },
                     orderBy: { moduleOrder: 'asc' }
-                }
+                },
+                ...moduleExercisesInclude
             },
             orderBy: { order: 'asc' }
         });
@@ -216,7 +300,13 @@ router.delete('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (re
             where: { moduleId: req.params.id },
             data: { moduleId: null, moduleOrder: null }
         });
-        
+
+        // Unlink exercises so they stay available in their class
+        await prisma.classExercise.updateMany({
+            where: { moduleId: req.params.id },
+            data: { moduleId: null, moduleOrder: null }
+        });
+
         await prisma.module.delete({ where: { id: req.params.id } });
         res.json({ message: 'Module deleted' });
     } catch (error) {

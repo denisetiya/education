@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Loader, Edit, Trash2, X, BookOpen, Video, FileText, HelpCircle, AlertCircle, Link2, Settings, CheckSquare, Type, List } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { materialsAPI, getApiErrorMessage } from '../../utils/api';
+import { materialsAPI, classesAPI, getApiErrorMessage } from '../../utils/api';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import type { QuizContent as SharedQuizContent, QuizQuestion, QuizSettings, QuestionType } from '../../types/quiz';
+import type { ModuleExercise } from '../../types/api.types';
 
 interface VideoContent { url: string; platform: 'youtube' | 'other'; }
 interface BookContent { url: string; }
@@ -18,6 +19,7 @@ interface MaterialFormData {
     semester: number;
     grade: number;
     linkedQuizId: string;
+    linkedExerciseId: string;
     minPassingScore: number;
     order: number | null;
 }
@@ -30,7 +32,7 @@ interface SpecificFormState {
 
 const initialFormData: MaterialFormData = {
     title: '', type: 'article', category: 'MATEMATIKA', level: 'Mudah',
-    content: '', semester: 1, grade: 7, linkedQuizId: '', minPassingScore: 70, order: null
+    content: '', semester: 1, grade: 7, linkedQuizId: '', linkedExerciseId: '', minPassingScore: 70, order: null
 };
 
 const initialSpecificData: SpecificFormState = {
@@ -52,6 +54,7 @@ export const TeacherMaterialEditor: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [quizList, setQuizList] = useState<{ id: string; title: string; category: string; grade: number; semester: number }[]>([]);
+    const [exerciseList, setExerciseList] = useState<ModuleExercise[]>([]);
     const [loadingMaterial, setLoadingMaterial] = useState(false);
 
     const categories = ['MATEMATIKA', 'IPA', 'IPS', 'BAHASA_INDONESIA', 'BAHASA_INGGRIS', 'SENI', 'OLAHRAGA'];
@@ -66,9 +69,12 @@ export const TeacherMaterialEditor: React.FC = () => {
 
     const formatCategory = (category: string) => category.replace('_', ' ');
 
-    // Fetch quizzes for linking
+    // Fetch quizzes and interactive exercises for linking
     useEffect(() => {
         materialsAPI.getQuizzes().then(setQuizList).catch(() => {});
+        classesAPI.getExerciseLibrary()
+            .then(setExerciseList)
+            .catch(() => {});
     }, []);
 
     // Load existing material for editing
@@ -86,6 +92,7 @@ export const TeacherMaterialEditor: React.FC = () => {
                     semester: material.semester,
                     grade: material.grade,
                     linkedQuizId: (material as any).linkedQuizId || '',
+                    linkedExerciseId: material.linkedExerciseId || '',
                     minPassingScore: (material as any).minPassingScore ?? 70,
                     order: (material as any).order ?? null
                 };
@@ -393,14 +400,14 @@ export const TeacherMaterialEditor: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Quiz Linking Section */}
+                        {/* Quiz & Exercise Linking Section */}
                         {formData.type !== 'quiz' && (
                             <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
                                 <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                                    <Link2 size={18} /> Hubungkan dengan Quiz
+                                    <Link2 size={18} /> Hubungkan dengan Quiz / Latihan
                                 </h3>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                                    Siswa akan diarahkan ke quiz setelah membaca materi ini.
+                                    Siswa akan diarahkan ke quiz atau latihan interaktif setelah membaca materi ini.
                                 </p>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                                     <div>
@@ -413,6 +420,21 @@ export const TeacherMaterialEditor: React.FC = () => {
                                             <option value="">-- Tidak Terhubung --</option>
                                             {quizList.map(quiz => (
                                                 <option key={quiz.id} value={quiz.id}>{quiz.title} (Kls {quiz.grade})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Latihan Interaktif Terhubung</label>
+                                        <select
+                                            value={formData.linkedExerciseId}
+                                            onChange={(e) => setFormData({ ...formData, linkedExerciseId: e.target.value })}
+                                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: 'white' }}
+                                        >
+                                            <option value="">-- Tidak Terhubung --</option>
+                                            {exerciseList.map(exercise => (
+                                                <option key={exercise.id} value={exercise.id}>
+                                                    {exercise.title} — {exercise.class?.name ?? '-'}{!exercise.isPublished ? ' (Draft)' : ''}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>

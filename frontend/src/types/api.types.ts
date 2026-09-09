@@ -61,9 +61,28 @@ export interface Material {
     moduleOrder?: number | null;
     linkedQuizId?: string | null;
     linkedQuiz?: LinkedQuizSummary | null;
+    linkedExerciseId?: string | null;
+    linkedExercise?: {
+        id: string;
+        title: string;
+        exerciseType: string;
+        class: { id: string; name: string };
+    } | null;
     minPassingScore?: number | null;
     order?: number | null;
     createdBy?: { name: string };
+}
+
+export interface ModuleExercise {
+    id: string;
+    title: string;
+    exerciseType: string;
+    difficulty: string;
+    isPublished?: boolean;
+    points?: number;
+    moduleOrder?: number | null;
+    moduleId?: string | null;
+    class?: { id: string; name: string };
 }
 
 export interface Module {
@@ -76,6 +95,7 @@ export interface Module {
     order: number;
     classId?: string | null;
     materials: Material[];
+    exercises?: ModuleExercise[];
 }
 
 export interface LeaderboardEntry {

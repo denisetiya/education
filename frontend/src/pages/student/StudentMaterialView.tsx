@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, BookOpen, Video, FileText, Clock, User, Loader, AlertCircle, Award, HelpCircle, Zap, Timer, ChevronRight, Trophy, Target } from 'lucide-react';
+import { ArrowLeft, CheckCircle, BookOpen, Video, FileText, Clock, User, Loader, AlertCircle, Award, HelpCircle, Zap, Timer, ChevronRight, Trophy, Target, PenTool } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { materialsAPI, progressAPI, getApiErrorMessage } from '../../utils/api';
 import type { QuizContent as SharedQuizContent } from '../../types/quiz';
@@ -18,6 +18,8 @@ interface Material {
     createdBy?: { name: string };
     linkedQuizId?: string | null;
     linkedQuiz?: { id: string; title: string; type: string } | null;
+    linkedExerciseId?: string | null;
+    linkedExercise?: { id: string; title: string; class: { id: string; name: string } } | null;
     minPassingScore?: number | null;
     order?: number | null;
 }
@@ -70,6 +72,7 @@ export const StudentMaterialView: React.FC = () => {
 
     // Linked Quiz State
     const [showQuizPrompt, setShowQuizPrompt] = useState(false);
+    const [showExercisePrompt, setShowExercisePrompt] = useState(false);
 
     const startTimeRef = useRef<number>(Date.now());
     const timeTrackerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -281,11 +284,16 @@ export const StudentMaterialView: React.FC = () => {
             setShowXPNotification(true);
             setProgress({ status: 'completed', timeSpent, completedAt: new Date().toISOString(), score: quizScore });
 
-            // Check if there's a linked quiz
+            // Check if there's a linked quiz or interactive exercise
             if (material?.linkedQuizId && material?.linkedQuiz) {
                 setTimeout(() => {
                     setShowXPNotification(false);
                     setShowQuizPrompt(true);
+                }, 1500);
+            } else if (material?.linkedExerciseId && material?.linkedExercise) {
+                setTimeout(() => {
+                    setShowXPNotification(false);
+                    setShowExercisePrompt(true);
                 }, 1500);
             } else {
                 setTimeout(() => {
@@ -323,6 +331,13 @@ export const StudentMaterialView: React.FC = () => {
     const handleGoToQuiz = () => {
         if (material?.linkedQuizId) {
             navigate(`/student/materials/${material.linkedQuizId}`);
+        }
+    };
+
+    const handleGoToExercise = () => {
+        if (material?.linkedExerciseId && material?.linkedExercise) {
+            setShowExercisePrompt(false);
+            navigate(`/student/class/${material.linkedExercise.class.id}/exercise/${material.linkedExercise.id}`);
         }
     };
 
@@ -578,6 +593,70 @@ export const StudentMaterialView: React.FC = () => {
                                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                             >
                                 <HelpCircle size={18} /> Kerjakan Quiz
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Interactive Exercise Prompt Modal */}
+            {showExercisePrompt && material?.linkedExercise && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        background: 'white',
+                        padding: '2rem',
+                        width: '90%',
+                        maxWidth: '450px',
+                        borderRadius: '1.5rem',
+                        textAlign: 'center',
+                        animation: 'fadeIn 0.3s ease-out',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    }}>
+                        <div style={{ 
+                            width: '70px', 
+                            height: '70px', 
+                            borderRadius: '50%', 
+                            background: 'linear-gradient(135deg, #9333ea, #7c3aed)', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            margin: '0 auto 1.5rem' 
+                        }}>
+                            <PenTool size={36} color="white" />
+                        </div>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.75rem', color: 'var(--text-main)' }}>
+                            Saatnya Latihan!
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+                            Materi <strong>{material.title}</strong> terhubung dengan latihan interaktif 
+                            <strong> {material.linkedExercise.title}</strong>. 
+                            Kerjakan latihan untuk menguji pemahamanmu!
+                        </p>
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <button 
+                                className="btn btn-secondary" 
+                                onClick={() => {
+                                    setShowExercisePrompt(false);
+                                    navigate('/student/materials');
+                                }}
+                            >
+                                Nanti Saja
+                            </button>
+                            <button 
+                                className="btn btn-primary" 
+                                onClick={handleGoToExercise}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            >
+                                <PenTool size={18} /> Kerjakan Latihan
                             </button>
                         </div>
                     </div>

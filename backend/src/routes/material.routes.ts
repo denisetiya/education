@@ -39,7 +39,15 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
             where,
             include: {
                 createdBy: { select: { name: true } },
-                linkedQuiz: { select: { id: true, title: true, type: true } }
+                linkedQuiz: { select: { id: true, title: true, type: true } },
+                linkedExercise: {
+                    select: {
+                        id: true,
+                        title: true,
+                        exerciseType: true,
+                        class: { select: { id: true, name: true } }
+                    }
+                }
             },
             orderBy: [{ order: 'asc' }, { createdAt: 'desc' }]
         });
@@ -85,7 +93,15 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
             where: { id: req.params.id },
             include: {
                 createdBy: { select: { name: true } },
-                linkedQuiz: { select: { id: true, title: true, type: true } }
+                linkedQuiz: { select: { id: true, title: true, type: true } },
+                linkedExercise: {
+                    select: {
+                        id: true,
+                        title: true,
+                        exerciseType: true,
+                        class: { select: { id: true, name: true } }
+                    }
+                }
             }
         });
 
@@ -102,7 +118,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
 router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
-        const { title, type, category, level, content, semester, grade, linkedQuizId, minPassingScore, order } = req.body;
+        const { title, type, category, level, content, semester, grade, linkedQuizId, linkedExerciseId, minPassingScore, order } = req.body;
 
         const material = await prisma.material.create({
             data: {
@@ -114,6 +130,7 @@ router.post('/', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: Au
                 semester: semester || 1,
                 grade: grade || 7,
                 linkedQuizId: linkedQuizId || null,
+                linkedExerciseId: linkedExerciseId || null,
                 minPassingScore: minPassingScore ?? 70,
                 order: order || null,
                 createdById: req.user!.id
@@ -134,7 +151,7 @@ router.put('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: 
             return res.status(403).json({ error: 'Cannot update material owned by another teacher' });
         }
 
-        const { title, type, category, level, content, semester, grade, linkedQuizId, minPassingScore, order } = req.body;
+        const { title, type, category, level, content, semester, grade, linkedQuizId, linkedExerciseId, minPassingScore, order } = req.body;
 
         const material = await prisma.material.update({
             where: { id: req.params.id },
@@ -147,6 +164,7 @@ router.put('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: 
                 semester,
                 grade,
                 linkedQuizId: linkedQuizId || null,
+                linkedExerciseId: linkedExerciseId || null,
                 minPassingScore: minPassingScore ?? undefined,
                 order: order || null
             }

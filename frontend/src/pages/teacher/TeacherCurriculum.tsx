@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, FileText, Video, HelpCircle, Trash, BookOpen, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
+import { Plus, FileText, Video, HelpCircle, Trash, BookOpen, ChevronUp, ChevronDown, RefreshCw, PenTool } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { modulesAPI, materialsAPI, getApiErrorMessage } from '../../utils/api';
+import { modulesAPI, materialsAPI, classesAPI, getApiErrorMessage } from '../../utils/api';
+import type { ModuleExercise } from '../../types/api.types';
 
 // Interface definitions
 interface ModuleItem {
@@ -13,6 +14,7 @@ interface ModuleItem {
     subject: string;
     order: number;
     materials: MaterialItem[];
+    exercises?: ModuleExercise[];
 }
 
 interface MaterialItem {
@@ -21,10 +23,18 @@ interface MaterialItem {
     type: string;
 }
 
+const EXERCISE_DIFFICULTY_LABEL: Record<string, string> = {
+    easy: 'Mudah',
+    medium: 'Sedang',
+    hard: 'Sulit'
+};
+
 export const TeacherCurriculum: React.FC = () => {
     const notifications = useNotifications();
     const [modules, setModules] = useState<ModuleItem[]>([]);
     const [libraryMaterials, setLibraryMaterials] = useState<MaterialItem[]>([]);
+    const [exerciseLibrary, setExerciseLibrary] = useState<ModuleExercise[]>([]);
+    const [libraryTab, setLibraryTab] = useState<'materials' | 'exercises'>('materials');
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
     
@@ -40,15 +50,18 @@ export const TeacherCurriculum: React.FC = () => {
     const refreshData = async () => {
         setLoading(true);
         try {
-            const [modulesData, materialsData] = await Promise.all([
+            const [modulesData, materialsData, exerciseLibraryData] = await Promise.all([
                 modulesAPI.getAll(),
-                materialsAPI.getAll()
+                materialsAPI.getAll(),
+                classesAPI.getExerciseLibrary()
             ]);
             setModules(modulesData.map((module) => ({
                 ...module,
-                materials: module.materials ?? []
+                materials: module.materials ?? [],
+                exercises: module.exercises ?? []
             })));
             setLibraryMaterials(materialsData);
+            setExerciseLibrary(exerciseLibraryData);
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
@@ -107,17 +120,13 @@ export const TeacherCurriculum: React.FC = () => {
             const module = modules.find(m => m.id === moduleId);
             if (!module) return;
 
-            // Current materials in this module
             const currentMaterialIds = module.materials.map(m => m.id);
-            // Check if already exists
             if (currentMaterialIds.includes(materialId)) {
                 notifications.info('Materi ini sudah ada di modul tersebut.', 'Materi sudah terpasang');
                 return;
             }
 
-            // Append new material
-            const updatedIds = [...currentMaterialIds, materialId];
-            await modulesAPI.assignMaterials(moduleId, updatedIds);
+            await modulesAPI.assignMaterials(moduleId, [...currentMaterialIds, materialId]);
             refreshData();
         } catch (error) {
            console.error("Failed to add material", error);
@@ -126,15 +135,6 @@ export const TeacherCurriculum: React.FC = () => {
 
     const handleRemoveMaterialFromModule = async (moduleId: string, materialId: string) => {
          try {
-            // Optimistic update or just refetch. Using specific delete endpoint.
-            // But API definition might need adjustment or we use assignMaterials with filtered list.
-            // Using the delete endpoint defined in routes: DELETE /:moduleId/materials/:materialId
-            
-            // Wait, I defined specific DELETE endpoint in backend. Let's use it directly via generic fetch if not in API wrapper?
-            // Actually, I put `delete: (id) => ...` in wrapper but that is for module delete.
-            // I forgot to add specific `removeMaterial` to modulesAPI in api.ts? 
-            // Let's check api.ts later. For now, re-assigning with filtered list is safest using `assignMaterials`.
-            
             const module = modules.find(m => m.id === moduleId);
             if (!module) return;
             const updatedIds = module.materials.filter(m => m.id !== materialId).map(m => m.id);
@@ -142,6 +142,33 @@ export const TeacherCurriculum: React.FC = () => {
             refreshData();
         } catch (error) {
             console.error("Failed to remove material", error);
+        }
+    };
+
+    const handleAddExerciseToModule = async (moduleId: string, exerciseId: string) => {
+        try {
+            const module = modules.find(m => m.id === moduleId);
+            if (!module) return;
+
+            const currentExerciseIds = (module.exercises ?? []).map(ex => ex.id);
+            if (currentExerciseIds.includes(exerciseId)) {
+                notifications.info('Latihan ini sudah ada di modul tersebut.', 'Latihan sudah terpasang');
+                return;
+            }
+
+            await modulesAPI.assignExercises(moduleId, [...currentExerciseIds, exerciseId]);
+            refreshData();
+        } catch (error) {
+            console.error("Failed to add exercise", error);
+        }
+    };
+
+    const handleRemoveExerciseFromModule = async (moduleId: string, exerciseId: string) => {
+        try {
+            await modulesAPI.removeExercise(moduleId, exerciseId);
+            refreshData();
+        } catch (error) {
+            console.error("Failed to remove exercise", error);
         }
     };
 
@@ -163,19 +190,21 @@ export const TeacherCurriculum: React.FC = () => {
         }
     };
 
-    // Drag-and-drop handler for Toolbox -> Module could be complex. 
-    // Simplified: "Add" button in helper tool or drag icon?
-    // Let's implement Drag Start on Library Item and Drop on Module.
-    
-    const handleDragStart = (e: React.DragEvent, materialId: string) => {
-        e.dataTransfer.setData("materialId", materialId);
+    // Drag-and-drop: library item -> module
+    const handleDragStart = (e: React.DragEvent, itemType: 'material' | 'exercise', itemId: string) => {
+        e.dataTransfer.setData('itemType', itemType);
+        e.dataTransfer.setData('itemId', itemId);
     };
 
     const handleDrop = async (e: React.DragEvent, moduleId: string) => {
         e.preventDefault();
-        const materialId = e.dataTransfer.getData("materialId");
-        if (materialId) {
-            await handleAddMaterialToModule(moduleId, materialId);
+        const itemType = e.dataTransfer.getData('itemType');
+        const itemId = e.dataTransfer.getData('itemId');
+        if (!itemId) return;
+        if (itemType === 'exercise') {
+            await handleAddExerciseToModule(moduleId, itemId);
+        } else {
+            await handleAddMaterialToModule(moduleId, itemId);
         }
     };
 
@@ -238,40 +267,78 @@ export const TeacherCurriculum: React.FC = () => {
 
                                 {/* Module Items */}
                                 <div style={{ padding: '1.5rem', background: '#f8fafc', minHeight: '100px' }}>
-                                    {module.materials.length === 0 ? (
+                                    {module.materials.length === 0 && (module.exercises?.length ?? 0) === 0 ? (
                                         <div style={{ border: '2px dashed #cbd5e1', borderRadius: '0.75rem', padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
-                                            <p>Drop materi dari Library di sini</p>
+                                            <p>Drop materi atau latihan interaktif dari Library di sini</p>
                                         </div>
                                     ) : (
-                                        module.materials.map((item) => (
-                                            <div key={item.id} style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '1rem',
-                                                padding: '1rem',
-                                                marginBottom: '0.8rem',
-                                                background: 'white',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '0.75rem',
-                                                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                                            }}>
-                                                <div style={{
-                                                    padding: '0.6rem',
-                                                    borderRadius: '0.5rem',
-                                                    background: item.type === 'video' ? '#eff6ff' : item.type === 'quiz' ? '#fef2f2' : '#f0fdf4',
-                                                    color: item.type === 'video' ? '#2563eb' : item.type === 'quiz' ? '#dc2626' : '#166534'
+                                        <>
+                                            {module.materials.map((item) => (
+                                                <div key={item.id} style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '1rem',
+                                                    padding: '1rem',
+                                                    marginBottom: '0.8rem',
+                                                    background: 'white',
+                                                    border: '1px solid #e2e8f0',
+                                                    borderRadius: '0.75rem',
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                                                 }}>
-                                                    {item.type === 'video' ? <Video size={18} /> : item.type === 'quiz' ? <HelpCircle size={18} /> : item.type === 'book' ? <BookOpen size={18} /> : <FileText size={18} />}
+                                                    <div style={{
+                                                        padding: '0.6rem',
+                                                        borderRadius: '0.5rem',
+                                                        background: item.type === 'video' ? '#eff6ff' : item.type === 'quiz' ? '#fef2f2' : '#f0fdf4',
+                                                        color: item.type === 'video' ? '#2563eb' : item.type === 'quiz' ? '#dc2626' : '#166534'
+                                                    }}>
+                                                        {item.type === 'video' ? <Video size={18} /> : item.type === 'quiz' ? <HelpCircle size={18} /> : item.type === 'book' ? <BookOpen size={18} /> : <FileText size={18} />}
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <p style={{ fontWeight: '600', fontSize: '0.95rem' }}>{item.title}</p>
+                                                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'capitalize' }}>{item.type}</p>
+                                                    </div>
+                                                    <button onClick={() => handleRemoveMaterialFromModule(module.id, item.id)} style={{ color: '#cbd5e1', padding: '0.4rem' }} className="hover:text-red-500">
+                                                        <Trash size={16} />
+                                                    </button>
                                                 </div>
-                                                <div style={{ flex: 1 }}>
-                                                    <p style={{ fontWeight: '600', fontSize: '0.95rem' }}>{item.title}</p>
-                                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'capitalize' }}>{item.type}</p>
+                                            ))}
+                                            {(module.exercises ?? []).map((exercise) => (
+                                                <div key={exercise.id} style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '1rem',
+                                                    padding: '1rem',
+                                                    marginBottom: '0.8rem',
+                                                    background: 'white',
+                                                    border: '1px solid #e2e8f0',
+                                                    borderRadius: '0.75rem',
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                                }}>
+                                                    <div style={{ padding: '0.6rem', borderRadius: '0.5rem', background: '#f3e8ff', color: '#9333ea' }}>
+                                                        <PenTool size={18} />
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                            <p style={{ fontWeight: '600', fontSize: '0.95rem' }}>{exercise.title}</p>
+                                                            <span style={{ padding: '0.1rem 0.45rem', borderRadius: '0.5rem', background: '#eef2ff', color: '#4338ca', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                                Kelas: {exercise.class?.name ?? '-'}
+                                                            </span>
+                                                            {!exercise.isPublished && (
+                                                                <span style={{ padding: '0.1rem 0.45rem', borderRadius: '0.5rem', background: '#fef3c7', color: '#92400e', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                                    Draft
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'capitalize' }}>
+                                                            Latihan Interaktif • {EXERCISE_DIFFICULTY_LABEL[exercise.difficulty] ?? exercise.difficulty}
+                                                        </p>
+                                                    </div>
+                                                    <button onClick={() => handleRemoveExerciseFromModule(module.id, exercise.id)} style={{ color: '#cbd5e1', padding: '0.4rem' }} className="hover:text-red-500">
+                                                        <Trash size={16} />
+                                                    </button>
                                                 </div>
-                                                <button onClick={() => handleRemoveMaterialFromModule(module.id, item.id)} style={{ color: '#cbd5e1', padding: '0.4rem' }} className="hover:text-red-500">
-                                                    <Trash size={16} />
-                                                </button>
-                                            </div>
-                                        ))
+                                            ))}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -281,15 +348,51 @@ export const TeacherCurriculum: React.FC = () => {
                     {/* Toolbox Sidebar (Library) */}
                     <div style={{ position: 'sticky', top: '2rem', height: 'fit-content' }}>
                         <div className="card glass" style={{ padding: '1.5rem', maxHeight: '80vh', overflowY: 'auto' }}>
-                            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '700' }}>Library Materi</h3>
-                            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>Drag materi ke dalam modul.</p>
+                            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '700' }}>Library</h3>
+                            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>Drag materi atau latihan interaktif ke dalam modul.</p>
+
+                            {/* Library Tabs */}
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                                <button
+                                    onClick={() => setLibraryTab('materials')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.55rem',
+                                        borderRadius: '0.6rem',
+                                        border: libraryTab === 'materials' ? 'none' : '1px solid #e2e8f0',
+                                        cursor: 'pointer',
+                                        fontWeight: '600',
+                                        fontSize: '0.85rem',
+                                        background: libraryTab === 'materials' ? 'var(--primary)' : 'white',
+                                        color: libraryTab === 'materials' ? 'white' : '#64748b'
+                                    }}
+                                >
+                                    Materi
+                                </button>
+                                <button
+                                    onClick={() => setLibraryTab('exercises')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.55rem',
+                                        borderRadius: '0.6rem',
+                                        border: libraryTab === 'exercises' ? 'none' : '1px solid #e2e8f0',
+                                        cursor: 'pointer',
+                                        fontWeight: '600',
+                                        fontSize: '0.85rem',
+                                        background: libraryTab === 'exercises' ? 'var(--primary)' : 'white',
+                                        color: libraryTab === 'exercises' ? 'white' : '#64748b'
+                                    }}
+                                >
+                                    Latihan
+                                </button>
+                            </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                {libraryMaterials.map(mat => (
+                                {libraryTab === 'materials' ? libraryMaterials.map(mat => (
                                     <div 
                                         key={mat.id}
                                         draggable
-                                        onDragStart={(e) => handleDragStart(e, mat.id)}
+                                        onDragStart={(e) => handleDragStart(e, 'material', mat.id)}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -316,7 +419,55 @@ export const TeacherCurriculum: React.FC = () => {
                                             <p style={{ fontWeight: '600', fontSize: '0.9rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mat.title}</p>
                                         </div>
                                     </div>
-                                ))}
+                                )) : (exerciseLibrary.length === 0 ? (
+                                    <p style={{ fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '1rem 0' }}>
+                                        Belum ada latihan interaktif. Buat dari halaman Kelas → Latihan.
+                                    </p>
+                                ) : exerciseLibrary.map(exercise => (
+                                    <div
+                                        key={exercise.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, 'exercise', exercise.id)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '1rem',
+                                            padding: '1rem',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.75rem',
+                                            cursor: 'grab',
+                                            background: 'white',
+                                            boxShadow: '0 2px 5px rgba(0,0,0,0.02)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        className="hover:border-primary"
+                                    >
+                                        <div style={{
+                                            padding: '0.5rem',
+                                            borderRadius: '0.4rem',
+                                            background: '#f3e8ff',
+                                            color: '#9333ea'
+                                        }}>
+                                            <PenTool size={16} />
+                                        </div>
+                                        <div style={{ overflow: 'hidden', flex: 1 }}>
+                                            <p style={{ fontWeight: '600', fontSize: '0.9rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{exercise.title}</p>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                                                <span style={{ padding: '0.05rem 0.45rem', borderRadius: '0.4rem', background: '#eef2ff', color: '#4338ca', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                    Kelas: {exercise.class?.name ?? '-'}
+                                                </span>
+                                                {!exercise.isPublished && (
+                                                    <span style={{ padding: '0.05rem 0.45rem', borderRadius: '0.4rem', background: '#fef3c7', color: '#92400e', fontSize: '0.7rem', fontWeight: 600 }}>
+                                                        Draft
+                                                    </span>
+                                                )}
+                                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                                                    {EXERCISE_DIFFICULTY_LABEL[exercise.difficulty] ?? exercise.difficulty}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )))}
                             </div>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ import type {
     LeaderboardEntry,
     Material,
     Module,
+    ModuleExercise,
     ProgressHistory,
     QuizResult,
     TeacherAnalyticsData,
@@ -245,6 +246,10 @@ export const modulesAPI = {
         apiFetch<Record<string, unknown>>('/modules/reorder', { method: 'PUT', body: JSON.stringify({ orderedIds }) }),
     assignMaterials: (moduleId: string, materialIds: string[]) =>
         apiFetch<Record<string, unknown>>(`/modules/${moduleId}/materials`, { method: 'POST', body: JSON.stringify({ materialIds }) }),
+    assignExercises: (moduleId: string, exerciseIds: string[]) =>
+        apiFetch<Record<string, unknown>>(`/modules/${moduleId}/exercises`, { method: 'POST', body: JSON.stringify({ exerciseIds }) }),
+    removeExercise: (moduleId: string, exerciseId: string) =>
+        apiFetch<Record<string, unknown>>(`/modules/${moduleId}/exercises/${exerciseId}`, { method: 'DELETE' }),
     getByClass: (classId: string) => apiFetch<Module[]>(`/modules/by-class/${classId}`),
     getUnassigned: () => apiFetch<Module[]>('/modules/unassigned'),
     assignToClass: (moduleId: string, classId: string | null) =>
@@ -363,6 +368,7 @@ export const classesAPI = {
 
     // Exercises (Interactive Geometry)
     getExercises: (classId: string) => apiFetch<ClassExerciseSummary[]>(`/classes/${classId}/exercises`),
+    getExerciseLibrary: () => apiFetch<ModuleExercise[]>(`/classes/exercises/library`),
     getExercise: (classId: string, exerciseId: string) => apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises/${exerciseId}`),
     createExercise: (classId: string, data: {
         title: string;

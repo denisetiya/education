@@ -56,6 +56,10 @@ model Material {
   linkedFromMaterials Material[] @relation("MaterialToQuiz")
   minPassingScore Int?      @default(70) // Nilai minimal kelulusan (0-100)
   order           Int?      // Urutan materi dalam pembelajaran
+
+  // Interactive exercise linking
+  linkedExerciseId    String?
+  linkedExercise      ClassExercise? @relation("MaterialToExercise", fields: [linkedExerciseId], references: [id])
   
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -82,6 +86,7 @@ model Module {
   updatedAt   DateTime  @updatedAt
 
   materials   Material[]
+  exercises   ClassExercise[]
 }
 
 model Class {
@@ -233,6 +238,14 @@ model ClassExercise {
   class         Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   classId       String
   attempts      ExerciseAttempt[]
+
+  // Curriculum module placement
+  moduleId      String?
+  module        Module?  @relation(fields: [moduleId], references: [id])
+  moduleOrder   Int?     // Order within the module
+
+  // Materials that link to this exercise
+  linkedFromMaterials Material[] @relation("MaterialToExercise")
 }
 
 // Student exercise attempts

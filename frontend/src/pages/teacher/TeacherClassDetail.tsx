@@ -49,6 +49,7 @@ interface ModuleItem {
     title: string;
     description?: string;
     materials: Array<{ id: string; title: string; type: string }>;
+    exercises?: Array<{ id: string; title: string }>;
 }
 
 interface Achievement {
@@ -701,6 +702,9 @@ export const TeacherClassDetail: React.FC = () => {
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', color: '#64748b' }}>
                                                         <FileText size={14} /> {module.materials?.length || 0} materi
                                                     </span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', color: '#64748b' }}>
+                                                        <PenTool size={14} /> {module.exercises?.length || 0} latihan
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1131,7 +1135,7 @@ export const TeacherClassDetail: React.FC = () => {
                                         <div>
                                             <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{module.title}</p>
                                             <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                                                {module.materials?.length || 0} materi
+                                                {module.materials?.length || 0} materi · {module.exercises?.length || 0} latihan
                                             </p>
                                         </div>
                                         <button 

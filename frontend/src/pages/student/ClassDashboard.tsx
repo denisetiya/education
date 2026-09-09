@@ -36,6 +36,14 @@ interface DashboardData {
                 type: string;
                 moduleOrder: number;
             }>;
+            exercises?: Array<{
+                id: string;
+                title: string;
+                exerciseType: string;
+                difficulty: string;
+                points: number;
+                moduleOrder: number;
+            }>;
         }>;
         achievements: Array<{
             id: string;
@@ -57,6 +65,11 @@ interface DashboardData {
         materialId: string;
         status: string;
         score?: number;
+    }>;
+    exerciseProgress?: Array<{
+        exerciseId: string;
+        score: number;
+        isCorrect: boolean;
     }>;
     achievements: {
         unlocked: Array<{ achievement: { id: string; title: string; icon: string } }>;
@@ -117,29 +130,50 @@ export const ClassDashboard: React.FC = () => {
     const getMaterialStatus = (materialId: string) =>
         data?.materialProgress.find((item) => item.materialId === materialId)?.status || 'not_started';
 
-    const isMaterialLocked = (moduleIndex: number, materialIndex: number) => {
+    const isExerciseAttempted = (exerciseId: string) =>
+        Boolean(data?.exerciseProgress?.some((item) => item.exerciseId === exerciseId));
+
+    const getModuleItems = (module: (NonNullable<typeof data>['class']['modules'][number]), moduleIndex: number) =>
+        [
+            ...module.materials.map((material, materialIndex) => ({
+                kind: 'material' as const,
+                id: material.id,
+                title: material.title,
+                type: material.type,
+                moduleIndex,
+                itemIndex: materialIndex
+            })),
+            ...(module.exercises ?? []).map((exercise, exerciseIndex) => ({
+                kind: 'exercise' as const,
+                id: exercise.id,
+                title: exercise.title,
+                type: 'exercise',
+                moduleIndex,
+                itemIndex: module.materials.length + exerciseIndex
+            }))
+        ];
+
+    const isItemLocked = (moduleIndex: number, itemIndex: number) => {
         if (!data || data.class.progressionMode === 'free') {
             return false;
         }
 
-        const allMaterials = data.class.modules.flatMap((module, modIdx) =>
-            module.materials.map((material, matIdx) => ({
-                id: material.id,
-                moduleIndex: modIdx,
-                materialIndex: matIdx
-            }))
+        const allItems = data.class.modules.flatMap((module, modIdx) =>
+            getModuleItems(module, modIdx)
         );
 
-        const currentIndex = allMaterials.findIndex(
-            (item) => item.moduleIndex === moduleIndex && item.materialIndex === materialIndex
+        const currentIndex = allItems.findIndex(
+            (item) => item.moduleIndex === moduleIndex && item.itemIndex === itemIndex
         );
 
         if (currentIndex <= 0) {
             return false;
         }
 
-        const previousMaterial = allMaterials[currentIndex - 1];
-        return getMaterialStatus(previousMaterial.id) !== 'completed';
+        const previousItem = allItems[currentIndex - 1];
+        return previousItem.kind === 'material'
+            ? getMaterialStatus(previousItem.id) !== 'completed'
+            : !isExerciseAttempted(previousItem.id);
     };
 
     if (loading) {
@@ -162,22 +196,21 @@ export const ClassDashboard: React.FC = () => {
     }
 
     const { class: cls, progress, achievements } = data;
-    let nextMaterial: { moduleTitle: string; material: DashboardData['class']['modules'][number]['materials'][number] } | null = null;
+    let nextItem: { moduleTitle: string; item: { kind: 'material' | 'exercise'; id: string; title: string; type: string } } | null = null;
 
     for (let modIdx = 0; modIdx < cls.modules.length; modIdx += 1) {
         const module = cls.modules[modIdx];
-        for (let matIdx = 0; matIdx < module.materials.length; matIdx += 1) {
-            const material = module.materials[matIdx];
-            if (!isMaterialLocked(modIdx, matIdx) && getMaterialStatus(material.id) !== 'completed') {
-                nextMaterial = {
-                    moduleTitle: module.title,
-                    material
-                };
+        for (const item of getModuleItems(module, modIdx)) {
+            const completed = item.kind === 'material'
+                ? getMaterialStatus(item.id) === 'completed'
+                : isExerciseAttempted(item.id);
+            if (!isItemLocked(modIdx, item.itemIndex) && !completed) {
+                nextItem = { moduleTitle: module.title, item };
                 break;
             }
         }
 
-        if (nextMaterial) {
+        if (nextItem) {
             break;
         }
     }
@@ -302,10 +335,10 @@ export const ClassDashboard: React.FC = () => {
                             </button>
                         </div>
 
-                        {nextMaterial ? (
+                        {nextItem ? (
                             <button
                                 type="button"
-                                onClick={() => navigate(`/student/materials/${nextMaterial.material.id}`)}
+                                onClick={() => navigate(nextItem.item.kind === 'exercise' ? `/student/class/${classId}/exercise/${nextItem.item.id}` : `/student/materials/${nextItem.item.id}`)}
                                 style={{
                                     width: '100%',
                                     textAlign: 'left',
@@ -317,12 +350,14 @@ export const ClassDashboard: React.FC = () => {
                                 }}
                             >
                                 <p style={{ color: '#1d4ed8', fontSize: '0.78rem', fontWeight: 700, marginBottom: '0.3rem' }}>
-                                    Selanjutnya dari modul {nextMaterial.moduleTitle}
+                                    Selanjutnya dari modul {nextItem.moduleTitle}
                                 </p>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
                                     <div>
-                                        <p style={{ color: '#0f172a', fontWeight: 800, marginBottom: '0.25rem' }}>{nextMaterial.material.title}</p>
-                                        <p style={{ color: '#64748b', fontSize: '0.84rem' }}>{getMaterialTypeLabel(nextMaterial.material.type)}</p>
+                                        <p style={{ color: '#0f172a', fontWeight: 800, marginBottom: '0.25rem' }}>{nextItem.item.title}</p>
+                                        <p style={{ color: '#64748b', fontSize: '0.84rem' }}>
+                                            {nextItem.item.kind === 'exercise' ? 'Latihan Interaktif' : getMaterialTypeLabel(nextItem.item.type)}
+                                        </p>
                                     </div>
                                     <ArrowRight size={18} color="#94a3b8" />
                                 </div>
@@ -377,7 +412,10 @@ export const ClassDashboard: React.FC = () => {
                                 </div>
                             ) : (
                                 cls.modules.map((module, moduleIndex) => {
-                                    const moduleComplete = module.materials.length > 0 && module.materials.every(m => getMaterialStatus(m.id) === 'completed');
+                                    const moduleItems = getModuleItems(module, moduleIndex);
+                                    const moduleComplete = moduleItems.length > 0 && moduleItems.every(item =>
+                                        item.kind === 'material' ? getMaterialStatus(item.id) === 'completed' : isExerciseAttempted(item.id)
+                                    );
                                     return (
                                     <div key={module.id} style={{ 
                                         padding: '1rem', 
@@ -409,7 +447,9 @@ export const ClassDashboard: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                            <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>{module.materials.length} materi</span>
+                                            <span style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>
+                                                {module.materials.length} materi · {(module.exercises?.length ?? 0)} latihan
+                                            </span>
                                         </div>
 
                                         {moduleComplete && (
@@ -470,6 +510,50 @@ export const ClassDashboard: React.FC = () => {
                                                                 </p>
                                                             </div>
                                                             {locked ? <Lock size={18} color="#94a3b8" /> : status === 'completed' ? <CheckCircle2 size={18} color="#16a34a" /> : <ChevronRight size={18} color="#94a3b8" />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                            {(module.exercises ?? []).map((exercise, exerciseIndex) => {
+                                                const itemIndex = module.materials.length + exerciseIndex;
+                                                const locked = isItemLocked(moduleIndex, itemIndex);
+                                                const attempted = isExerciseAttempted(exercise.id);
+
+                                                return (
+                                                    <button
+                                                        key={exercise.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!locked) {
+                                                                navigate(`/student/class/${classId}/exercise/${exercise.id}`);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            width: '100%',
+                                                            textAlign: 'left',
+                                                            padding: '0.95rem 1rem',
+                                                            borderRadius: '0.95rem',
+                                                            border: locked ? '1px solid #e2e8f0' : '1px solid #e9d5ff',
+                                                            background: locked ? '#f8fafc' : 'white',
+                                                            cursor: locked ? 'not-allowed' : 'pointer',
+                                                            opacity: locked ? 0.75 : 1
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
+                                                            <div style={{ minWidth: 0 }}>
+                                                                <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
+                                                                    <span style={{ padding: '0.28rem 0.58rem', borderRadius: '999px', background: '#f3e8ff', color: '#9333ea', fontSize: '0.72rem', fontWeight: 700 }}>
+                                                                        Latihan Interaktif
+                                                                    </span>
+                                                                    <span style={{ padding: '0.28rem 0.58rem', borderRadius: '999px', background: attempted ? '#dcfce7' : '#eef2ff', color: attempted ? '#166534' : '#4338ca', fontSize: '0.72rem', fontWeight: 700 }}>
+                                                                        {attempted ? 'Selesai' : 'Belum dikerjakan'}
+                                                                    </span>
+                                                                </div>
+                                                                <p style={{ color: '#0f172a', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {exercise.title}
+                                                                </p>
+                                                            </div>
+                                                            {locked ? <Lock size={18} color="#94a3b8" /> : attempted ? <CheckCircle2 size={18} color="#16a34a" /> : <ChevronRight size={18} color="#94a3b8" />}
                                                         </div>
                                                     </button>
                                                 );

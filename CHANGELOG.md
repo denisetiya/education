@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added interactive exercise assignment in the curriculum builder: drag exercises from a per-teacher library into modules, with class-name badges, draft markers, and remove support.
+- Added module exercises to student class dashboards and learning journeys, including attempt progress, sequential locking, and next-step navigation to exercise sessions.
+- Added interactive exercise linking on material editing so students are prompted to work the linked exercise after completing a material.
+- Added a teacher-wide interactive exercise library endpoint (`GET /classes/exercises/library`) for the curriculum builder and material linking dropdown.
 - Added GitHub Actions deployment flow for GHCR images, VPS SSH deployment, Prisma migrations, and Docker Compose startup.
 - Added production deployment documentation for server prerequisites, GitHub secrets, GitHub variables, and Cloudflare Tunnel setup.
 - Added deployment recovery notes for failed first-run SQLite migrations.

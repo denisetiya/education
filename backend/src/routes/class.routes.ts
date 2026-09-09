@@ -16,6 +16,19 @@ import {
 
 const router = Router();
 
+const classExercisesSelect = {
+    select: {
+        id: true,
+        title: true,
+        exerciseType: true,
+        difficulty: true,
+        points: true,
+        moduleOrder: true
+    },
+    where: { isPublished: true },
+    orderBy: { moduleOrder: 'asc' as const }
+};
+
 const classDetailInclude = {
     teacher: { select: { id: true, name: true } },
     modules: {
@@ -23,7 +36,8 @@ const classDetailInclude = {
             materials: {
                 select: { id: true, title: true, type: true, moduleOrder: true },
                 orderBy: { moduleOrder: 'asc' as const }
-            }
+            },
+            exercises: classExercisesSelect
         },
         orderBy: { order: 'asc' as const }
     },
@@ -55,7 +69,8 @@ const classDashboardInclude = {
             materials: {
                 select: { id: true, title: true, type: true, moduleOrder: true },
                 orderBy: { moduleOrder: 'asc' as const }
-            }
+            },
+            exercises: classExercisesSelect
         },
         orderBy: { order: 'asc' as const }
     },
@@ -713,6 +728,33 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
 });
 
+// Library of interactive exercises across the teacher's classes (for curriculum & material linking)
+router.get('/exercises/library', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const user = getRequestUser(req);
+
+        const exercises = await prisma.classExercise.findMany({
+            where: user.role === 'ADMIN' ? {} : { class: { teacherId: user.id } },
+            select: {
+                id: true,
+                title: true,
+                exerciseType: true,
+                difficulty: true,
+                isPublished: true,
+                points: true,
+                moduleId: true,
+                class: { select: { id: true, name: true } }
+            },
+            orderBy: [{ class: { name: 'asc' } }, { title: 'asc' }]
+        });
+
+        res.json(exercises);
+    } catch (error) {
+        console.error('Get exercise library error:', error);
+        res.status(500).json({ error: 'Failed to fetch exercise library' });
+    }
+});
+
 // Class settings (Teacher only)
 router.put('/:id/settings', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
@@ -772,12 +814,28 @@ router.get('/:id/dashboard', authMiddleware, async (req: AuthRequest, res) => {
         }
 
         const materialIds = classData.modules.flatMap((module) => module.materials.map((material) => material.id));
+        const exerciseIds = classData.modules.flatMap((module) => module.exercises.map((exercise) => exercise.id));
 
         const progress = access.isEnrolled
             ? await prisma.progress.findMany({
                 where: {
                     userId: user.id,
                     materialId: { in: materialIds }
+                }
+            })
+            : [];
+
+        const exerciseAttempts = access.isEnrolled && exerciseIds.length > 0
+            ? await prisma.exerciseAttempt.findMany({
+                where: {
+                    studentId: user.id,
+                    exerciseId: { in: exerciseIds }
+                },
+                select: {
+                    exerciseId: true,
+                    score: true,
+                    isCorrect: true,
+                    gradingStatus: true
                 }
             })
             : [];
@@ -792,8 +850,9 @@ router.get('/:id/dashboard', authMiddleware, async (req: AuthRequest, res) => {
             })
             : [];
 
-        const totalMaterials = materialIds.length;
+        const totalItems = materialIds.length + exerciseIds.length;
         const completedMaterials = progress.filter((item) => item.status === 'completed').length;
+        const completedExercises = exerciseAttempts.length;
         const totalXP = progress
             .filter((item) => item.status === 'completed')
             .reduce((sum, item) => sum + (item.score || 50) * (classData.xpMultiplier || 1), 0);
@@ -801,12 +860,13 @@ router.get('/:id/dashboard', authMiddleware, async (req: AuthRequest, res) => {
         res.json({
             class: classData,
             progress: {
-                completed: completedMaterials,
-                total: totalMaterials,
-                percentage: totalMaterials > 0 ? Math.round((completedMaterials / totalMaterials) * 100) : 0,
+                completed: completedMaterials + completedExercises,
+                total: totalItems,
+                percentage: totalItems > 0 ? Math.round(((completedMaterials + completedExercises) / totalItems) * 100) : 0,
                 xp: Math.round(totalXP)
             },
             materialProgress: progress,
+            exerciseProgress: exerciseAttempts,
             achievements: {
                 unlocked: unlockedAchievements,
                 total: classData.achievements.length

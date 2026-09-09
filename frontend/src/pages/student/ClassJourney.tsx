@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Map, Loader, CheckCircle, Lock, Play, Star, ChevronDown, Trophy, PartyPopper, ArrowRight } from 'lucide-react';
+import { Map, Loader, CheckCircle, Lock, Play, Star, ChevronDown, Trophy, PartyPopper, ArrowRight, PenTool } from 'lucide-react';
 import { classesAPI } from '../../utils/api';
 import { getContentTypeIcon } from '../../components/common/IconHelpers';
 
@@ -13,6 +13,17 @@ interface Module {
         title: string;
         type: string;
     }>;
+    exercises?: Array<{
+        id: string;
+        title: string;
+    }>;
+}
+
+interface JourneyItem {
+    kind: 'material' | 'exercise';
+    id: string;
+    title: string;
+    type: string;
 }
 
 export const ClassJourney: React.FC = () => {
@@ -20,6 +31,7 @@ export const ClassJourney: React.FC = () => {
     const navigate = useNavigate();
     const [modules, setModules] = useState<Module[]>([]);
     const [materialProgress, setMaterialProgress] = useState<Record<string, string>>({});
+    const [attemptedExercises, setAttemptedExercises] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [className, setClassName] = useState('');
     const [progressionMode, setProgressionMode] = useState('free');
@@ -44,6 +56,12 @@ export const ClassJourney: React.FC = () => {
                 progressMap[p.materialId] = p.status;
             });
             setMaterialProgress(progressMap);
+
+            const attemptMap: Record<string, boolean> = {};
+            (data.exerciseProgress ?? []).forEach((p: { exerciseId: string }) => {
+                attemptMap[p.exerciseId] = true;
+            });
+            setAttemptedExercises(attemptMap);
         } catch (err) {
             console.error('Failed to fetch journey', err);
         } finally {
@@ -63,33 +81,40 @@ export const ClassJourney: React.FC = () => {
         });
     };
 
+    const getModuleItems = (module: Module): JourneyItem[] => [
+        ...module.materials.map(mat => ({ kind: 'material' as const, id: mat.id, title: mat.title, type: mat.type })),
+        ...(module.exercises ?? []).map(ex => ({ kind: 'exercise' as const, id: ex.id, title: ex.title, type: 'exercise' }))
+    ];
+
+    const isItemCompleted = (item: JourneyItem) =>
+        item.kind === 'material'
+            ? materialProgress[item.id] === 'completed'
+            : Boolean(attemptedExercises[item.id]);
+
     const getModuleProgress = (module: Module) => {
-        let completed = 0;
-        module.materials.forEach(mat => {
-            if (materialProgress[mat.id] === 'completed') completed++;
-        });
-        return { completed, total: module.materials.length };
+        const items = getModuleItems(module);
+        const completed = items.filter(isItemCompleted).length;
+        return { completed, total: items.length };
     };
 
-    const getNodeStatus = (moduleIdx: number, matIdx: number, materialId: string): 'completed' | 'in_progress' | 'locked' | 'available' => {
-        const status = materialProgress[materialId];
-        if (status === 'completed') return 'completed';
-        if (status === 'in_progress') return 'in_progress';
+    const getNodeStatus = (moduleIdx: number, itemIdx: number, module: Module): 'completed' | 'in_progress' | 'locked' | 'available' => {
+        const items = getModuleItems(module);
+        const item = items[itemIdx];
+        if (isItemCompleted(item)) return 'completed';
+        if (item.kind === 'material' && materialProgress[item.id] === 'in_progress') return 'in_progress';
         
         if (progressionMode === 'free') return 'available';
-        if (moduleIdx === 0 && matIdx === 0) return 'available';
+        if (moduleIdx === 0 && itemIdx === 0) return 'available';
         
-        let prevCompleted = false;
-        if (matIdx > 0) {
-            const prevMat = modules[moduleIdx].materials[matIdx - 1];
-            prevCompleted = materialProgress[prevMat.id] === 'completed';
-        } else if (moduleIdx > 0) {
-            const prevModule = modules[moduleIdx - 1];
-            const lastMat = prevModule.materials[prevModule.materials.length - 1];
-            prevCompleted = materialProgress[lastMat?.id] === 'completed';
+        if (itemIdx > 0) {
+            const prevItem = items[itemIdx - 1];
+            return isItemCompleted(prevItem) ? 'available' : 'locked';
         }
         
-        return prevCompleted ? 'available' : 'locked';
+        const prevModule = modules[moduleIdx - 1];
+        const prevItems = getModuleItems(prevModule);
+        const lastItem = prevItems[prevItems.length - 1];
+        return lastItem && isItemCompleted(lastItem) ? 'available' : 'locked';
     };
 
     const getStatusIcon = (status: string) => {
@@ -334,7 +359,7 @@ export const ClassJourney: React.FC = () => {
                                         color: '#64748b',
                                         marginBottom: '0.5rem'
                                     }}>
-                                        {completed}/{total} materi selesai
+                                        {completed}/{total} langkah selesai
                                     </div>
 
                                     {/* Progress Bar */}
@@ -373,14 +398,21 @@ export const ClassJourney: React.FC = () => {
                                         }
                                     `}</style>
                                     
-                                    {module.materials.map((mat, matIdx) => {
-                                        const status = getNodeStatus(idx, matIdx, mat.id);
+                                    {getModuleItems(module).map((item, itemIdx) => {
+                                        const status = getNodeStatus(idx, itemIdx, module);
                                         const isLocked = status === 'locked';
                                         
                                         return (
                                             <div
-                                                key={mat.id}
-                                                onClick={() => !isLocked && navigate(`/student/materials/${mat.id}`)}
+                                                key={item.id}
+                                                onClick={() => {
+                                                    if (isLocked) return;
+                                                    if (item.kind === 'exercise') {
+                                                        navigate(`/student/class/${classId}/exercise/${item.id}`);
+                                                    } else {
+                                                        navigate(`/student/materials/${item.id}`);
+                                                    }
+                                                }}
                                                 style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -404,8 +436,8 @@ export const ClassJourney: React.FC = () => {
                                                         : 'none'
                                                 }}
                                             >
-                                                <span style={{ fontSize: '1.2rem' }}>
-                                                    {getTypeEmoji(mat.type)}
+                                                <span style={{ fontSize: '1.2rem', color: '#9333ea', display: 'flex' }}>
+                                                    {item.kind === 'exercise' ? <PenTool size={18} /> : getTypeEmoji(item.type)}
                                                 </span>
                                                 <span style={{ 
                                                     flex: 1, 
@@ -416,8 +448,13 @@ export const ClassJourney: React.FC = () => {
                                                     textOverflow: 'ellipsis',
                                                     whiteSpace: 'nowrap'
                                                 }}>
-                                                    {mat.title}
+                                                    {item.title}
                                                 </span>
+                                                {item.kind === 'exercise' && !isLocked && status !== 'completed' && (
+                                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9333ea', background: '#f3e8ff', padding: '0.15rem 0.45rem', borderRadius: '999px' }}>
+                                                        Latihan
+                                                    </span>
+                                                )}
                                                 {getStatusIcon(status)}
                                             </div>
                                         );
