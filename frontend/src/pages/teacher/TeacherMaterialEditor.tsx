@@ -18,8 +18,8 @@ interface MaterialFormData {
     content: string;
     semester: number;
     grade: number;
-    linkedQuizId: string;
-    linkedExerciseId: string;
+    /** Unified linking value: '' | 'quiz:<id>' | 'exercise:<id>' */
+    linkedEvaluationId: string;
     minPassingScore: number;
     order: number | null;
 }
@@ -32,7 +32,7 @@ interface SpecificFormState {
 
 const initialFormData: MaterialFormData = {
     title: '', type: 'article', category: 'MATEMATIKA', level: 'Mudah',
-    content: '', semester: 1, grade: 7, linkedQuizId: '', linkedExerciseId: '', minPassingScore: 70, order: null
+    content: '', semester: 1, grade: 7, linkedEvaluationId: '', minPassingScore: 70, order: null
 };
 
 const initialSpecificData: SpecificFormState = {
@@ -91,8 +91,11 @@ export const TeacherMaterialEditor: React.FC = () => {
                     content: material.content || '',
                     semester: material.semester,
                     grade: material.grade,
-                    linkedQuizId: (material as any).linkedQuizId || '',
-                    linkedExerciseId: material.linkedExerciseId || '',
+                    linkedEvaluationId: material.linkedQuizId
+                        ? `quiz:${material.linkedQuizId}`
+                        : material.linkedExerciseId
+                            ? `exercise:${material.linkedExerciseId}`
+                            : '',
                     minPassingScore: (material as any).minPassingScore ?? 70,
                     order: (material as any).order ?? null
                 };
@@ -261,7 +264,14 @@ export const TeacherMaterialEditor: React.FC = () => {
 
         try {
             setSubmitting(true);
-            const payload = { ...formData, content: finalContent };
+            const [linkKind, linkedId] = formData.linkedEvaluationId.split(':');
+            const linkFields = linkKind === 'quiz' && linkedId
+                ? { linkedQuizId: linkedId, linkedExerciseId: null }
+                : linkKind === 'exercise' && linkedId
+                    ? { linkedQuizId: null, linkedExerciseId: linkedId }
+                    : { linkedQuizId: null, linkedExerciseId: null };
+            const payload: Record<string, unknown> = { ...formData, ...linkFields, content: finalContent };
+            delete payload.linkedEvaluationId;
 
             if (isEditing && id) {
                 await materialsAPI.update(id, payload);
@@ -411,34 +421,28 @@ export const TeacherMaterialEditor: React.FC = () => {
                                 </p>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Quiz Terhubung</label>
+                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Evaluasi Terhubung</label>
                                         <select
-                                            value={formData.linkedQuizId}
-                                            onChange={(e) => setFormData({ ...formData, linkedQuizId: e.target.value })}
+                                            value={formData.linkedEvaluationId}
+                                            onChange={(e) => setFormData({ ...formData, linkedEvaluationId: e.target.value })}
                                             style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: 'white' }}
                                         >
                                             <option value="">-- Tidak Terhubung --</option>
-                                            {quizList.map(quiz => (
-                                                <option key={quiz.id} value={quiz.id}>{quiz.title} (Kls {quiz.grade})</option>
-                                            ))}
+                                            <optgroup label="Quiz">
+                                                {quizList.map(quiz => (
+                                                    <option key={quiz.id} value={`quiz:${quiz.id}`}>{quiz.title} (Kls {quiz.grade})</option>
+                                                ))}
+                                            </optgroup>
+                                            <optgroup label="Latihan Interaktif">
+                                                {exerciseList.map(exercise => (
+                                                    <option key={exercise.id} value={`exercise:${exercise.id}`}>
+                                                        {exercise.title} — {exercise.class?.name ?? '-'}{!exercise.isPublished ? ' (Draft)' : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
                                         </select>
                                     </div>
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Latihan Interaktif Terhubung</label>
-                                        <select
-                                            value={formData.linkedExerciseId}
-                                            onChange={(e) => setFormData({ ...formData, linkedExerciseId: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: 'white' }}
-                                        >
-                                            <option value="">-- Tidak Terhubung --</option>
-                                            {exerciseList.map(exercise => (
-                                                <option key={exercise.id} value={exercise.id}>
-                                                    {exercise.title} — {exercise.class?.name ?? '-'}{!exercise.isPublished ? ' (Draft)' : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {formData.linkedQuizId && (
+                                    {formData.linkedEvaluationId.startsWith('quiz:') && (
                                         <div>
                                             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.85rem' }}>Nilai Minimal Kelulusan</label>
                                             <input
