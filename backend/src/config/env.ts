@@ -18,6 +18,20 @@ const parseOrigins = (value?: string) =>
         .map((origin) => origin.trim())
         .filter(Boolean);
 
+// iPhone/Safari kadang kirim Origin http (bookmark http, redirect CF belum https).
+// Terima pasangan http/https dari host yang sama agar tidak kena blokir CORS.
+const withCounterpartScheme = (origins: string[]) => {
+    const result = new Set(origins);
+    for (const origin of origins) {
+        if (origin.startsWith('https://')) {
+            result.add(`http://${origin.slice('https://'.length)}`);
+        } else if (origin.startsWith('http://')) {
+            result.add(`https://${origin.slice('http://'.length)}`);
+        }
+    }
+    return [...result];
+};
+
 const parseInteger = (value: string | undefined, fallback: number) => {
     if (!value) {
         return fallback;
@@ -47,13 +61,13 @@ const env = {
     jwtIssuer: process.env.JWT_ISSUER || 'geo-education',
     jwtAudience: process.env.JWT_AUDIENCE || 'geo-education-app',
     authCookieName: process.env.AUTH_COOKIE_NAME || 'token',
-    frontendOrigins: Array.from(
+    frontendOrigins: withCounterpartScheme(Array.from(
         new Set([
             ...DEFAULT_FRONTEND_ORIGINS,
             ...parseOrigins(process.env.FRONTEND_URL),
             ...parseOrigins(process.env.FRONTEND_ADDITIONAL_ORIGINS)
         ])
-    ),
+    )),
     requestBodyLimit: process.env.REQUEST_BODY_LIMIT || '5mb',
     bcryptRounds: parseInteger(process.env.BCRYPT_ROUNDS, 10),
     generalRateLimitWindowMs: parseInteger(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
