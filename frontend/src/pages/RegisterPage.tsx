@@ -35,37 +35,68 @@ export const RegisterPage: React.FC = () => {
     };
     const handleMouseLeave = () => { glowRef.current?.classList.remove('active'); };
 
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    const nameError =
+        trimmedName && trimmedName.length < 2
+            ? 'Nama minimal 2 karakter'
+            : trimmedName.length > 80
+                ? 'Nama terlalu panjang'
+                : null;
+
+    const emailError =
+        !trimmedEmail
+            ? null
+            : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
+                ? null
+                : 'Email tidak valid';
+
+    const passwordRules = [
+        { met: password.length >= 8 && password.length <= 72, label: 'Minimal 8 karakter' },
+        { met: /[A-Za-z]/.test(password), label: 'Mengandung huruf' },
+        { met: /\d/.test(password), label: 'Mengandung angka' },
+    ];
+    const passwordError =
+        !password
+            ? null
+            : password.length < 8
+                ? 'Password minimal 8 karakter'
+                : password.length > 72
+                    ? 'Password terlalu panjang'
+                    : !/[A-Za-z]/.test(password)
+                        ? 'Password harus mengandung huruf'
+                        : !/\d/.test(password)
+                            ? 'Password harus mengandung angka'
+                            : null;
+
+    const confirmError =
+        confirmPassword && password !== confirmPassword ? 'Password tidak cocok.' : null;
+
+    const isFormValid =
+        !nameError && trimmedName.length >= 2 &&
+        !emailError && trimmedEmail.length > 0 &&
+        !passwordError && password.length > 0 &&
+        !confirmError && confirmPassword.length > 0;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        if (password !== confirmPassword) { setError('Password tidak cocok.'); return; }
-        if (password.length < 8) { setError('Password minimal 8 karakter.'); return; }
+        if (!isFormValid) {
+            setError(nameError || emailError || passwordError || confirmError || 'Lengkapi data pendaftaran dengan benar.');
+            return;
+        }
         setLoading(true);
         try {
-            const u = await register(email, password, name);
+            const u = await register(trimmedEmail, password, trimmedName);
             setStep('success');
             setTimeout(() => navigate(getRoleBasedRedirect(u.role || 'STUDENT')), 2000);
-        } catch (err: any) {
-            setError(err.message || 'Pendaftaran gagal.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Pendaftaran gagal.');
         } finally {
             setLoading(false);
         }
     };
-
-    const strength = (() => {
-        if (!password) return { w: '0%', c: '', l: '' };
-        let s = 0;
-        if (password.length >= 8) s++;
-        if (/[A-Z]/.test(password)) s++;
-        if (/[0-9]/.test(password)) s++;
-        if (/[^A-Za-z0-9]/.test(password)) s++;
-        return [
-            { w: '25%', c: '#ef4444', l: 'Lemah' },
-            { w: '50%', c: '#f59e0b', l: 'Cukup' },
-            { w: '75%', c: '#eab308', l: 'Baik' },
-            { w: '100%', c: '#22c55e', l: 'Kuat' },
-        ][Math.min(s, 3)];
-    })();
 
     const inputStyle: React.CSSProperties = {
         width: '100%', padding: '0.7rem 0.875rem 0.7rem 2.5rem',
@@ -137,13 +168,16 @@ export const RegisterPage: React.FC = () => {
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleSubmit} noValidate>
                             <div style={{ marginBottom: '0.875rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '0.35rem' }}>Nama Lengkap</label>
                                 <div style={{ position: 'relative' }}>
                                     <User size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
-                                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nama kamu" required style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nama kamu" required minLength={2} maxLength={80} style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
                                 </div>
+                                {nameError && (
+                                    <p role="alert" style={{ fontSize: '0.6875rem', color: '#ef4444', marginTop: '0.25rem' }}>{nameError}</p>
+                                )}
                             </div>
 
                             <div style={{ marginBottom: '0.875rem' }}>
@@ -152,25 +186,33 @@ export const RegisterPage: React.FC = () => {
                                     <Mail size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
                                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@email.com" required style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
                                 </div>
+                                {emailError && (
+                                    <p role="alert" style={{ fontSize: '0.6875rem', color: '#ef4444', marginTop: '0.25rem' }}>{emailError}</p>
+                                )}
                             </div>
 
                             <div style={{ marginBottom: '0.875rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-700)', marginBottom: '0.35rem' }}>Password</label>
                                 <div style={{ position: 'relative' }}>
                                     <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
-                                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 karakter" required minLength={8}
+                                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 karakter, huruf + angka" required minLength={8} maxLength={72}
                                         style={{ ...inputStyle, paddingRight: '2.5rem' }} onFocus={onFocus} onBlur={onBlur} />
                                     <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
                                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                     </button>
                                 </div>
-                                {password && (
-                                    <div style={{ marginTop: '0.4rem' }}>
-                                        <div style={{ height: 3, borderRadius: 2, background: 'var(--gray-200)', overflow: 'hidden' }}>
-                                            <div style={{ height: '100%', width: strength.w, background: strength.c, transition: 'width 200ms' }} />
-                                        </div>
-                                        <p style={{ fontSize: '0.6875rem', color: strength.c, marginTop: '0.2rem' }}>{strength.l}</p>
-                                    </div>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                    {passwordRules.map(rule => (
+                                        <li key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.6875rem', color: rule.met ? '#16a34a' : 'var(--gray-500)' }}>
+                                            <span style={{ width: 12, height: 12, borderRadius: '50%', background: rule.met ? '#16a34a' : 'var(--gray-200)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.5625rem', fontWeight: 700, flexShrink: 0 }}>
+                                                {rule.met ? '✓' : ''}
+                                            </span>
+                                            {rule.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                                {passwordError && password && (
+                                    <p role="alert" style={{ fontSize: '0.6875rem', color: '#ef4444', marginTop: '0.25rem' }}>{passwordError}</p>
                                 )}
                             </div>
 
@@ -181,18 +223,19 @@ export const RegisterPage: React.FC = () => {
                                     <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Ulangi password" required
                                         style={{ ...inputStyle, borderColor: confirmPassword && password !== confirmPassword ? '#ef4444' : undefined }} onFocus={onFocus} onBlur={onBlur} />
                                 </div>
-                                {confirmPassword && password !== confirmPassword && (
-                                    <p style={{ fontSize: '0.6875rem', color: '#ef4444', marginTop: '0.25rem' }}>Password tidak cocok</p>
+                                {confirmError && (
+                                    <p role="alert" style={{ fontSize: '0.6875rem', color: '#ef4444', marginTop: '0.25rem' }}>{confirmError}</p>
                                 )}
                             </div>
 
-                            <button type="submit" disabled={loading} style={{
+                            <button type="submit" disabled={loading || !isFormValid} style={{
                                 width: '100%', padding: '0.75rem', background: '#10b981', color: 'white', borderRadius: 12,
                                 fontSize: '0.9375rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                                opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer',
+                                opacity: loading || !isFormValid ? 0.55 : 1, cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
                                 transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 4px 16px rgba(16,185,129,0.2)'
                             }}
-                                onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(16,185,129,0.25)'; } }}
+                                title={!isFormValid ? 'Lengkapi nama, email valid, password (huruf + angka), dan konfirmasi yang cocok' : undefined}
+                                onMouseEnter={e => { if (!loading && isFormValid) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(16,185,129,0.25)'; } }}
                                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(16,185,129,0.2)'; }}
                             >
                                 {loading ? <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Mendaftarkan...</> : <><UserPlus size={18} /> Daftar</>}

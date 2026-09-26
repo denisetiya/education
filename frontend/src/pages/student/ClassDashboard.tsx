@@ -471,7 +471,7 @@ export const ClassDashboard: React.FC = () => {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
                                             {module.materials.map((material, materialIndex) => {
                                                 const status = getMaterialStatus(material.id);
-                                                const locked = isMaterialLocked(moduleIndex, materialIndex);
+                                                const locked = isItemLocked(moduleIndex, materialIndex);
                                                 const tone = getMaterialTypeTone(material.type);
                                                 const statusMeta = getStatusMeta(status, locked);
 
