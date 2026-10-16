@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Search, Loader, Edit, Trash2, BookOpen, Video, FileText, HelpCircle, Link2, X, Eye, Layers3, Library, Workflow, Sparkles } from 'lucide-react';
+import { Plus, Search, Loader, Edit, Trash2, BookOpen, Video, FileText, HelpCircle, Link2, X, Eye, Layers3, Library, Workflow, Sparkles, Copy } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { materialsAPI, getApiErrorMessage } from '../../utils/api';
+import { DuplicateTargetDialog } from '../../components/teacher/DuplicateTargetDialog';
 
 interface Material {
     id: string;
@@ -62,6 +63,7 @@ export const TeacherMaterials: React.FC = () => {
     const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [duplicateTarget, setDuplicateTarget] = useState<Material | null>(null);
 
     const categories = ['MATEMATIKA', 'IPA', 'IPS', 'BAHASA_INDONESIA', 'BAHASA_INGGRIS', 'SENI', 'OLAHRAGA'];
 
@@ -154,6 +156,21 @@ export const TeacherMaterials: React.FC = () => {
         recent: materials.slice(0, 5)
     };
 
+    const handleDuplicate = async (target: { targetClassId: string; targetModuleId: string | null; copyLinkedContent: boolean }) => {
+        if (!duplicateTarget || !target.targetModuleId) {
+            return;
+        }
+
+        await materialsAPI.duplicate(duplicateTarget.id, {
+            targetModuleId: target.targetModuleId,
+            copyLinkedContent: target.copyLinkedContent
+        });
+
+        notifications.success('Materi berhasil diduplikat ke kelas tujuan.', 'Duplikasi selesai');
+        setDuplicateTarget(null);
+        fetchMaterials();
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <section
@@ -193,7 +210,7 @@ export const TeacherMaterials: React.FC = () => {
                     ))}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) minmax(260px, 360px)', gap: '1rem', marginTop: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem', marginTop: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', padding: '0.75rem 1rem', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
                         <Search size={18} color="#64748b" />
                         <input
@@ -228,7 +245,7 @@ export const TeacherMaterials: React.FC = () => {
 
             {!loading && !error && (
                 <div className="card glass animate-slide-up" style={{ padding: '0', overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
+                    <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
                             <thead>
                                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -289,6 +306,10 @@ export const TeacherMaterials: React.FC = () => {
                                                     style={{ padding: '0.5rem', color: 'var(--primary)', background: '#e0e7ff', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }} title="Edit">
                                                     <Edit size={16} />
                                                 </button>
+                                                <button onClick={(event) => { event.stopPropagation(); setDuplicateTarget(material); }}
+                                                    style={{ padding: '0.5rem', color: '#0e7490', background: '#ecfeff', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }} title="Duplikat ke kelas lain">
+                                                    <Copy size={16} />
+                                                </button>
                                                 <button onClick={(event) => { event.stopPropagation(); setDeleteConfirm(material.id); }}
                                                     style={{ padding: '0.5rem', color: '#dc2626', background: '#fee2e2', borderRadius: '0.5rem', cursor: 'pointer', border: 'none' }} title="Hapus">
                                                     <Trash2 size={16} />
@@ -348,6 +369,9 @@ export const TeacherMaterials: React.FC = () => {
                                 <p style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>{parseMaterialDetail(selectedMaterial).primary}</p>
                             </div>
                             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                                <button className="btn btn-secondary" onClick={() => { setDuplicateTarget(selectedMaterial); }}>
+                                    <Copy size={16} /> Duplikat
+                                </button>
                                 <button className="btn btn-primary" onClick={() => { closeMaterialDetail(); navigate(`/teacher/materials/${selectedMaterial.id}/edit`); }}>
                                     <Edit size={16} /> Edit
                                 </button>
@@ -356,6 +380,14 @@ export const TeacherMaterials: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <DuplicateTargetDialog
+                open={Boolean(duplicateTarget)}
+                kind="material"
+                itemTitle={duplicateTarget?.title || ''}
+                onClose={() => setDuplicateTarget(null)}
+                onConfirm={handleDuplicate}
+            />
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (

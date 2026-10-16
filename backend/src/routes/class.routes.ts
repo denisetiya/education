@@ -13,6 +13,11 @@ import {
     sanitizeQuestionSetForStudent,
     serializeQuestionSet
 } from '../features/exercises/exercise-config';
+import {
+    duplicateClassBook,
+    duplicateClassExercise,
+    DuplicationError
+} from '../features/classes/duplication.service';
 
 const router = Router();
 
@@ -1470,6 +1475,48 @@ router.put('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN')
     }
 });
 
+// Duplicate a book into another class (Teacher only)
+router.post('/:id/books/:bookId/duplicate', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const { id, bookId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to duplicate books in this class' });
+        }
+
+        const targetClassId = String(req.body?.targetClassId || '').trim();
+        if (!targetClassId) {
+            return res.status(400).json({ error: 'Target class is required' });
+        }
+
+        const targetAccess = await getClassAccess(targetClassId, user.id, user.role);
+        if (!targetAccess.targetClass) {
+            return res.status(404).json({ error: 'Target class not found' });
+        }
+
+        if (!canManageClass(targetAccess)) {
+            return res.status(403).json({ error: 'Not authorized to add books to the target class' });
+        }
+
+        const duplicated = await duplicateClassBook(bookId, id, targetClassId);
+
+        res.status(201).json(duplicated);
+    } catch (error) {
+        if (error instanceof DuplicationError) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Duplicate book error:', error);
+        res.status(500).json({ error: 'Failed to duplicate book' });
+    }
+});
+
 // Delete a book
 router.delete('/:id/books/:bookId', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
     try {
@@ -1751,6 +1798,76 @@ router.put('/:id/exercises/:exerciseId', authMiddleware, requireRole('TEACHER', 
 
         console.error('Update exercise error:', error);
         res.status(500).json({ error: 'Failed to update exercise' });
+    }
+});
+
+// Duplicate exercise into another class (Teacher only)
+router.post('/:id/exercises/:exerciseId/duplicate', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: AuthRequest, res) => {
+    try {
+        const { id, exerciseId } = req.params;
+        const user = getRequestUser(req);
+        const access = await getClassAccess(id, user.id, user.role);
+
+        if (!access.targetClass) {
+            return res.status(404).json({ error: 'Class not found' });
+        }
+
+        if (!canManageClass(access)) {
+            return res.status(403).json({ error: 'Not authorized to duplicate exercises in this class' });
+        }
+
+        const existingExercise = await prisma.classExercise.findFirst({
+            where: { id: exerciseId, classId: id }
+        });
+
+        if (!existingExercise) {
+            return res.status(404).json({ error: 'Exercise not found' });
+        }
+
+        const targetClassId = String(req.body?.targetClassId || '').trim();
+        if (!targetClassId) {
+            return res.status(400).json({ error: 'Target class is required' });
+        }
+
+        const targetAccess = await getClassAccess(targetClassId, user.id, user.role);
+        if (!targetAccess.targetClass) {
+            return res.status(404).json({ error: 'Target class not found' });
+        }
+
+        if (!canManageClass(targetAccess)) {
+            return res.status(403).json({ error: 'Not authorized to add exercises to the target class' });
+        }
+
+        const targetModuleId = typeof req.body?.targetModuleId === 'string' && req.body.targetModuleId.trim()
+            ? req.body.targetModuleId.trim()
+            : null;
+
+        if (targetModuleId) {
+            const targetModule = await prisma.module.findUnique({
+                where: { id: targetModuleId },
+                select: { classId: true }
+            });
+
+            if (!targetModule || targetModule.classId !== targetClassId) {
+                return res.status(400).json({ error: 'Target module does not belong to the target class' });
+            }
+        }
+
+        const duplicated = await duplicateClassExercise(exerciseId, targetClassId);
+
+        if (targetModuleId) {
+            await prisma.classExercise.update({
+                where: { id: duplicated.id },
+                data: { moduleId: targetModuleId, moduleOrder: existingExercise.moduleOrder }
+            });
+        }
+
+        const withModule = await prisma.classExercise.findUnique({ where: { id: duplicated.id } });
+
+        res.status(201).json(formatExerciseForResponse(withModule ?? duplicated, true));
+    } catch (error) {
+        console.error('Duplicate exercise error:', error);
+        res.status(500).json({ error: 'Failed to duplicate exercise' });
     }
 });
 

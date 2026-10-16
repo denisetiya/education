@@ -1,6 +1,9 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import prisma from '../utils/prisma';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth.middleware';
+import { validateBody } from '../middleware/validation.middleware';
+import { duplicateMaterial, DuplicationError } from '../features/classes/duplication.service';
 
 const router = Router();
 
@@ -16,6 +19,29 @@ const canManageMaterial = async (materialId: string, userId: string, role: strin
 
     return material?.createdById === userId;
 };
+
+const canManageModule = async (moduleId: string, userId: string, role: string) => {
+    if (role === 'ADMIN') {
+        return true;
+    }
+
+    const module = await prisma.module.findUnique({
+        where: { id: moduleId },
+        select: { class: { select: { teacherId: true } }, createdById: true }
+    });
+
+    if (!module) {
+        return false;
+    }
+
+    const classTeacherId = module.class?.teacherId ?? null;
+    return classTeacherId === userId || module.createdById === userId;
+};
+
+const duplicateMaterialSchema = z.object({
+    targetModuleId: z.string().trim().min(1, 'Modul tujuan wajib dipilih'),
+    copyLinkedContent: z.boolean().optional()
+});
 
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -174,6 +200,34 @@ router.put('/:id', authMiddleware, requireRole('TEACHER', 'ADMIN'), async (req: 
     } catch (error) {
         console.error('Update material error:', error);
         res.status(500).json({ error: 'Failed to update material' });
+    }
+});
+
+// Duplicate material into another class module (Teacher/Admin only)
+router.post('/:id/duplicate', authMiddleware, requireRole('TEACHER', 'ADMIN'), validateBody(duplicateMaterialSchema), async (req: AuthRequest, res) => {
+    try {
+        const isAllowed = await canManageMaterial(req.params.id, req.user!.id, req.user!.role);
+        if (!isAllowed) {
+            return res.status(403).json({ error: 'Cannot duplicate material owned by another teacher' });
+        }
+
+        const { targetModuleId, copyLinkedContent } = req.body as { targetModuleId: string; copyLinkedContent?: boolean };
+
+        const moduleAllowed = await canManageModule(targetModuleId, req.user!.id, req.user!.role);
+        if (!moduleAllowed) {
+            return res.status(403).json({ error: 'Cannot add material to a module of another teacher' });
+        }
+
+        const duplicated = await duplicateMaterial(req.params.id, targetModuleId, copyLinkedContent !== false);
+
+        res.status(201).json(duplicated);
+    } catch (error) {
+        if (error instanceof DuplicationError) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Duplicate material error:', error);
+        res.status(500).json({ error: 'Failed to duplicate material' });
     }
 });
 

@@ -13,6 +13,7 @@ import ClassDiscussionPanel from '../../components/classes/ClassDiscussionPanel'
 import ClassLeaderboardPanel from '../../components/classes/ClassLeaderboardPanel';
 import { TeacherClassStatisticsTab } from '../../components/classes/TeacherClassStatisticsTab';
 import { TeacherExercisesTab } from './TeacherExercisesTab';
+import { DuplicateTargetDialog } from '../../components/teacher/DuplicateTargetDialog';
 
 interface ClassData {
     id: string;
@@ -125,6 +126,7 @@ export const TeacherClassDetail: React.FC = () => {
     const [showBookModal, setShowBookModal] = useState(false);
     const [editingBook, setEditingBook] = useState<ClassBook | null>(null);
     const [selectedBook, setSelectedBook] = useState<ClassBook | null>(null);
+    const [duplicateBookTarget, setDuplicateBookTarget] = useState<ClassBook | null>(null);
     const [newBook, setNewBook] = useState({
         title: '',
         author: '',
@@ -373,6 +375,18 @@ export const TeacherClassDetail: React.FC = () => {
             console.error('Failed to delete book', error);
             notifications.error('Gagal menghapus buku.', 'Aksi belum selesai');
         }
+    };
+
+    const handleDuplicateBook = async (target: { targetClassId: string; targetModuleId: string | null; copyLinkedContent: boolean }) => {
+        if (!id || !duplicateBookTarget) {
+            return;
+        }
+
+        await classesAPI.duplicateBook(id, duplicateBookTarget.id, { targetClassId: target.targetClassId });
+
+        notifications.success('Buku berhasil diduplikat ke kelas tujuan.', 'Duplikasi selesai');
+        setDuplicateBookTarget(null);
+        void fetchBooks();
     };
 
     const openEditBook = (book: ClassBook) => {
@@ -913,6 +927,16 @@ export const TeacherClassDetail: React.FC = () => {
                                                 >
                                                     <Edit size={16} color="#64748b" />
                                                 </button>
+                                                <button
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setDuplicateBookTarget(book);
+                                                    }}
+                                                    style={{ padding: '0.5rem', borderRadius: '0.5rem', background: 'white', border: '1px solid #cffafe', cursor: 'pointer' }}
+                                                    title="Duplikat ke kelas lain"
+                                                >
+                                                    <Copy size={16} color="#0e7490" />
+                                                </button>
                                                 <button 
                                                     onClick={(event) => {
                                                         event.stopPropagation();
@@ -1391,8 +1415,16 @@ export const TeacherClassDetail: React.FC = () => {
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
-                                <button type="button" className="btn btn-secondary" onClick={() => setSelectedBook(null)}>
-                                    Tutup
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => {
+                                        const book = selectedBook;
+                                        setSelectedBook(null);
+                                        setDuplicateBookTarget(book);
+                                    }}
+                                >
+                                    <Copy size={16} /> Duplikat
                                 </button>
                                 <button
                                     type="button"
@@ -1414,6 +1446,14 @@ export const TeacherClassDetail: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <DuplicateTargetDialog
+                open={Boolean(duplicateBookTarget)}
+                kind="book"
+                itemTitle={duplicateBookTarget?.title || ''}
+                onClose={() => setDuplicateBookTarget(null)}
+                onConfirm={handleDuplicateBook}
+            />
 
             {/* Book Create/Edit Modal */}
             {showBookModal && (

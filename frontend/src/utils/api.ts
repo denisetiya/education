@@ -223,6 +223,8 @@ export const materialsAPI = {
         apiFetch<Material>('/materials', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Record<string, unknown>) =>
         apiFetch<Material>(`/materials/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    duplicate: (id: string, data: { targetModuleId: string; copyLinkedContent?: boolean }) =>
+        apiFetch<Material>(`/materials/${id}/duplicate`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) =>
         apiFetch<Record<string, unknown>>(`/materials/${id}`, { method: 'DELETE' })
 };
@@ -361,6 +363,8 @@ export const classesAPI = {
     getBooks: (classId: string) => apiFetch<any[]>(`/classes/${classId}/books`),
     createBook: (classId: string, data: { title: string; author?: string; description?: string; coverUrl?: string; contentType: string; content?: string; pdfUrl?: string }) =>
         apiFetch<any>(`/classes/${classId}/books`, { method: 'POST', body: JSON.stringify(data) }),
+    duplicateBook: (classId: string, bookId: string, data: { targetClassId: string }) =>
+        apiFetch<any>(`/classes/${classId}/books/${bookId}/duplicate`, { method: 'POST', body: JSON.stringify(data) }),
     updateBook: (classId: string, bookId: string, data: Record<string, unknown>) =>
         apiFetch<any>(`/classes/${classId}/books/${bookId}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteBook: (classId: string, bookId: string) =>
@@ -400,6 +404,8 @@ export const classesAPI = {
             score: number;
             message: string;
         }>(`/classes/${classId}/exercises/${exerciseId}/attempt`, { method: 'POST', body: JSON.stringify(data) }),
+    duplicateExercise: (classId: string, exerciseId: string, data: { targetClassId: string; targetModuleId?: string | null }) =>
+        apiFetch<ClassExerciseSummary>(`/classes/${classId}/exercises/${exerciseId}/duplicate`, { method: 'POST', body: JSON.stringify(data) }),
     gradeExerciseAttempt: (classId: string, exerciseId: string, attemptId: string, data: { score: number; isCorrect?: boolean; feedback?: string }) =>
         apiFetch<{ message: string; attempt: ExerciseAttemptSummary }>(
             `/classes/${classId}/exercises/${exerciseId}/attempts/${attemptId}/grade`,

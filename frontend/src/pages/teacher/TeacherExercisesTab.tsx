@@ -1,8 +1,9 @@
 import React from 'react';
-import { Clock, Edit, ExternalLink, Eye, PenTool, Plus, Trash2, X } from 'lucide-react';
+import { Clock, Copy, Edit, ExternalLink, Eye, PenTool, Plus, Trash2, X } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { getQuestionAnswerTypeSummary, parseExerciseQuestions } from '../../features/exercises/exercise-config';
 import { classesAPI, getApiErrorMessage } from '../../utils/api';
+import { DuplicateTargetDialog } from '../../components/teacher/DuplicateTargetDialog';
 
 interface TeacherExercisesTabProps {
     classId: string;
@@ -34,6 +35,7 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
     const notifications = useNotifications();
     const [exercises, setExercises] = React.useState<ExerciseItem[]>([]);
     const [selectedExercise, setSelectedExercise] = React.useState<ExerciseItem | null>(null);
+    const [duplicateTarget, setDuplicateTarget] = React.useState<ExerciseItem | null>(null);
     const [loading, setLoading] = React.useState(true);
 
     const fetchExercises = React.useCallback(async () => {
@@ -73,6 +75,21 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                 'Latihan belum dihapus'
             );
         }
+    };
+
+    const handleDuplicate = async (target: { targetClassId: string; targetModuleId: string | null; copyLinkedContent: boolean }) => {
+        if (!duplicateTarget) {
+            return;
+        }
+
+        await classesAPI.duplicateExercise(classId, duplicateTarget.id, {
+            targetClassId: target.targetClassId,
+            targetModuleId: target.targetModuleId
+        });
+
+        notifications.success('Latihan berhasil diduplikat sebagai draft di kelas tujuan.', 'Duplikasi selesai');
+        setDuplicateTarget(null);
+        void fetchExercises();
     };
 
     const difficultyConfig: Record<string, { text: string; color: string; bg: string }> = {
@@ -404,6 +421,30 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                                         <button
                                             onClick={(event) => {
                                                 event.stopPropagation();
+                                                setDuplicateTarget(exercise);
+                                            }}
+                                            style={{
+                                                flex: 1,
+                                                minWidth: '120px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.5rem',
+                                                background: '#ecfeff',
+                                                color: '#0e7490',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                cursor: 'pointer',
+                                                fontSize: '0.85rem',
+                                                fontWeight: '600'
+                                            }}
+                                        >
+                                            <Copy size={14} /> Duplikat
+                                        </button>
+                                        <button
+                                            onClick={(event) => {
+                                                event.stopPropagation();
                                                 void handleDelete(exercise.id);
                                             }}
                                             style={{
@@ -424,6 +465,14 @@ export const TeacherExercisesTab: React.FC<TeacherExercisesTabProps> = ({ classI
                     })}
                 </div>
             )}
+
+            <DuplicateTargetDialog
+                open={Boolean(duplicateTarget)}
+                kind="exercise"
+                itemTitle={duplicateTarget?.title || ''}
+                onClose={() => setDuplicateTarget(null)}
+                onConfirm={handleDuplicate}
+            />
 
             {selectedExercise && (() => {
                 const difficulty = difficultyConfig[selectedExercise.difficulty] || difficultyConfig.medium;
