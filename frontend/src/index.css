@@ -249,6 +249,14 @@ input, textarea, select {
   margin: 1rem;
 }
 
+/* Grid dua kolom dengan sidebar kanan; turun ke satu kolom saat layar sempit */
+.split-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 2rem;
+  align-items: start;
+}
+
 /* Responsive Breakpoints */
 @media (max-width: 768px) {
   .container { padding: 0 1rem; }
@@ -257,6 +265,7 @@ input, textarea, select {
   .card-flat { padding: 1rem; }
   .mobile-stack { flex-direction: column !important; }
   .mobile-full { width: 100% !important; }
+  .split-sidebar { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

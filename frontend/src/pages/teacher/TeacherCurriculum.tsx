@@ -232,7 +232,7 @@ export const TeacherCurriculum: React.FC = () => {
             {loading ? (
                  <div style={{ textAlign: 'center', padding: '4rem' }}>Loading...</div>
             ) : (
-                <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '2rem', animationDelay: '0.1s' }}>
+                <div className="animate-slide-up split-sidebar" style={{ animationDelay: '0.1s' }}>
 
                     {/* Editor Canvas */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
